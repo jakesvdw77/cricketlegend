@@ -23,8 +23,7 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HOSTNAME: 102.210.146.217
       KC_HOSTNAME_PORT: 8180
-      KC_HEALTH_ENABLED: true
-      KC_HOSTNAME_STRICT_HTTPS: false # Set to true for production with HTTPS
+      KC_HOSTNAME_STRICT_HTTPS: false
     ports:
       - 8080:8180
     restart: always
