@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Avatar, CircularProgress,
-  List, ListItem, ListItemAvatar, ListItemText, Autocomplete, Chip,
+  List, ListItem, ListItemAvatar, ListItemText, Autocomplete,
 } from '@mui/material';
 import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';

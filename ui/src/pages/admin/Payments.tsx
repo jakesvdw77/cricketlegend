@@ -155,7 +155,6 @@ export const Payments: React.FC = () => {
   const showAdHocDescription = editing.paymentType === 'AD_HOC';
 
   const playerCategories: PaymentCategory[] = ['TOURNAMENT_FEE', 'ANNUAL_SUBSCRIPTION'];
-  const sponsorCategories: PaymentCategory[] = ['SPONSORSHIP'];
 
   return (
     <Box>
