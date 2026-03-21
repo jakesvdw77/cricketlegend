@@ -19,6 +19,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok.version>1.18.36</lombok.version>
         <springdoc.version>2.8.5</springdoc.version>
+        <revision>1.0.1</revision>
     </properties>
 
     <dependencies>
@@ -149,6 +150,30 @@
                             <artifactId>lombok</artifactId>
                         </exclude>
                     </excludes>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.4.3</version>
+                <configuration>
+                    <from>
+                        <image>eclipse-temurin:17-jre-alpine</image>
+                    </from>
+                    <to>
+                        <image>jakesvdwesthuizen/cricketlegend</image>
+                        <tags>
+                            <tag>latest</tag>
+                            <tag>${revision}</tag>
+                        </tags>
+                    </to>
+                    <container>
+                        <ports>
+                            <port>8081</port>
+                        </ports>
+                    </container>
+
                 </configuration>
             </plugin>
         </plugins>
