@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <include file="db/changelog/v1/001-create-tables.sql"/>
+    <include file="db/changelog/v1/002-club-extra-fields.sql"/>
+    <include file="db/changelog/v1/003-player-home-club.sql"/>
+    <include file="db/changelog/v1/004-match-side-wicket-keeper.sql"/>
+    <include file="db/changelog/v1/005-sponsor.sql"/>
+    <include file="db/changelog/v1/006-payment.sql"/>
+    <include file="db/changelog/v1/007-tournament-fees.sql"/>
+    <include file="db/changelog/v1/008-match-result-overs.sql"/>
+    <include file="db/changelog/v1/009-sponsor-contact-person.sql"/>
+    <include file="db/changelog/v1/010-tournament-winning-team.sql"/>
+    <include file="db/changelog/v1/011-match-stage.sql"/>
+    <include file="db/changelog/v1/012-team-squad.sql"/>
+    <include file="db/changelog/v1/013-team-photo.sql"/>
+    <include file="db/changelog/v1/014-team-abbreviation.sql"/>
+    <include file="db/changelog/v1/015-match-side-captain.sql"/>
+    <include file="db/changelog/v1/016-match-scoring-url.sql"/>
+    <include file="db/changelog/v1/017-player-career-url.sql"/>
+
+</databaseChangeLog>

@@ -1,0 +1,28 @@
+package com.cricketlegend.dto;
+
+import com.cricketlegend.domain.enums.MatchStage;
+import lombok.*;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class MatchDTO {
+    private Long matchId;
+    private LocalDate matchDate;
+    private LocalTime scheduledStartTime;
+    private String umpire;
+    private String scoringUrl;
+    private MatchStage matchStage;
+    private Long homeTeamId;
+    private String homeTeamName;
+    private String homeTeamLogoUrl;
+    private Long oppositionTeamId;
+    private String oppositionTeamName;
+    private String oppositionTeamLogoUrl;
+    private Long fieldId;
+    private String fieldName;
+    private String fieldGoogleMapsUrl;
+    private Long tournamentId;
+    private String tournamentName;
+}

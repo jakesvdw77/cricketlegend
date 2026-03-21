@@ -1,0 +1,90 @@
+package com.cricketlegend.service.impl;
+
+import com.cricketlegend.domain.Club;
+import com.cricketlegend.domain.Player;
+import com.cricketlegend.dto.PlayerDTO;
+import com.cricketlegend.exception.NotFoundException;
+import com.cricketlegend.mapper.PlayerMapper;
+import com.cricketlegend.repository.ClubRepository;
+import com.cricketlegend.repository.PlayerRepository;
+import com.cricketlegend.service.PlayerService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class PlayerServiceImpl implements PlayerService {
+
+    private final PlayerRepository playerRepository;
+    private final ClubRepository clubRepository;
+    private final PlayerMapper playerMapper;
+
+    @Override
+    public List<PlayerDTO> findAll() {
+        return playerRepository.findAll().stream().map(playerMapper::toDto).toList();
+    }
+
+    @Override
+    public PlayerDTO findById(Long id) {
+        return playerRepository.findById(id)
+                .map(playerMapper::toDto)
+                .orElseThrow(() -> NotFoundException.of("Player", id));
+    }
+
+    @Override
+    public List<PlayerDTO> search(String query) {
+        return playerRepository
+                .findByNameContainingIgnoreCaseOrSurnameContainingIgnoreCase(query, query)
+                .stream().map(playerMapper::toDto).toList();
+    }
+
+    @Override
+    @Transactional
+    public PlayerDTO create(PlayerDTO dto) {
+        Player player = playerMapper.toEntity(dto);
+        resolveClub(player, dto.getHomeClubId());
+        return playerMapper.toDto(playerRepository.save(player));
+    }
+
+    @Override
+    @Transactional
+    public PlayerDTO update(Long id, PlayerDTO dto) {
+        Player existing = playerRepository.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Player", id));
+        existing.setName(dto.getName());
+        existing.setSurname(dto.getSurname());
+        existing.setDateOfBirth(dto.getDateOfBirth());
+        existing.setContactNumber(dto.getContactNumber());
+        existing.setEmail(dto.getEmail());
+        existing.setAlternativeContactNumber(dto.getAlternativeContactNumber());
+        existing.setShirtNumber(dto.getShirtNumber());
+        existing.setProfilePictureUrl(dto.getProfilePictureUrl());
+        existing.setBattingStance(dto.getBattingStance());
+        existing.setBowlingArm(dto.getBowlingArm());
+        existing.setBowlingType(dto.getBowlingType());
+        existing.setWicketKeeper(dto.getWicketKeeper());
+        resolveClub(existing, dto.getHomeClubId());
+        return playerMapper.toDto(playerRepository.save(existing));
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id) {
+        if (!playerRepository.existsById(id)) throw NotFoundException.of("Player", id);
+        playerRepository.deleteById(id);
+    }
+
+    private void resolveClub(Player player, Long clubId) {
+        if (clubId != null) {
+            Club club = clubRepository.findById(clubId)
+                    .orElseThrow(() -> NotFoundException.of("Club", clubId));
+            player.setHomeClub(club);
+        } else {
+            player.setHomeClub(null);
+        }
+    }
+}

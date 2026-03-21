@@ -1,0 +1,306 @@
+export type CricketFormat = 'T20' | 'T30' | 'T45' | 'T50';
+export type BattingStance = 'LEFT_HANDED' | 'RIGHT_HANDED';
+export type BowlingArm = 'LEFT' | 'RIGHT';
+export type BowlingType = 'FAST_PACE' | 'MEDIUM_FAST_PACE' | 'MEDIUM_PACE' | 'OFF_SPIN' | 'LEG_SPIN' | 'SLOW_BOWLER' | 'NONE';
+export type DismissalType = 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' | 'HIT_WICKET' | 'NOT_OUT';
+
+export type MatchStage = 'POOL' | 'SEMI_FINAL' | 'FINAL';
+
+export type PaymentType = 'PLAYER' | 'SPONSOR' | 'AD_HOC';
+export type PaymentCategory = 'TOURNAMENT_FEE' | 'ANNUAL_SUBSCRIPTION' | 'SPONSORSHIP' | 'AD_HOC';
+
+export interface Payment {
+  paymentId?: number;
+  paymentType: PaymentType;
+  paymentCategory?: PaymentCategory;
+  playerId?: number;
+  playerName?: string;
+  sponsorId?: number;
+  sponsorName?: string;
+  tournamentId?: number;
+  tournamentName?: string;
+  paymentDate: string;
+  amount: number;
+  description?: string;
+  proofOfPaymentUrl?: string;
+  createdAt?: string;
+}
+
+export interface Sponsor {
+  sponsorId?: number;
+  name: string;
+  brandLogoUrl?: string;
+  brandWebsite?: string;
+  contactPerson?: string;
+  contactNumber?: string;
+  contactEmail?: string;
+}
+
+export interface Club {
+  clubId?: number;
+  name: string;
+  logoUrl?: string;
+  googleMapsUrl?: string;
+  websiteUrl?: string;
+  contactPerson?: string;
+  email?: string;
+  contactNumber?: string;
+}
+
+export interface MediaContent {
+  id?: number;
+  url: string;
+}
+
+export interface Field {
+  fieldId?: number;
+  name: string;
+  address?: string;
+  googleMapsUrl?: string;
+  homeClubId?: number;
+  homeClubName?: string;
+}
+
+export interface Player {
+  playerId?: number;
+  name: string;
+  surname: string;
+  dateOfBirth?: string;
+  contactNumber?: string;
+  email?: string;
+  alternativeContactNumber?: string;
+  shirtNumber?: number;
+  profilePictureUrl?: string;
+  careerUrl?: string;
+  battingStance?: BattingStance;
+  bowlingArm?: BowlingArm;
+  bowlingType?: BowlingType;
+  wicketKeeper?: boolean;
+  homeClubId?: number;
+  homeClubName?: string;
+  mediaContent?: MediaContent[];
+}
+
+export interface Team {
+  teamId?: number;
+  teamName: string;
+  abbreviation?: string;
+  associatedClubId?: number;
+  associatedClubName?: string;
+  coach?: string;
+  manager?: string;
+  administrator?: string;
+  email?: string;
+  contactNumber?: string;
+  captainId?: number;
+  captainName?: string;
+  homeFieldId?: number;
+  homeFieldName?: string;
+  logoUrl?: string;
+  teamPhotoUrl?: string;
+  websiteUrl?: string;
+  facebookUrl?: string;
+  mediaContent?: MediaContent[];
+}
+
+export interface TournamentTeam {
+  tournamentTeamId?: number;
+  poolId?: number;
+  teamId?: number;
+  teamName?: string;
+}
+
+export interface TournamentPool {
+  poolId?: number;
+  poolName: string;
+  tournamentId?: number;
+  teams?: TournamentTeam[];
+}
+
+export interface Tournament {
+  tournamentId?: number;
+  name: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+  cricketFormat?: CricketFormat;
+  bannerUrl?: string;
+  logoUrl?: string;
+  playingConditionsUrl?: string;
+  websiteLink?: string;
+  facebookLink?: string;
+  registrationPageUrl?: string;
+  entryFee?: number;
+  registrationFee?: number;
+  matchFee?: number;
+  winningTeamId?: number;
+  winningTeamName?: string;
+  pointsForWin?: number;
+  pointsForDraw?: number;
+  pointsForNoResult?: number;
+  pointsForBonus?: number;
+  pools?: TournamentPool[];
+  mediaContent?: MediaContent[];
+  sponsors?: Sponsor[];
+}
+
+export interface Match {
+  matchId?: number;
+  matchDate?: string;
+  scheduledStartTime?: string;
+  umpire?: string;
+  matchStage?: MatchStage;
+  homeTeamId?: number;
+  homeTeamName?: string;
+  homeTeamLogoUrl?: string;
+  oppositionTeamId?: number;
+  oppositionTeamName?: string;
+  oppositionTeamLogoUrl?: string;
+  fieldId?: number;
+  fieldName?: string;
+  fieldGoogleMapsUrl?: string;
+  scoringUrl?: string;
+  tournamentId?: number;
+  tournamentName?: string;
+}
+
+export interface BattingEntry {
+  playerId?: number;
+  playerName?: string;
+  battingPosition?: number;
+  batted?: boolean;
+  score?: number;
+  fours?: number;
+  sixes?: number;
+  dots?: number;
+  dismissed?: boolean;
+  dismissalType?: string;
+  dismissedBowler?: string;
+  dismissedDescription?: string;
+}
+
+export interface BowlingEntry {
+  playerId?: number;
+  playerName?: string;
+  overs?: string;
+  runs?: number;
+  wickets?: number;
+  dots?: number;
+  wides?: number;
+  noBalls?: number;
+}
+
+export interface TeamScorecard {
+  teamId?: number;
+  score?: number;
+  wickets?: number;
+  overs?: string;
+  batting?: BattingEntry[];
+  bowling?: BowlingEntry[];
+}
+
+export interface ScorecardData {
+  teamA?: TeamScorecard;
+  teamB?: TeamScorecard;
+}
+
+export interface MatchResultSummary {
+  matchId: number;
+  matchDate?: string;
+  homeTeamName?: string;
+  oppositionTeamName?: string;
+  fieldName?: string;
+  scoringUrl?: string;
+  sideBattingFirstName?: string;
+  scoreBattingFirst?: number;
+  wicketsLostBattingFirst?: number;
+  oversBattingFirst?: string;
+  scoreBattingSecond?: number;
+  wicketsLostBattingSecond?: number;
+  oversBattingSecond?: string;
+  matchDrawn?: boolean;
+  decidedOnDLS?: boolean;
+  wonWithBonusPoint?: boolean;
+  winningTeamName?: string;
+  manOfTheMatchName?: string;
+  matchOutcomeDescription?: string;
+}
+
+export interface PoolStandingEntry {
+  teamId: number;
+  teamName: string;
+  logoUrl?: string;
+  gamesPlayed: number;
+  won: number;
+  lost: number;
+  noResults: number;
+  draws: number;
+  points: number;
+  bonusPoints: number;
+  netRunRate: number;
+}
+
+export interface PoolStandings {
+  poolId: number;
+  poolName: string;
+  entries: PoolStandingEntry[];
+}
+
+export interface MatchResult {
+  matchResultId?: number;
+  matchId?: number;
+  matchCompleted?: boolean;
+  matchDrawn?: boolean;
+  decidedOnDLS?: boolean;
+  wonWithBonusPoint?: boolean;
+  winningTeamId?: number;
+  winningTeamName?: string;
+  manOfTheMatchId?: number;
+  manOfTheMatchName?: string;
+  sideBattingFirstId?: number;
+  sideBattingFirstName?: string;
+  scoreBattingFirst?: number;
+  wicketsLostBattingFirst?: number;
+  oversBattingFirst?: string;
+  scoreBattingSecond?: number;
+  wicketsLostBattingSecond?: number;
+  oversBattingSecond?: string;
+  matchOutcomeDescription?: string;
+  scoreCard?: ScorecardData;
+}
+
+export interface PlayerResult {
+  playerResultId?: number;
+  playerId?: number;
+  playerName?: string;
+  matchId?: number;
+  teamId?: number;
+  teamName?: string;
+  battingPosition?: number;
+  score?: number;
+  ballsFaced?: number;
+  foursHit?: number;
+  sixesHit?: number;
+  dismissed?: boolean;
+  dismissedByBowlerId?: number;
+  dismissedByBowlerName?: string;
+  dismissalType?: DismissalType;
+  oversBowled?: string;
+  wickets?: number;
+  wides?: number;
+  noBalls?: number;
+  dots?: number;
+  catches?: number;
+  manOfMatch?: boolean;
+}
+
+export interface MatchSide {
+  matchSideId?: number;
+  matchId?: number;
+  teamId?: number;
+  teamName?: string;
+  playingXi?: number[];
+  twelfthManPlayerId?: number;
+  wicketKeeperPlayerId?: number;
+  captainPlayerId?: number;
+}
