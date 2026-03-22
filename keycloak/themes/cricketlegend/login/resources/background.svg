@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+
+    <!-- Sky -->
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#060d1a"/>
+      <stop offset="100%" stop-color="#111f38"/>
+    </linearGradient>
+
+    <!-- Outfield green, brighter in centre (floodlit) -->
+    <radialGradient id="outfieldGrad" cx="50%" cy="50%" r="55%">
+      <stop offset="0%"   stop-color="#4a9028"/>
+      <stop offset="55%"  stop-color="#336b18"/>
+      <stop offset="100%" stop-color="#1e4010"/>
+    </radialGradient>
+
+    <!-- Inner-circle slightly brighter -->
+    <radialGradient id="innerGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#52a02c"/>
+      <stop offset="100%" stop-color="#3a7520"/>
+    </radialGradient>
+
+    <!-- Mowing stripes (horizontal, ~45 px each) -->
+    <pattern id="stripes" x="0" y="0" width="1920" height="90" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0"  width="1920" height="45" fill="#4a9028" opacity="0.28"/>
+      <rect x="0" y="45" width="1920" height="45" fill="#2d6015" opacity="0.28"/>
+    </pattern>
+
+    <!-- Pitch (dry clay) -->
+    <linearGradient id="pitchGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#c8a96e"/>
+      <stop offset="40%"  stop-color="#b07d3a"/>
+      <stop offset="60%"  stop-color="#a06a28"/>
+      <stop offset="100%" stop-color="#c8a96e"/>
+    </linearGradient>
+
+    <!-- Floodlight halo -->
+    <radialGradient id="haloGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#fffce0" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#fffce0" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Ambient floodlit glow over the whole field -->
+    <radialGradient id="fieldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#fffde8" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#fffde8" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Vignette -->
+    <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+      <stop offset="0%"   stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.62"/>
+    </radialGradient>
+
+    <!-- Clip path for the oval field -->
+    <clipPath id="ovalClip">
+      <ellipse cx="960" cy="540" rx="710" ry="458"/>
+    </clipPath>
+
+  </defs>
+
+  <!-- ══ Night sky ══ -->
+  <rect width="1920" height="1080" fill="url(#skyGrad)"/>
+
+  <!-- Stars — scattered outside the oval -->
+  <g fill="white" opacity="0.75">
+    <!-- top-left -->
+    <circle cx="48"  cy="44"  r="1.2"/><circle cx="120" cy="28"  r="0.9"/>
+    <circle cx="185" cy="88"  r="1.4"/><circle cx="78"  cy="145" r="1.0"/>
+    <circle cx="228" cy="55"  r="1.1"/><circle cx="310" cy="110" r="0.8"/>
+    <circle cx="158" cy="178" r="1.3"/><circle cx="62"  cy="205" r="0.9"/>
+    <circle cx="270" cy="195" r="1.0"/><circle cx="380" cy="65"  r="0.7"/>
+    <circle cx="95"  cy="310" r="0.8"/><circle cx="42"  cy="380" r="1.1"/>
+    <circle cx="140" cy="415" r="0.7"/>
+    <!-- top-right -->
+    <circle cx="1710" cy="38"  r="1.2"/><circle cx="1800" cy="75"  r="0.9"/>
+    <circle cx="1855" cy="28"  r="1.4"/><circle cx="1755" cy="148" r="1.0"/>
+    <circle cx="1660" cy="95"  r="1.1"/><circle cx="1905" cy="115" r="0.8"/>
+    <circle cx="1785" cy="200" r="1.3"/><circle cx="1875" cy="310" r="0.9"/>
+    <circle cx="1640" cy="185" r="0.8"/><circle cx="1920" cy="52"  r="1.0"/>
+    <circle cx="1530" cy="55"  r="0.7"/>
+    <!-- bottom-left -->
+    <circle cx="78"  cy="948" r="1.2"/><circle cx="162" cy="995" r="0.9"/>
+    <circle cx="255" cy="905" r="1.4"/><circle cx="48"  cy="1048" r="1.0"/>
+    <circle cx="205" cy="1068" r="1.1"/><circle cx="128" cy="885" r="0.8"/>
+    <circle cx="310" cy="1032" r="0.9"/><circle cx="78"  cy="780" r="0.7"/>
+    <!-- bottom-right -->
+    <circle cx="1705" cy="915" r="1.2"/><circle cx="1825" cy="978" r="0.9"/>
+    <circle cx="1768" cy="1058" r="1.4"/><circle cx="1905" cy="898" r="1.0"/>
+    <circle cx="1652" cy="1048" r="1.1"/><circle cx="1892" cy="780" r="0.8"/>
+    <circle cx="1548" cy="958" r="0.7"/>
+    <!-- sides -->
+    <circle cx="28"  cy="490" r="1.0"/><circle cx="65"  cy="618" r="0.8"/>
+    <circle cx="145" cy="728" r="1.1"/><circle cx="1885" cy="448" r="1.0"/>
+    <circle cx="1840" cy="562" r="0.8"/><circle cx="1905" cy="688" r="1.1"/>
+  </g>
+
+  <!-- ══ Outfield oval ══ -->
+  <ellipse cx="960" cy="540" rx="710" ry="458" fill="url(#outfieldGrad)"/>
+
+  <!-- Mowing stripes clipped to oval -->
+  <rect x="0" y="0" width="1920" height="1080" fill="url(#stripes)" clip-path="url(#ovalClip)"/>
+
+  <!-- Ambient floodlight wash -->
+  <ellipse cx="960" cy="540" rx="710" ry="458" fill="url(#fieldGlow)"/>
+
+  <!-- ══ 30-yard inner circle ══ -->
+  <ellipse cx="960" cy="540" rx="315" ry="198" fill="url(#innerGrad)"
+           stroke="white" stroke-width="2.5" stroke-dasharray="14,10" opacity="0.88"/>
+
+  <!-- ══ Boundary rope ══ -->
+  <ellipse cx="960" cy="540" rx="706" ry="454" fill="none"
+           stroke="white" stroke-width="3.5" opacity="0.90"/>
+
+  <!-- ══ Pitch strip (22 yards scaled) ══ -->
+  <!-- Pitch: 310 px tall, 50 px wide, centred at (960, 540) -->
+  <rect x="935" y="385" width="50" height="310" rx="3" fill="url(#pitchGrad)" opacity="0.96"/>
+
+  <!-- Worn patches in the middle of the pitch -->
+  <rect x="940" y="455" width="40" height="170" rx="2" fill="#8b5e28" opacity="0.30"/>
+  <!-- crack lines -->
+  <line x1="955" y1="468" x2="960" y2="510" stroke="#7a4e1e" stroke-width="1" opacity="0.5"/>
+  <line x1="962" y1="490" x2="957" y2="530" stroke="#7a4e1e" stroke-width="1" opacity="0.4"/>
+  <line x1="950" y1="545" x2="958" y2="590" stroke="#7a4e1e" stroke-width="0.8" opacity="0.4"/>
+
+  <!-- ══ Crease markings ══ -->
+  <!-- Bowling crease (at stump line) — both ends -->
+  <line x1="912" y1="424" x2="1008" y2="424" stroke="white" stroke-width="2.2"/>
+  <line x1="912" y1="656" x2="1008" y2="656" stroke="white" stroke-width="2.2"/>
+
+  <!-- Popping crease (4 ft in front of stumps) -->
+  <line x1="908" y1="441" x2="1012" y2="441" stroke="white" stroke-width="1.8"/>
+  <line x1="908" y1="639" x2="1012" y2="639" stroke="white" stroke-width="1.8"/>
+
+  <!-- Return creases (perpendicular to bowling crease) -->
+  <line x1="924" y1="424" x2="924" y2="443" stroke="white" stroke-width="1.8"/>
+  <line x1="996" y1="424" x2="996" y2="443" stroke="white" stroke-width="1.8"/>
+  <line x1="924" y1="637" x2="924" y2="656" stroke="white" stroke-width="1.8"/>
+  <line x1="996" y1="637" x2="996" y2="656" stroke="white" stroke-width="1.8"/>
+
+  <!-- ══ Stumps (3 per end) ══ -->
+  <!-- Top end (y=406..424) -->
+  <rect x="950" y="406" width="3.5" height="20" rx="1" fill="#f0dfa8"/>
+  <rect x="958" y="406" width="3.5" height="20" rx="1" fill="#f0dfa8"/>
+  <rect x="966" y="406" width="3.5" height="20" rx="1" fill="#f0dfa8"/>
+  <!-- Bails -->
+  <line x1="950" y1="408" x2="969.5" y2="408" stroke="#f0dfa8" stroke-width="2.2"/>
+
+  <!-- Bottom end (y=654..674) -->
+  <rect x="950" y="654" width="3.5" height="20" rx="1" fill="#f0dfa8"/>
+  <rect x="958" y="654" width="3.5" height="20" rx="1" fill="#f0dfa8"/>
+  <rect x="966" y="654" width="3.5" height="20" rx="1" fill="#f0dfa8"/>
+  <!-- Bails -->
+  <line x1="950" y1="656" x2="969.5" y2="656" stroke="#f0dfa8" stroke-width="2.2"/>
+
+  <!-- ══ Floodlight towers (4 corners) ══ -->
+  <!-- Each tower: pole + glowing bulb -->
+
+  <!-- Top-left -->
+  <rect x="272" y="155" width="10" height="140" rx="2" fill="#8899aa" opacity="0.75"/>
+  <ellipse cx="277" cy="152" rx="55" ry="55" fill="url(#haloGrad)"/>
+  <circle  cx="277" cy="155" r="7"  fill="#fffce8" opacity="0.95"/>
+  <!-- light beams, very faint -->
+  <line x1="277" y1="155" x2="960" y2="540" stroke="#fffce8" stroke-width="1" opacity="0.04"/>
+
+  <!-- Top-right -->
+  <rect x="1638" y="155" width="10" height="140" rx="2" fill="#8899aa" opacity="0.75"/>
+  <ellipse cx="1643" cy="152" rx="55" ry="55" fill="url(#haloGrad)"/>
+  <circle  cx="1643" cy="155" r="7"  fill="#fffce8" opacity="0.95"/>
+  <line x1="1643" y1="155" x2="960" y2="540" stroke="#fffce8" stroke-width="1" opacity="0.04"/>
+
+  <!-- Bottom-left -->
+  <rect x="272" y="785" width="10" height="140" rx="2" fill="#8899aa" opacity="0.75"/>
+  <ellipse cx="277" cy="928" rx="55" ry="55" fill="url(#haloGrad)"/>
+  <circle  cx="277" cy="925" r="7"  fill="#fffce8" opacity="0.95"/>
+  <line x1="277" y1="925" x2="960" y2="540" stroke="#fffce8" stroke-width="1" opacity="0.04"/>
+
+  <!-- Bottom-right -->
+  <rect x="1638" y="785" width="10" height="140" rx="2" fill="#8899aa" opacity="0.75"/>
+  <ellipse cx="1643" cy="928" rx="55" ry="55" fill="url(#haloGrad)"/>
+  <circle  cx="1643" cy="925" r="7"  fill="#fffce8" opacity="0.95"/>
+  <line x1="1643" y1="925" x2="960" y2="540" stroke="#fffce8" stroke-width="1" opacity="0.04"/>
+
+  <!-- ══ Vignette overlay ══ -->
+  <rect width="1920" height="1080" fill="url(#vignette)"/>
+
+</svg>

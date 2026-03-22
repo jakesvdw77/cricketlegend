@@ -11,6 +11,8 @@ services:
       POSTGRES_USER: cricket
       POSTGRES_PASSWORD: legend
       POSTGRES_DB: cricketlegend
+    ports:
+      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     networks:
