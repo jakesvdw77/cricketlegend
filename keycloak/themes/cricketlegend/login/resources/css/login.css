@@ -1,59 +1,122 @@
 /* Cricket Legend Theme */
 
-:root {
-    --cl-green: #2e7d32;
-    --cl-green-dark: #1b5e20;
-    --cl-gold: #f9a825;
+body {
+    background: url('../background.png') center center / cover no-repeat fixed;
+    margin: 0;
+    padding: 0;
 }
 
-body {
-    background: linear-gradient(135deg, var(--cl-green-dark) 0%, var(--cl-green) 100%);
-    background-attachment: fixed;
+/* Dark overlay over the whole background */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 0;
+}
+
+.login-pf-page {
+    position: relative;
+    z-index: 1;
+}
+
+/* Hide default Keycloak header text — the background image has the title */
+#kc-header {
+    display: none;
+}
+
+/* Push card to the right like the design */
+.login-pf-page .login-pf-sidebar,
+#kc-content {
+    margin-left: auto;
+    margin-right: 5%;
 }
 
 /* Login card */
 .login-pf-page .card-pf {
-    border-top: 4px solid var(--cl-gold);
-    border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    background: rgba(15, 25, 50, 0.88);
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7);
+    padding: 32px 28px;
+    max-width: 340px;
+    width: 100%;
+    margin-left: auto;
 }
 
-/* Header / logo area */
-#kc-header {
+/* Form labels */
+.login-pf-page label {
+    color: #e0e0e0;
+    font-weight: 500;
+}
+
+/* Inputs */
+.login-pf-page .form-control {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    color: #ffffff;
+    height: 42px;
+}
+
+.login-pf-page .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.login-pf-page .form-control:focus {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: #f9a825;
+    box-shadow: 0 0 0 3px rgba(249, 168, 37, 0.25);
     color: #ffffff;
 }
 
-#kc-header-wrapper {
-    color: #ffffff;
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+/* LOG IN button — gold like the design */
+.login-pf-page #kc-login,
+.login-pf-page .btn-primary {
+    background: #f9a825 !important;
+    background-image: linear-gradient(180deg, #fbc02d, #f9a825) !important;
+    border: none !important;
+    border-radius: 6px !important;
+    color: #1a1a1a !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    letter-spacing: 1px !important;
+    text-transform: uppercase !important;
+    height: 44px;
+    width: 100%;
 }
 
-/* Primary button */
-.btn-primary {
-    background-color: var(--cl-green) !important;
-    border-color: var(--cl-green-dark) !important;
+.login-pf-page #kc-login:hover,
+.login-pf-page .btn-primary:hover {
+    background: #fbc02d !important;
+    background-image: linear-gradient(180deg, #fdd835, #fbc02d) !important;
 }
 
-.btn-primary:hover,
-.btn-primary:focus {
-    background-color: var(--cl-green-dark) !important;
-    border-color: var(--cl-green-dark) !important;
+/* Links (Forgot Password etc.) */
+.login-pf-page a {
+    color: #f9a825 !important;
 }
 
-/* Links */
-a {
-    color: var(--cl-green) !important;
+.login-pf-page a:hover {
+    color: #fdd835 !important;
+    text-decoration: underline !important;
 }
 
-a:hover {
-    color: var(--cl-green-dark) !important;
+/* Remember me checkbox label */
+#rememberMe + label,
+.login-pf-page .checkbox label {
+    color: #cccccc;
 }
 
-/* Input focus */
-.form-control:focus {
-    border-color: var(--cl-green);
-    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.2);
+/* Alert / error messages */
+.login-pf-page .alert-error {
+    background: rgba(183, 28, 28, 0.6);
+    border: 1px solid #e53935;
+    border-radius: 6px;
+    color: #ffcdd2;
+}
+
+/* Social login buttons if present */
+.login-pf-page .zocial {
+    border-radius: 6px;
 }
