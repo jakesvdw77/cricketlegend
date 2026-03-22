@@ -76,6 +76,7 @@ services:
     image: jakesvdwesthuizen/cricketlegend:latest
     container_name: cricketlegend-backend
     restart: unless-stopped
+    user: "root"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/cricketlegend
       SPRING_DATASOURCE_USERNAME: cricket
