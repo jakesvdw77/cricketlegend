@@ -1,7 +1,7 @@
 /* Cricket Legend Theme */
 
 body {
-    background: url('../background.png') center center / cover no-repeat fixed;
+    background: url('../background.svg') center center / cover no-repeat fixed;
     margin: 0;
     padding: 0;
 }
@@ -25,11 +25,11 @@ body::before {
     display: none;
 }
 
-/* Push card to the right like the design */
+/* Center card on screen */
 .login-pf-page .login-pf-sidebar,
 #kc-content {
     margin-left: auto;
-    margin-right: 5%;
+    margin-right: auto;
 }
 
 /* Login card */
@@ -41,7 +41,7 @@ body::before {
     padding: 32px 28px;
     max-width: 340px;
     width: 100%;
-    margin-left: auto;
+    margin: 0 auto;
 }
 
 /* Form labels */
