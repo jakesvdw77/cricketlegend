@@ -1,0 +1,59 @@
+/* Cricket Legend Theme */
+
+:root {
+    --cl-green: #2e7d32;
+    --cl-green-dark: #1b5e20;
+    --cl-gold: #f9a825;
+}
+
+body {
+    background: linear-gradient(135deg, var(--cl-green-dark) 0%, var(--cl-green) 100%);
+    background-attachment: fixed;
+}
+
+/* Login card */
+.login-pf-page .card-pf {
+    border-top: 4px solid var(--cl-gold);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Header / logo area */
+#kc-header {
+    color: #ffffff;
+}
+
+#kc-header-wrapper {
+    color: #ffffff;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+/* Primary button */
+.btn-primary {
+    background-color: var(--cl-green) !important;
+    border-color: var(--cl-green-dark) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background-color: var(--cl-green-dark) !important;
+    border-color: var(--cl-green-dark) !important;
+}
+
+/* Links */
+a {
+    color: var(--cl-green) !important;
+}
+
+a:hover {
+    color: var(--cl-green-dark) !important;
+}
+
+/* Input focus */
+.form-control:focus {
+    border-color: var(--cl-green);
+    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.2);
+}
