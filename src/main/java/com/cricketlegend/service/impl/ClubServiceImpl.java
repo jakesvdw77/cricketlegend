@@ -69,7 +69,7 @@ public class ClubServiceImpl implements ClubService {
             throw new ConflictException("Cannot delete club: players are linked to it.");
         if (fieldRepository.existsByHomeClubClubId(id))
             throw new ConflictException("Cannot delete club: fields are linked to it.");
-        if (teamRepository.existsByClubClubId(id))
+        if (teamRepository.existsByAssociatedClubClubId(id))
             throw new ConflictException("Cannot delete club: teams are linked to it.");
         clubRepository.deleteById(id);
     }
