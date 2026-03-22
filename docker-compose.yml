@@ -88,7 +88,7 @@ services:
     volumes:
       - ./uploads:/app/uploads
     depends_on:
-      db:mk
+      db:
         condition: service_healthy
     networks:
       - app-network
