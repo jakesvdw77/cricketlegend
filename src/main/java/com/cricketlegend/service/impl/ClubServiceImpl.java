@@ -2,9 +2,13 @@ package com.cricketlegend.service.impl;
 
 import com.cricketlegend.domain.Club;
 import com.cricketlegend.dto.ClubDTO;
+import com.cricketlegend.exception.ConflictException;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.ClubMapper;
 import com.cricketlegend.repository.ClubRepository;
+import com.cricketlegend.repository.FieldRepository;
+import com.cricketlegend.repository.PlayerRepository;
+import com.cricketlegend.repository.TeamRepository;
 import com.cricketlegend.service.ClubService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +23,9 @@ public class ClubServiceImpl implements ClubService {
 
     private final ClubRepository clubRepository;
     private final ClubMapper clubMapper;
+    private final PlayerRepository playerRepository;
+    private final FieldRepository fieldRepository;
+    private final TeamRepository teamRepository;
 
     @Override
     public List<ClubDTO> findAll() {
@@ -58,6 +65,12 @@ public class ClubServiceImpl implements ClubService {
     @Transactional
     public void delete(Long id) {
         if (!clubRepository.existsById(id)) throw NotFoundException.of("Club", id);
+        if (playerRepository.existsByHomeClubClubId(id))
+            throw new ConflictException("Cannot delete club: players are linked to it.");
+        if (fieldRepository.existsByHomeClubClubId(id))
+            throw new ConflictException("Cannot delete club: fields are linked to it.");
+        if (teamRepository.existsByClubClubId(id))
+            throw new ConflictException("Cannot delete club: teams are linked to it.");
         clubRepository.deleteById(id);
     }
 }

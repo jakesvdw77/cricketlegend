@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, Avatar, CircularProgress,
+  DialogContent, DialogActions, TextField, Avatar, CircularProgress, Snackbar,
 } from '@mui/material';
 import { Add, Edit, Delete, OpenInNew, CloudUpload } from '@mui/icons-material';
 import { clubApi } from '../../api/clubApi';
@@ -17,6 +17,7 @@ export const Clubs: React.FC = () => {
   const [editing, setEditing] = useState<Club>(empty);
   const [uploading, setUploading] = useState(false);
   const [viewLogoUrl, setViewLogoUrl] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const load = () => clubApi.findAll().then(setRows);
@@ -33,7 +34,14 @@ export const Clubs: React.FC = () => {
   };
 
   const remove = async (id: number) => {
-    if (confirm('Delete club?')) { await clubApi.delete(id); load(); }
+    if (confirm('Delete club?')) {
+      try {
+        await clubApi.delete(id);
+        load();
+      } catch (e: any) {
+        setError(e?.response?.data?.detail ?? 'Could not delete club.');
+      }
+    }
   };
 
   const set = (patch: Partial<Club>) => setEditing(e => ({ ...e, ...patch }));
@@ -208,6 +216,8 @@ export const Clubs: React.FC = () => {
           <Button variant="contained" onClick={save} disabled={!editing.name}>Save</Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError('')} message={error} />
 
       {/* Logo viewer */}
       <Dialog open={!!viewLogoUrl} onClose={() => setViewLogoUrl(null)} maxWidth="sm">
