@@ -79,7 +79,7 @@ services:
       SPRING_DATASOURCE_USERNAME: cricket
       SPRING_DATASOURCE_PASSWORD: legend
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://102.210.146.217:8443/realms/cricketlegend
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: https://102.210.146.217:8443/realms/cricketlegend/protocol/openid-connect/certs
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/cricketlegend/protocol/openid-connect/certs
     ports:
       - "8081:8081"
     volumes:
@@ -94,7 +94,6 @@ services:
   ui:
     image: jakesvdwesthuizen/cricketlegend-ui:latest
     container_name: cricketlegend-ui
-    restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
