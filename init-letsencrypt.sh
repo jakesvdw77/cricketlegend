@@ -19,13 +19,14 @@ docker compose down
 
 # ── 2. Create dummy cert so nginx can start ───────────────────────────────────
 echo "### Creating temporary self-signed certificate..."
-docker compose run --rm --entrypoint sh certbot -c "
+docker compose run --entrypoint sh certbot -c "
   mkdir -p /etc/letsencrypt/live/${DOMAIN} &&
   openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
     -keyout /etc/letsencrypt/live/${DOMAIN}/privkey.pem \
     -out    /etc/letsencrypt/live/${DOMAIN}/fullchain.pem \
     -subj '/CN=localhost'
 "
+docker compose rm -f certbot
 
 # ── 3. Start nginx (and the rest of the stack) with the dummy cert ────────────
 echo "### Starting stack..."
@@ -35,7 +36,7 @@ sleep 5
 
 # ── 4. Obtain the real certificate via ACME webroot challenge ─────────────────
 echo "### Requesting Let's Encrypt certificate for ${DOMAIN}..."
-docker compose run --rm --entrypoint sh certbot -c "
+docker compose run --entrypoint sh certbot -c "
   certbot certonly --webroot \
     -w /var/www/certbot \
     ${STAGING_FLAG} \
@@ -46,6 +47,7 @@ docker compose run --rm --entrypoint sh certbot -c "
     -d ${DOMAIN} \
     -d www.${DOMAIN}
 "
+docker compose rm -f certbot
 
 # ── 5. Reload nginx with the real cert ───────────────────────────────────────
 echo "### Reloading nginx..."
