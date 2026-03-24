@@ -1,5 +1,6 @@
 package com.cricketlegend.domain;
 
+import com.cricketlegend.domain.enums.BattingPosition;
 import com.cricketlegend.domain.enums.BattingStance;
 import com.cricketlegend.domain.enums.BowlingArm;
 import com.cricketlegend.domain.enums.BowlingType;
@@ -34,6 +35,9 @@ public class Player {
     private String careerUrl;
 
     @Enumerated(EnumType.STRING)
+    private BattingPosition battingPosition;
+
+    @Enumerated(EnumType.STRING)
     private BattingStance battingStance;
 
     @Enumerated(EnumType.STRING)
@@ -43,6 +47,7 @@ public class Player {
     private BowlingType bowlingType;
 
     private Boolean wicketKeeper;
+    private Boolean partTimeBowler;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_club_id")

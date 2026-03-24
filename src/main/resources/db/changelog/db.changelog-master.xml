@@ -22,5 +22,8 @@
     <include file="db/changelog/v1/015-match-side-captain.sql"/>
     <include file="db/changelog/v1/016-match-scoring-url.sql"/>
     <include file="db/changelog/v1/017-player-career-url.sql"/>
+    <include file="db/changelog/v1/018-player-batting-position.sql"/>
+    <include file="db/changelog/v1/019-migrate-bowling-types.sql"/>
+    <include file="db/changelog/v1/020-player-part-time-bowler.sql"/>
 
 </databaseChangeLog>

@@ -3,9 +3,9 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Avatar, CircularProgress,
-  List, ListItem, ListItemAvatar, ListItemText, Autocomplete,
+  List, ListItem, ListItemAvatar, ListItemText, Autocomplete, TableSortLabel,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';
 import { playerDescription } from '../../utils/playerDescription';
 import { teamApi } from '../../api/teamApi';
@@ -19,6 +19,8 @@ const empty: Team = { teamName: '' };
 
 export const Teams: React.FC = () => {
   const [rows, setRows] = useState<Team[]>([]);
+  const [search, setSearch] = useState('');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [clubs, setClubs] = useState<Club[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
@@ -102,28 +104,46 @@ export const Teams: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">Teams</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto' }}>Teams</Typography>
+        <TextField
+          size="small"
+          placeholder="Search name, club…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          sx={{ width: 260 }}
+        />
         <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
           Add Team
         </Button>
       </Box>
 
       <TableContainer component={Paper}>
-        <Table size="small">
+        <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
               <TableCell width={48} />
-              <TableCell>Team Name</TableCell>
+              <TableCell sortDirection={sortDir}>
+                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Team Name</TableSortLabel>
+              </TableCell>
               <TableCell>Club</TableCell>
               <TableCell>Captain</TableCell>
               <TableCell>Home Ground</TableCell>
               <TableCell>Coach</TableCell>
+              <TableCell>Manager</TableCell>
               <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map(r => (
+            {[...rows].filter(r => {
+              const q = search.toLowerCase();
+              return !q
+                || r.teamName.toLowerCase().includes(q)
+                || r.associatedClubName?.toLowerCase().includes(q);
+            }).sort((a, b) => {
+              const cmp = a.teamName.localeCompare(b.teamName);
+              return sortDir === 'asc' ? cmp : -cmp;
+            }).map(r => (
               <TableRow key={r.teamId}>
                 <TableCell>
                   <Avatar
@@ -143,6 +163,7 @@ export const Teams: React.FC = () => {
                 <TableCell>{r.captainName}</TableCell>
                 <TableCell>{r.homeFieldName}</TableCell>
                 <TableCell>{r.coach}</TableCell>
+                <TableCell>{r.manager}</TableCell>
                 <TableCell>
                   <IconButton size="small" title="Manage Squad" onClick={() => openSquad(r)}><Groups /></IconButton>
                   <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
@@ -321,7 +342,23 @@ export const Teams: React.FC = () => {
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={`${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`}
+                  primary={
+                    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {p.wicketKeeper && (
+                        <Box component="span" sx={{ fontSize: 13, lineHeight: 1, flexShrink: 0 }}>🧤</Box>
+                      )}
+                      {['OPENER', 'TOP_ORDER', 'MIDDLE_ORDER'].includes(p.battingPosition!) && (
+                        <SportsCricket sx={{ fontSize: 14, color: 'text.secondary', flexShrink: 0 }} />
+                      )}
+                      {p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler && (
+                        <Box component="span" sx={{
+                          display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+                          bgcolor: '#c0392b', border: '1px solid #922b21', flexShrink: 0,
+                        }} />
+                      )}
+                      {`${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`}
+                    </Box>
+                  }
                   secondary={playerDescription(p)}
                 />
               </ListItem>

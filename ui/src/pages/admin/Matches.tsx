@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem,
-  Stepper, Step, StepLabel,
+  Stepper, Step, StepLabel, TableSortLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, Assignment, Groups } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +20,15 @@ const empty: Match = {};
 export const Matches: React.FC = () => {
   const navigate = useNavigate();
   const [rows, setRows] = useState<Match[]>([]);
+  const [sortField, setSortField] = useState<'matchDate' | 'tournamentName' | 'homeTeamName'>('matchDate');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (field: typeof sortField) => {
+    if (field === sortField) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+  const [filterTournament, setFilterTournament] = useState<number | ''>('');
+  const [filterStage, setFilterStage] = useState<MatchStage | ''>('');
   const [teams, setTeams] = useState<Team[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -87,20 +96,50 @@ export const Matches: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">Matches</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto' }}>Matches</Typography>
+        <TextField
+          select
+          size="small"
+          label="Tournament"
+          value={filterTournament}
+          onChange={e => setFilterTournament(e.target.value === '' ? '' : Number(e.target.value))}
+          sx={{ width: 220 }}
+        >
+          <MenuItem value="">All tournaments</MenuItem>
+          {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Stage"
+          value={filterStage}
+          onChange={e => setFilterStage(e.target.value as MatchStage | '')}
+          sx={{ width: 140 }}
+        >
+          <MenuItem value="">All stages</MenuItem>
+          <MenuItem value="POOL">Pool</MenuItem>
+          <MenuItem value="SEMI_FINAL">Semi-Final</MenuItem>
+          <MenuItem value="FINAL">Final</MenuItem>
+        </TextField>
         <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
           Add Match
         </Button>
       </Box>
 
       <TableContainer component={Paper}>
-        <Table size="small">
+        <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
-              <TableCell>Date</TableCell>
-              <TableCell>Tournament</TableCell>
-              <TableCell>Home Team</TableCell>
+              <TableCell sortDirection={sortField === 'matchDate' ? sortDir : false}>
+                <TableSortLabel active={sortField === 'matchDate'} direction={sortDir} onClick={() => handleSort('matchDate')}>Date</TableSortLabel>
+              </TableCell>
+              <TableCell sortDirection={sortField === 'tournamentName' ? sortDir : false}>
+                <TableSortLabel active={sortField === 'tournamentName'} direction={sortDir} onClick={() => handleSort('tournamentName')}>Tournament</TableSortLabel>
+              </TableCell>
+              <TableCell sortDirection={sortField === 'homeTeamName' ? sortDir : false}>
+                <TableSortLabel active={sortField === 'homeTeamName'} direction={sortDir} onClick={() => handleSort('homeTeamName')}>Home Team</TableSortLabel>
+              </TableCell>
               <TableCell>Opposition</TableCell>
               <TableCell>Ground</TableCell>
               <TableCell>Umpire</TableCell>
@@ -109,7 +148,18 @@ export const Matches: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map(r => (
+            {[...rows].filter(r => {
+              const matchesTournament = !filterTournament || r.tournamentId === filterTournament;
+              const matchesStage = !filterStage || r.matchStage === filterStage;
+              return matchesTournament && matchesStage;
+            }).sort((a, b) => {
+              const val = (r: typeof a) =>
+                sortField === 'matchDate' ? (r.matchDate ?? '') :
+                sortField === 'tournamentName' ? (r.tournamentName ?? '') :
+                (r.homeTeamName ?? '');
+              const cmp = val(a).localeCompare(val(b));
+              return sortDir === 'asc' ? cmp : -cmp;
+            }).map(r => (
               <TableRow key={r.matchId}>
                 <TableCell>{r.matchDate}</TableCell>
                 <TableCell>{r.tournamentName}</TableCell>

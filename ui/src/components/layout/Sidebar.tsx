@@ -20,9 +20,10 @@ interface Props {
 
 export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const navigate = useNavigate();
-    const {isAdmin} = useAuth();
+    const {isAdmin, isManager} = useAuth();
     const [captureOpen, setCaptureOpen] = useState(true);
     const [viewOpen, setViewOpen] = useState(true);
+    const [financialsOpen, setFinancialsOpen] = useState(true);
 
     const go = (path: string) => navigate(path);
 
@@ -42,7 +43,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
             </Toolbar>
             <Divider/>
 
-            {isAdmin ? (
+            {(isAdmin || isManager) ? (
                 <>
                     <ListItemButton onClick={() => setCaptureOpen(!captureOpen)}>
                         <ListItemText primary="Capture & View" primaryTypographyProps={{fontWeight: 'bold'}}/>
@@ -76,12 +77,25 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemText primary="Tournaments"/>
                             </ListItemButton>
 
-
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/matches')}>
                                 <ListItemIcon><SportsScore/></ListItemIcon>
                                 <ListItemText primary="Matches"/>
                             </ListItemButton>
 
+                        </List>
+                    </Collapse>
+                    <Divider/>
+                </>
+            ) : null}
+
+            {isAdmin ? (
+                <>
+                    <ListItemButton onClick={() => setFinancialsOpen(!financialsOpen)}>
+                        <ListItemText primary="Financials" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                        {financialsOpen ? <ExpandLess/> : <ExpandMore/>}
+                    </ListItemButton>
+                    <Collapse in={financialsOpen} timeout="auto" unmountOnExit>
+                        <List disablePadding>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/sponsors')}>
                                 <ListItemIcon><Star/></ListItemIcon>
                                 <ListItemText primary="Sponsors"/>
@@ -102,6 +116,10 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
             </ListItemButton>
             <Collapse in={viewOpen} timeout="auto" unmountOnExit>
                 <List disablePadding>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/teams')}>
+                        <ListItemIcon><Groups/></ListItemIcon>
+                        <ListItemText primary="Teams"/>
+                    </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/tournaments')}>
                         <ListItemIcon><EmojiEvents/></ListItemIcon>
                         <ListItemText primary="Tournaments"/>

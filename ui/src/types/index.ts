@@ -1,7 +1,8 @@
 export type CricketFormat = 'T20' | 'T30' | 'T45' | 'T50';
+export type BattingPosition = 'OPENER' | 'TOP_ORDER' | 'MIDDLE_ORDER' | 'LOWER_MIDDLE_ORDER' | 'LOWER_ORDER';
 export type BattingStance = 'LEFT_HANDED' | 'RIGHT_HANDED';
 export type BowlingArm = 'LEFT' | 'RIGHT';
-export type BowlingType = 'FAST_PACE' | 'MEDIUM_FAST_PACE' | 'MEDIUM_PACE' | 'OFF_SPIN' | 'LEG_SPIN' | 'SLOW_BOWLER' | 'NONE';
+export type BowlingType = 'VERY_FAST' | 'FAST' | 'FAST_MEDIUM' | 'MEDIUM_FAST' | 'MEDIUM' | 'MEDIUM_SLOW' | 'OFF_SPIN' | 'LEG_SPIN' | 'SLOW_LEFT_ARM_ORTHODOX' | 'CHINAMAN' | 'NONE';
 export type DismissalType = 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' | 'HIT_WICKET' | 'NOT_OUT';
 
 export type MatchStage = 'POOL' | 'SEMI_FINAL' | 'FINAL';
@@ -72,10 +73,12 @@ export interface Player {
   shirtNumber?: number;
   profilePictureUrl?: string;
   careerUrl?: string;
+  battingPosition?: BattingPosition;
   battingStance?: BattingStance;
   bowlingArm?: BowlingArm;
   bowlingType?: BowlingType;
   wicketKeeper?: boolean;
+  partTimeBowler?: boolean;
   homeClubId?: number;
   homeClubName?: string;
   mediaContent?: MediaContent[];

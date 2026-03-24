@@ -63,10 +63,13 @@ public class PlayerServiceImpl implements PlayerService {
         existing.setAlternativeContactNumber(dto.getAlternativeContactNumber());
         existing.setShirtNumber(dto.getShirtNumber());
         existing.setProfilePictureUrl(dto.getProfilePictureUrl());
+        existing.setCareerUrl(dto.getCareerUrl());
+        existing.setBattingPosition(dto.getBattingPosition());
         existing.setBattingStance(dto.getBattingStance());
         existing.setBowlingArm(dto.getBowlingArm());
         existing.setBowlingType(dto.getBowlingType());
         existing.setWicketKeeper(dto.getWicketKeeper());
+        existing.setPartTimeBowler(dto.getPartTimeBowler());
         resolveClub(existing, dto.getHomeClubId());
         return playerMapper.toDto(playerRepository.save(existing));
     }

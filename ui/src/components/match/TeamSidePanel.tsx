@@ -3,7 +3,7 @@ import {
   Box, Typography, Paper, Autocomplete, TextField,
   List, ListItem, ListItemText, IconButton, Chip, Divider,
 } from '@mui/material';
-import { Delete, DragIndicator } from '@mui/icons-material';
+import { Delete, DragIndicator, SportsCricket } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { MatchSide, Player } from '../../types';
 import { formatEnum } from '../../utils/formatEnum';
@@ -147,6 +147,15 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
                     {`${idx + 1}. ${p.name} ${p.surname}`}
                     {isCaptain && <Typography component="span" sx={{ fontSize: '0.85rem' }}>👑</Typography>}
                     {isWK && <Typography component="span" sx={{ fontSize: '0.85rem' }}>🧤</Typography>}
+                    {['OPENER', 'TOP_ORDER', 'MIDDLE_ORDER'].includes(p.battingPosition ?? '') && (
+                      <SportsCricket sx={{ fontSize: 13, color: 'text.secondary' }} />
+                    )}
+                    {p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler && (
+                      <Box component="span" sx={{
+                        display: 'inline-block', width: 9, height: 9, borderRadius: '50%',
+                        bgcolor: '#c0392b', border: '1px solid #922b21', flexShrink: 0,
+                      }} />
+                    )}
                   </Box>
                 }
                 secondary={[

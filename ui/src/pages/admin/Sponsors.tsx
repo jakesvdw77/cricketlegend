@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, Avatar, Link, CircularProgress,
+  DialogContent, DialogActions, TextField, Avatar, Link, CircularProgress, TableSortLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, OpenInNew, CloudUpload } from '@mui/icons-material';
 import { sponsorApi } from '../../api/sponsorApi';
@@ -13,6 +13,7 @@ const empty: Sponsor = { name: '' };
 
 export const Sponsors: React.FC = () => {
   const [rows, setRows] = useState<Sponsor[]>([]);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Sponsor>(empty);
   const [uploading, setUploading] = useState(false);
@@ -60,11 +61,13 @@ export const Sponsors: React.FC = () => {
       </Box>
 
       <TableContainer component={Paper}>
-        <Table size="small">
+        <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
               <TableCell />
-              <TableCell>Name</TableCell>
+              <TableCell sortDirection={sortDir}>
+                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
+              </TableCell>
               <TableCell>Website</TableCell>
               <TableCell>Contact Person</TableCell>
               <TableCell>Contact Email</TableCell>
@@ -73,7 +76,10 @@ export const Sponsors: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map(r => (
+            {[...rows].sort((a, b) => {
+              const cmp = a.name.localeCompare(b.name);
+              return sortDir === 'asc' ? cmp : -cmp;
+            }).map(r => (
               <TableRow key={r.sponsorId}>
                 <TableCell>
                   <Avatar

@@ -1,5 +1,6 @@
 package com.cricketlegend.dto;
 
+import com.cricketlegend.domain.enums.BattingPosition;
 import com.cricketlegend.domain.enums.BattingStance;
 import com.cricketlegend.domain.enums.BowlingArm;
 import com.cricketlegend.domain.enums.BowlingType;
@@ -20,10 +21,12 @@ public class PlayerDTO {
     private Integer shirtNumber;
     private String profilePictureUrl;
     private String careerUrl;
+    private BattingPosition battingPosition;
     private BattingStance battingStance;
     private BowlingArm bowlingArm;
     private BowlingType bowlingType;
     private Boolean wicketKeeper;
+    private Boolean partTimeBowler;
     private Long homeClubId;
     private String homeClubName;
     private List<MediaContentDTO> mediaContent;

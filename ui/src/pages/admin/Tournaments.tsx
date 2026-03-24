@@ -4,7 +4,7 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete,
-  Avatar, CircularProgress, Divider, InputAdornment,
+  Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -23,6 +23,10 @@ interface LocalPool { poolId?: number; poolName: string; teams: LocalPoolTeam[] 
 export const Tournaments: React.FC = () => {
   const navigate = useNavigate();
   const [rows, setRows] = useState<Tournament[]>([]);
+  const [search, setSearch] = useState('');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [filterFormat, setFilterFormat] = useState<CricketFormat | ''>('');
+  const [filterYear, setFilterYear] = useState<number | ''>('');
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [open, setOpen] = useState(false);
@@ -170,19 +174,52 @@ export const Tournaments: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">Tournaments</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto' }}>Tournaments</Typography>
+        <TextField
+          select
+          size="small"
+          label="Format"
+          value={filterFormat}
+          onChange={e => setFilterFormat(e.target.value as CricketFormat | '')}
+          sx={{ width: 110 }}
+        >
+          <MenuItem value="">All</MenuItem>
+          {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Year"
+          value={filterYear}
+          onChange={e => setFilterYear(e.target.value === '' ? '' : Number(e.target.value))}
+          sx={{ width: 100 }}
+        >
+          <MenuItem value="">All</MenuItem>
+          {Array.from(new Set(rows.map(r => r.startDate?.slice(0, 4)).filter(Boolean)))
+            .sort((a, b) => Number(b) - Number(a))
+            .map(y => <MenuItem key={y} value={Number(y)}>{y}</MenuItem>)}
+        </TextField>
+        <TextField
+          size="small"
+          placeholder="Search name…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          sx={{ width: 220 }}
+        />
         <Button variant="contained" startIcon={<Add />} onClick={() => openDialog(empty)}>
           Add Tournament
         </Button>
       </Box>
 
       <TableContainer component={Paper}>
-        <Table size="small">
+        <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
               <TableCell width={48} />
-              <TableCell>Name</TableCell>
+              <TableCell sortDirection={sortDir}>
+                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
+              </TableCell>
               <TableCell>Format</TableCell>
               <TableCell>Start Date</TableCell>
               <TableCell>End Date</TableCell>
@@ -194,7 +231,16 @@ export const Tournaments: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map(r => (
+            {[...rows].filter(r => {
+              const q = search.toLowerCase();
+              const matchesName = !q || r.name.toLowerCase().includes(q);
+              const matchesFormat = !filterFormat || r.cricketFormat === filterFormat;
+              const matchesYear = !filterYear || r.startDate?.startsWith(String(filterYear));
+              return matchesName && matchesFormat && matchesYear;
+            }).sort((a, b) => {
+              const cmp = a.name.localeCompare(b.name);
+              return sortDir === 'asc' ? cmp : -cmp;
+            }).map(r => (
               <TableRow key={r.tournamentId}>
                 <TableCell>
                   <Avatar

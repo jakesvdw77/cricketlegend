@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, MenuItem, Link,
+  DialogContent, DialogActions, TextField, MenuItem, Link, TableSortLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, OpenInNew } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,8 @@ const empty: Field = { name: '' };
 export const Fields: React.FC = () => {
   const navigate = useNavigate();
   const [rows, setRows] = useState<Field[]>([]);
+  const [search, setSearch] = useState('');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [clubs, setClubs] = useState<Club[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Field>(empty);
@@ -43,18 +45,27 @@ export const Fields: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">Fields / Grounds</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto' }}>Fields / Grounds</Typography>
+        <TextField
+          size="small"
+          placeholder="Search name, club…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          sx={{ width: 260 }}
+        />
         <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
           Add Field
         </Button>
       </Box>
 
       <TableContainer component={Paper}>
-        <Table size="small">
+        <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
-              <TableCell>Name</TableCell>
+              <TableCell sortDirection={sortDir}>
+                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
+              </TableCell>
               <TableCell>Address</TableCell>
               <TableCell>Home Club</TableCell>
               <TableCell>Map</TableCell>
@@ -62,7 +73,15 @@ export const Fields: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map(r => (
+            {[...rows].filter(r => {
+              const q = search.toLowerCase();
+              return !q
+                || r.name.toLowerCase().includes(q)
+                || r.homeClubName?.toLowerCase().includes(q);
+            }).sort((a, b) => {
+              const cmp = a.name.localeCompare(b.name);
+              return sortDir === 'asc' ? cmp : -cmp;
+            }).map(r => (
               <TableRow key={r.fieldId}>
                 <TableCell>{r.name}</TableCell>
                 <TableCell>{r.address}</TableCell>

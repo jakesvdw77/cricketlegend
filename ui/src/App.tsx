@@ -26,6 +26,7 @@ import { Scorecards } from './pages/view/Scorecards';
 import { PlayerStatistics } from './pages/view/PlayerStatistics';
 import { UpcomingMatches } from './pages/view/UpcomingMatches';
 import { MatchTeamSheet } from './pages/view/MatchTeamSheet';
+import { TeamsView } from './pages/view/TeamsView';
 
 const theme = createTheme({
   palette: {
@@ -39,6 +40,11 @@ const AdminRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
   return isAdmin ? element : <Navigate to="/" replace />;
 };
 
+const ManagerRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
+  const { isAdmin, isManager } = useAuth();
+  return (isAdmin || isManager) ? element : <Navigate to="/" replace />;
+};
+
 export default function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -49,17 +55,17 @@ export default function App() {
             <Route index element={<Navigate to="/matches/upcoming" replace />} />
 
             {/* Admin routes */}
-            <Route path="admin/clubs" element={<AdminRoute element={<Clubs />} />} />
-            <Route path="admin/teams" element={<AdminRoute element={<Teams />} />} />
-            <Route path="admin/players" element={<AdminRoute element={<Players />} />} />
-            <Route path="admin/tournaments" element={<AdminRoute element={<Tournaments />} />} />
-            <Route path="admin/matches" element={<AdminRoute element={<Matches />} />} />
-            <Route path="admin/matches/:matchId/teamsheet" element={<AdminRoute element={<Teamsheet />} />} />
-            <Route path="admin/matches/:matchId/result" element={<AdminRoute element={<MatchResultCapture />} />} />
-            <Route path="admin/fields" element={<AdminRoute element={<Fields />} />} />
+            <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />
+            <Route path="admin/teams" element={<ManagerRoute element={<Teams />} />} />
+            <Route path="admin/players" element={<ManagerRoute element={<Players />} />} />
+            <Route path="admin/tournaments" element={<ManagerRoute element={<Tournaments />} />} />
+            <Route path="admin/matches" element={<ManagerRoute element={<Matches />} />} />
+            <Route path="admin/matches/:matchId/teamsheet" element={<ManagerRoute element={<Teamsheet />} />} />
+            <Route path="admin/matches/:matchId/result" element={<ManagerRoute element={<MatchResultCapture />} />} />
+            <Route path="admin/fields" element={<ManagerRoute element={<Fields />} />} />
             <Route path="admin/sponsors" element={<AdminRoute element={<Sponsors />} />} />
             <Route path="admin/payments" element={<AdminRoute element={<Payments />} />} />
-            <Route path="admin/tournaments/:tournamentId/pools" element={<AdminRoute element={<TournamentPools />} />} />
+            <Route path="admin/tournaments/:tournamentId/pools" element={<ManagerRoute element={<TournamentPools />} />} />
 
             {/* View routes (all authenticated users) */}
             <Route path="matches/previous" element={<PreviousMatches />} />
@@ -67,6 +73,7 @@ export default function App() {
             <Route path="player/statistics" element={<PlayerStatistics />} />
             <Route path="matches/upcoming" element={<UpcomingMatches />} />
             <Route path="matches/:matchId/teamsheet" element={<MatchTeamSheet />} />
+            <Route path="teams" element={<TeamsView />} />
             <Route path="tournaments" element={<TournamentView />} />
             <Route path="tournaments/:tournamentId/pools" element={<TournamentPools />} />
             <Route path="tournaments/:tournamentId/standings" element={<TournamentStandings />} />

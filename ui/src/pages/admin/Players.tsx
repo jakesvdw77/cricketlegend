@@ -3,19 +3,28 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Checkbox, FormControlLabel, Avatar,
-  CircularProgress, Tooltip,
+  CircularProgress, Tooltip, TableSortLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, CloudUpload, OpenInNew } from '@mui/icons-material';
 import { playerApi } from '../../api/playerApi';
 import { clubApi } from '../../api/clubApi';
 import { paymentApi } from '../../api/paymentApi';
-import { Player, Club, BattingStance, BowlingArm, BowlingType } from '../../types';
+import { Player, Club, BattingPosition, BattingStance, BowlingArm, BowlingType } from '../../types';
 import { formatEnum } from '../../utils/formatEnum';
 
 const empty: Player = { name: '', surname: '' };
 
+const VALID_BOWLING_TYPES: BowlingType[] = [
+  'VERY_FAST', 'FAST', 'FAST_MEDIUM', 'MEDIUM_FAST', 'MEDIUM', 'MEDIUM_SLOW',
+  'OFF_SPIN', 'LEG_SPIN', 'SLOW_LEFT_ARM_ORTHODOX', 'CHINAMAN', 'NONE',
+];
+const validBowlingType = (v?: string): BowlingType | '' =>
+  VALID_BOWLING_TYPES.includes(v as BowlingType) ? (v as BowlingType) : '';
+
 export const Players: React.FC = () => {
   const [rows, setRows] = useState<Player[]>([]);
+  const [search, setSearch] = useState('');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [clubs, setClubs] = useState<Club[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Player>(empty);
@@ -45,8 +54,15 @@ export const Players: React.FC = () => {
   }, []);
 
   const save = async () => {
-    if (editing.playerId) { await playerApi.update(editing.playerId, editing); }
-    else { await playerApi.create(editing); }
+    const payload: Player = {
+      ...editing,
+      bowlingType: editing.bowlingType || undefined,
+      bowlingArm: editing.bowlingArm || undefined,
+      battingStance: editing.battingStance || undefined,
+      battingPosition: editing.battingPosition || undefined,
+    };
+    if (payload.playerId) { await playerApi.update(payload.playerId, payload); }
+    else { await playerApi.create(payload); }
     setOpen(false); load();
   };
 
@@ -58,29 +74,50 @@ export const Players: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">Players</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto' }}>Players</Typography>
+        <TextField
+          size="small"
+          placeholder="Search name, surname, club, #…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          sx={{ width: 280 }}
+        />
         <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
           Add Player
         </Button>
       </Box>
       <TableContainer component={Paper}>
-        <Table size="small">
+        <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
               <TableCell />
               <TableCell>Name</TableCell>
-              <TableCell>Surname</TableCell>
+              <TableCell sortDirection={sortDir}>
+                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Surname</TableSortLabel>
+              </TableCell>
               <TableCell>#</TableCell>
               <TableCell>Club</TableCell>
               <TableCell>Batting</TableCell>
+              <TableCell>Position</TableCell>
+              <TableCell>Bowling Arm</TableCell>
               <TableCell>Bowling</TableCell>
               <TableCell>WK</TableCell>
               <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map(r => (
+            {[...rows].filter(r => {
+              const q = search.toLowerCase();
+              return !q
+                || r.name.toLowerCase().includes(q)
+                || r.surname.toLowerCase().includes(q)
+                || r.homeClubName?.toLowerCase().includes(q)
+                || r.shirtNumber?.toString().includes(q);
+            }).sort((a, b) => {
+              const cmp = a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name);
+              return sortDir === 'asc' ? cmp : -cmp;
+            }).map(r => (
               <TableRow key={r.playerId}>
                 <TableCell>
                   <Avatar
@@ -100,6 +137,8 @@ export const Players: React.FC = () => {
                 <TableCell>{r.shirtNumber}</TableCell>
                 <TableCell>{r.homeClubName}</TableCell>
                 <TableCell>{formatEnum(r.battingStance)}</TableCell>
+                <TableCell>{formatEnum(r.battingPosition)}</TableCell>
+                <TableCell>{r.bowlingArm && r.bowlingType !== 'NONE' ? `${formatEnum(r.bowlingArm)} Arm` : ''}</TableCell>
                 <TableCell>{formatEnum(r.bowlingType)}</TableCell>
                 <TableCell>{r.wicketKeeper ? '✓' : ''}</TableCell>
                 <TableCell>
@@ -153,6 +192,15 @@ export const Players: React.FC = () => {
           </Box>
           <TextField label="Email" type="email" value={editing.email ?? ''}
             onChange={e => set({ email: e.target.value })} />
+          <TextField select label="Batting Position" value={editing.battingPosition ?? ''}
+            onChange={e => set({ battingPosition: e.target.value as BattingPosition })}>
+            <MenuItem value="">— None —</MenuItem>
+            <MenuItem value="OPENER">Opener</MenuItem>
+            <MenuItem value="TOP_ORDER">Top Order</MenuItem>
+            <MenuItem value="MIDDLE_ORDER">Middle Order</MenuItem>
+            <MenuItem value="LOWER_MIDDLE_ORDER">Lower Middle Order</MenuItem>
+            <MenuItem value="LOWER_ORDER">Lower Order</MenuItem>
+          </TextField>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField select label="Batting Stance" value={editing.battingStance ?? ''} fullWidth
               onChange={e => set({ battingStance: e.target.value as BattingStance })}>
@@ -165,18 +213,26 @@ export const Players: React.FC = () => {
               <MenuItem value="LEFT">Left</MenuItem>
             </TextField>
           </Box>
-          <TextField select label="Bowling Type" value={editing.bowlingType ?? ''}
+          <TextField select label="Bowling Type" value={validBowlingType(editing.bowlingType)}
             onChange={e => set({ bowlingType: e.target.value as BowlingType })}>
-            <MenuItem value="FAST_PACE">Fast Pace</MenuItem>
-            <MenuItem value="MEDIUM_FAST_PACE">Medium Fast Pace</MenuItem>
-            <MenuItem value="MEDIUM_PACE">Medium Pace</MenuItem>
-            <MenuItem value="OFF_SPIN">Off Spin</MenuItem>
-            <MenuItem value="LEG_SPIN">Leg Spin</MenuItem>
-            <MenuItem value="SLOW_BOWLER">Slow Bowler</MenuItem>
+            <MenuItem value="VERY_FAST"><Tooltip title="150+ km/h" placement="right"><span style={{ width: '100%' }}>Very Fast</span></Tooltip></MenuItem>
+            <MenuItem value="FAST"><Tooltip title="140–150 km/h" placement="right"><span style={{ width: '100%' }}>Fast</span></Tooltip></MenuItem>
+            <MenuItem value="FAST_MEDIUM"><Tooltip title="130–140 km/h" placement="right"><span style={{ width: '100%' }}>Fast Medium</span></Tooltip></MenuItem>
+            <MenuItem value="MEDIUM_FAST"><Tooltip title="120–130 km/h" placement="right"><span style={{ width: '100%' }}>Medium Fast</span></Tooltip></MenuItem>
+            <MenuItem value="MEDIUM"><Tooltip title="100–120 km/h" placement="right"><span style={{ width: '100%' }}>Medium</span></Tooltip></MenuItem>
+            <MenuItem value="MEDIUM_SLOW"><Tooltip title="85–100 km/h" placement="right"><span style={{ width: '100%' }}>Medium Slow</span></Tooltip></MenuItem>
+            <MenuItem value="OFF_SPIN"><Tooltip title="Finger Spin · 70–90 km/h" placement="right"><span style={{ width: '100%' }}>Off Spin</span></Tooltip></MenuItem>
+            <MenuItem value="LEG_SPIN"><Tooltip title="Wrist Spin · 70–90 km/h" placement="right"><span style={{ width: '100%' }}>Leg Spin</span></Tooltip></MenuItem>
+            <MenuItem value="SLOW_LEFT_ARM_ORTHODOX"><Tooltip title="Left-arm Finger Spin · 70–90 km/h" placement="right"><span style={{ width: '100%' }}>Slow Left-Arm Orthodox</span></Tooltip></MenuItem>
+            <MenuItem value="CHINAMAN"><Tooltip title="Left-arm Wrist Spin · 65–85 km/h" placement="right"><span style={{ width: '100%' }}>Chinaman</span></Tooltip></MenuItem>
             <MenuItem value="NONE">Don't Bowl</MenuItem>
           </TextField>
-          <FormControlLabel control={<Checkbox checked={editing.wicketKeeper ?? false}
-            onChange={e => set({ wicketKeeper: e.target.checked })} />} label="Wicket Keeper" />
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <FormControlLabel control={<Checkbox checked={editing.wicketKeeper ?? false}
+              onChange={e => set({ wicketKeeper: e.target.checked })} />} label="Wicket Keeper" />
+            <FormControlLabel control={<Checkbox checked={editing.partTimeBowler ?? false}
+              onChange={e => set({ partTimeBowler: e.target.checked })} />} label="Part Time Bowler" />
+          </Box>
           <Box>
             <input
               type="file"

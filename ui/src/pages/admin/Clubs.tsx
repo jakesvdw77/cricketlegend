@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, Avatar, CircularProgress, Snackbar,
+  DialogContent, DialogActions, TextField, Avatar, CircularProgress, Snackbar, TableSortLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, OpenInNew, CloudUpload } from '@mui/icons-material';
 import { clubApi } from '../../api/clubApi';
@@ -13,6 +13,8 @@ const empty: Club = { name: '' };
 
 export const Clubs: React.FC = () => {
   const [rows, setRows] = useState<Club[]>([]);
+  const [search, setSearch] = useState('');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Club>(empty);
   const [uploading, setUploading] = useState(false);
@@ -63,19 +65,28 @@ export const Clubs: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h5">Clubs</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto' }}>Clubs</Typography>
+        <TextField
+          size="small"
+          placeholder="Search name, contact, email…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          sx={{ width: 280 }}
+        />
         <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
           Add Club
         </Button>
       </Box>
 
       <TableContainer component={Paper}>
-        <Table size="small">
+        <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
               <TableCell width={48} />
-              <TableCell>Name</TableCell>
+              <TableCell sortDirection={sortDir}>
+                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
+              </TableCell>
               <TableCell>Contact Person</TableCell>
               <TableCell>Email</TableCell>
               <TableCell>Contact Number</TableCell>
@@ -84,7 +95,16 @@ export const Clubs: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map(r => (
+            {[...rows].filter(r => {
+              const q = search.toLowerCase();
+              return !q
+                || r.name.toLowerCase().includes(q)
+                || r.contactPerson?.toLowerCase().includes(q)
+                || r.email?.toLowerCase().includes(q);
+            }).sort((a, b) => {
+              const cmp = a.name.localeCompare(b.name);
+              return sortDir === 'asc' ? cmp : -cmp;
+            }).map(r => (
               <TableRow key={r.clubId}>
                 <TableCell>
                   <Avatar

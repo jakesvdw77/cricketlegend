@@ -34,15 +34,16 @@ const BatIcon: React.FC = () => (
 
 function getRoleIcons(player: Player, battingPosition: number, isWK: boolean): React.ReactNode[] {
   const icons: React.ReactNode[] = [];
-  const isBowler = player.bowlingType && player.bowlingType !== 'NONE';
+  const isBowler = player.bowlingType && player.bowlingType !== 'NONE' && !player.partTimeBowler;
+  const showBat = player.battingPosition !== 'LOWER_ORDER' || battingPosition <= 7;
   if (isWK) {
-    if (battingPosition <= 7) icons.push(<BatIcon key="bat" />);
+    if (showBat) icons.push(<BatIcon key="bat" />);
     icons.push(<WKGloves key="wk" />);
   } else if (isBowler) {
-    if (battingPosition <= 7) icons.push(<BatIcon key="bat" />);
+    if (showBat) icons.push(<BatIcon key="bat" />);
     icons.push(<BallIcon key="ball" />);
   } else {
-    icons.push(<BatIcon key="bat" />);
+    if (showBat) icons.push(<BatIcon key="bat" />);
   }
   return icons;
 }
@@ -50,13 +51,14 @@ function getRoleIcons(player: Player, battingPosition: number, isWK: boolean): R
 // ── WhatsApp text builder ──────────────────────────────────────────────────
 
 function getRoleText(player: Player, battingPosition: number, isWK: boolean): string {
-  const isBowler = player.bowlingType && player.bowlingType !== 'NONE';
+  const isBowler = player.bowlingType && player.bowlingType !== 'NONE' && !player.partTimeBowler;
+  const showBat = player.battingPosition !== 'LOWER_ORDER' || battingPosition <= 7;
   if (isWK) {
-    return battingPosition <= 7 ? '🏏🧤' : '🧤';
+    return showBat ? '🏏🧤' : '🧤';
   } else if (isBowler) {
-    return battingPosition <= 7 ? '🏏🔴' : '🔴';
+    return showBat ? '🏏🔴' : '🔴';
   }
-  return '🏏';
+  return showBat ? '🏏' : '';
 }
 
 function buildWhatsAppText(

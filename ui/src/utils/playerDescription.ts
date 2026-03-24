@@ -1,12 +1,16 @@
 import { Player } from '../types';
 
 const BOWLING_LABELS: Record<string, string> = {
-  FAST_PACE: 'Fast',
-  MEDIUM_FAST_PACE: 'Medium Fast',
-  MEDIUM_PACE: 'Medium',
+  VERY_FAST: 'Very Fast',
+  FAST: 'Fast',
+  FAST_MEDIUM: 'Fast Medium',
+  MEDIUM_FAST: 'Medium Fast',
+  MEDIUM: 'Medium',
+  MEDIUM_SLOW: 'Medium Slow',
   OFF_SPIN: 'Off Spin',
   LEG_SPIN: 'Leg Spin',
-  SLOW_BOWLER: 'Slow',
+  SLOW_LEFT_ARM_ORTHODOX: 'Slow Left-Arm Orthodox',
+  CHINAMAN: 'Chinaman',
   NONE: '',
 };
 

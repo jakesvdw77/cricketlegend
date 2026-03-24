@@ -6,6 +6,7 @@ export function useAuth() {
 
   return {
     isAdmin: roles.includes('admin'),
+    isManager: roles.includes('manager'),
     isPlayer: roles.includes('player'),
     username: profile?.['preferred_username'] as string ?? '',
     email: profile?.['email'] as string ?? '',
