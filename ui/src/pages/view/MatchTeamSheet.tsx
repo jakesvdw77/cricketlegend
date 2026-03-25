@@ -238,69 +238,83 @@ export const MatchTeamSheet: React.FC = () => {
             </Box>
           )}
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 1, flexWrap: 'wrap', '@media print': { display: 'none' } }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography sx={{ fontSize: '1rem' }}>🧤</Typography>
-              <Typography variant="caption" color="text.secondary">Wicket Keeper</Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#c0392b', border: '1px solid #922b21' }} />
-              <Typography variant="caption" color="text.secondary">Bowler</Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <SportsCricket sx={{ fontSize: 14, color: 'text.secondary' }} />
-              <Typography variant="caption" color="text.secondary">Batsman</Typography>
-            </Box>
-          </Box>
+          {xi.length > 0 && !side.teamAnnounced ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+              Team not announced yet.
+            </Typography>
+          ) : (
+            <>
+              <Box sx={{ display: 'flex', gap: 2, mb: 1, flexWrap: 'wrap', '@media print': { display: 'none' } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '1rem' }}>🧤</Typography>
+                  <Typography variant="caption" color="text.secondary">Wicket Keeper</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#c0392b', border: '1px solid #922b21' }} />
+                  <Typography variant="caption" color="text.secondary">Bowler</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <SportsCricket sx={{ fontSize: 14, color: 'text.secondary' }} />
+                  <Typography variant="caption" color="text.secondary">Batsman</Typography>
+                </Box>
+              </Box>
 
-          <Divider sx={{ mb: 1 }} />
+              <Divider sx={{ mb: 1 }} />
 
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell width={32}>#</TableCell>
-                <TableCell>Player</TableCell>
-                <TableCell width={80}>Shirt</TableCell>
-                <TableCell width={80}>Role</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {xi.map((p, idx) => {
-                const isCaptain = p.playerId === captain?.playerId;
-                const isWK = p.playerId === side?.wicketKeeperPlayerId;
-                const battingPosition = idx + 1;
-                const roleIcons = getRoleIcons(p, battingPosition, isWK);
-                return (
-                  <TableRow key={p.playerId}>
-                    <TableCell>{battingPosition}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {p.name} {p.surname}
-                        {isCaptain && (
-                          <Typography component="span" variant="caption" sx={{ color: 'warning.main', fontWeight: 'bold' }}>
-                            (C)
-                          </Typography>
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>{p.shirtNumber ?? '—'}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>{roleIcons}</Box>
-                    </TableCell>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell width={32}>#</TableCell>
+                    <TableCell>Player</TableCell>
+                    <TableCell width={80}>Shirt</TableCell>
+                    <TableCell width={80}>Role</TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                </TableHead>
+                <TableBody>
+                  {xi.map((p, idx) => {
+                    const isCaptain = p.playerId === captain?.playerId;
+                    const isWK = p.playerId === side?.wicketKeeperPlayerId;
+                    const battingPosition = idx + 1;
+                    const roleIcons = getRoleIcons(p, battingPosition, isWK);
+                    return (
+                      <TableRow key={p.playerId}>
+                        <TableCell>{battingPosition}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            {p.name} {p.surname}
+                            {isCaptain && (
+                              <Typography component="span" variant="caption" sx={{ color: 'warning.main', fontWeight: 'bold' }}>
+                                (C)
+                              </Typography>
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell>{p.shirtNumber ?? '—'}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>{roleIcons}</Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
 
-          {twelfth && (
-            <Box sx={{ mt: 1 }}>
-              <Divider sx={{ mb: 0.5 }} />
-              <Typography variant="caption" color="text.secondary">
-                12th Man: <strong>{twelfth.name} {twelfth.surname}</strong>
-                {twelfth.shirtNumber ? ` (#${twelfth.shirtNumber})` : ''}
-              </Typography>
-            </Box>
+              {twelfth && (
+                <Box sx={{ mt: 1 }}>
+                  <Divider sx={{ mb: 0.5 }} />
+                  <Typography variant="caption" color="text.secondary">
+                    12th Man: <strong>{twelfth.name} {twelfth.surname}</strong>
+                    {twelfth.shirtNumber ? ` (#${twelfth.shirtNumber})` : ''}
+                  </Typography>
+                </Box>
+              )}
+
+              {xi.length === 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                  Team sheet not yet submitted.
+                </Typography>
+              )}
+            </>
           )}
 
           {xi.length === 0 && (

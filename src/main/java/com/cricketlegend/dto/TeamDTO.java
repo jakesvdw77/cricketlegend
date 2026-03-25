@@ -20,6 +20,7 @@ public class TeamDTO {
     private String captainName;
     private Long homeFieldId;
     private String homeFieldName;
+    private String selector;
     private String logoUrl;
     private String teamPhotoUrl;
     private String websiteUrl;

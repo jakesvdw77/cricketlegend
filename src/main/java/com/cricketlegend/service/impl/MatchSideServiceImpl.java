@@ -57,6 +57,7 @@ public class MatchSideServiceImpl implements MatchSideService {
         matchSide.setTwelfthManPlayerId(dto.getTwelfthManPlayerId());
         matchSide.setWicketKeeperPlayerId(dto.getWicketKeeperPlayerId());
         matchSide.setCaptainPlayerId(dto.getCaptainPlayerId());
+        matchSide.setTeamAnnounced(dto.getTeamAnnounced());
 
         return matchSideMapper.toDto(matchSideRepository.save(matchSide));
     }

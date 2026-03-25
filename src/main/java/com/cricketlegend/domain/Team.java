@@ -39,6 +39,7 @@ public class Team {
     @JoinColumn(name = "home_field_id")
     private Field homeField;
 
+    private String selector;
     private String logoUrl;
     private String teamPhotoUrl;
     private String websiteUrl;

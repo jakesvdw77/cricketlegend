@@ -129,6 +129,7 @@ export const Teams: React.FC = () => {
               <TableCell>Club</TableCell>
               <TableCell>Captain</TableCell>
               <TableCell>Home Ground</TableCell>
+              <TableCell>Selector</TableCell>
               <TableCell>Coach</TableCell>
               <TableCell>Manager</TableCell>
               <TableCell />
@@ -162,6 +163,7 @@ export const Teams: React.FC = () => {
                 <TableCell>{r.associatedClubName}</TableCell>
                 <TableCell>{r.captainName}</TableCell>
                 <TableCell>{r.homeFieldName}</TableCell>
+                <TableCell>{r.selector}</TableCell>
                 <TableCell>{r.coach}</TableCell>
                 <TableCell>{r.manager}</TableCell>
                 <TableCell>
@@ -186,6 +188,8 @@ export const Teams: React.FC = () => {
               inputProps={{ maxLength: 10 }} helperText="Max 10 characters"
               onChange={e => set({ abbreviation: e.target.value })} />
           </Box>
+          <TextField label="Selector" value={editing.selector ?? ''}
+            onChange={e => set({ selector: e.target.value })} />
           <TextField select label="Associated Club" value={editing.associatedClubId ?? ''}
             onChange={e => set({ associatedClubId: +e.target.value })}>
             {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}

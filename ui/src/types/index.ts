@@ -99,6 +99,7 @@ export interface Team {
   captainName?: string;
   homeFieldId?: number;
   homeFieldName?: string;
+  selector?: string;
   logoUrl?: string;
   teamPhotoUrl?: string;
   websiteUrl?: string;
@@ -306,4 +307,5 @@ export interface MatchSide {
   twelfthManPlayerId?: number;
   wicketKeeperPlayerId?: number;
   captainPlayerId?: number;
+  teamAnnounced?: boolean;
 }

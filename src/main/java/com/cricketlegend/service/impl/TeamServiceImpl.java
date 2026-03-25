@@ -61,6 +61,7 @@ public class TeamServiceImpl implements TeamService {
         existing.setAdministrator(dto.getAdministrator());
         existing.setEmail(dto.getEmail());
         existing.setContactNumber(dto.getContactNumber());
+        existing.setSelector(dto.getSelector());
         existing.setLogoUrl(dto.getLogoUrl());
         existing.setTeamPhotoUrl(dto.getTeamPhotoUrl());
         existing.setWebsiteUrl(dto.getWebsiteUrl());

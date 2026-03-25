@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Paper, Autocomplete, TextField,
   List, ListItem, ListItemText, IconButton, Chip, Divider,
+  FormControlLabel, Checkbox,
 } from '@mui/material';
 import { Delete, DragIndicator, SportsCricket } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
@@ -213,6 +214,18 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
         onChange={(_, p) => persist({ ...side, twelfthManPlayerId: p?.playerId ?? undefined })}
         renderInput={params => <TextField {...params} label="12th Man" size="small" />}
         blurOnSelect
+      />
+
+      <Divider />
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={side.teamAnnounced ?? false}
+            onChange={e => persist({ ...side, teamAnnounced: e.target.checked })}
+            color="success"
+          />
+        }
+        label="Team Announced"
       />
     </Paper>
   );

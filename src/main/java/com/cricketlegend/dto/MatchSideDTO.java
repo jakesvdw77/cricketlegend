@@ -14,4 +14,5 @@ public class MatchSideDTO {
     private Long twelfthManPlayerId;
     private Long wicketKeeperPlayerId;
     private Long captainPlayerId;
+    private Boolean teamAnnounced;
 }

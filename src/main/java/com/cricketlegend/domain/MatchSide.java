@@ -33,4 +33,6 @@ public class MatchSide {
     private Long wicketKeeperPlayerId;
 
     private Long captainPlayerId;
+
+    private Boolean teamAnnounced = false;
 }

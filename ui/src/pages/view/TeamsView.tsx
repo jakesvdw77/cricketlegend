@@ -195,6 +195,7 @@ export const TeamsView: React.FC = () => {
                     Management
                   </Typography>
                   <Box sx={{ mt: 0.75 }}>
+                    <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Selector" value={team.selector} />
                     <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Captain" value={team.captainName} />
                     <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Coach" value={team.coach} />
                     <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Manager" value={team.manager} />

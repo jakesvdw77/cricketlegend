@@ -25,5 +25,7 @@
     <include file="db/changelog/v1/018-player-batting-position.sql"/>
     <include file="db/changelog/v1/019-migrate-bowling-types.sql"/>
     <include file="db/changelog/v1/020-player-part-time-bowler.sql"/>
+    <include file="db/changelog/v1/021-match-side-team-announced.sql"/>
+    <include file="db/changelog/v1/022-team-selector.sql"/>
 
 </databaseChangeLog>
