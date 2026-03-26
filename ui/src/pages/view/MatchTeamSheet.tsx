@@ -238,7 +238,7 @@ export const MatchTeamSheet: React.FC = () => {
             </Box>
           )}
 
-          {xi.length > 0 && !side.teamAnnounced ? (
+          {xi.length > 0 && !side?.teamAnnounced ? (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
               Team not announced yet.
             </Typography>

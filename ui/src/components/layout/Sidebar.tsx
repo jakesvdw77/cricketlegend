@@ -32,7 +32,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
             variant="persistent"
             anchor="left"
             open={open}
-            sx={{width: DRAWER_WIDTH, flexShrink: 0, '& .MuiDrawer-paper': {width: DRAWER_WIDTH}}}
+            sx={{width: open ? DRAWER_WIDTH : 0, flexShrink: 0, transition: 'width 0.2s', '& .MuiDrawer-paper': {width: DRAWER_WIDTH}}}
         >
             <Toolbar sx={{display: 'flex', justifyContent: 'space-between'}}>
                 <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
