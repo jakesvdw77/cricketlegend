@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Box, Toolbar } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Toolbar, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -7,7 +7,13 @@ import { Sidebar } from './Sidebar';
 const DRAWER_WIDTH = 240;
 
 export const AppLayout: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [isMobile]);
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -17,9 +23,10 @@ export const AppLayout: React.FC = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
+          p: { xs: 1.5, sm: 2, md: 3 },
           transition: 'margin 0.2s',
-          marginLeft: sidebarOpen ? `${DRAWER_WIDTH}px` : 0,
+          marginLeft: !isMobile && sidebarOpen ? `${DRAWER_WIDTH}px` : 0,
+          minWidth: 0,
         }}
       >
         <Toolbar />

@@ -60,7 +60,7 @@ export const Sponsors: React.FC = () => {
         </Button>
       </Box>
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
@@ -167,7 +167,7 @@ export const Sponsors: React.FC = () => {
             onChange={e => set({ brandWebsite: e.target.value })} />
           <TextField label="Contact Person" value={editing.contactPerson ?? ''}
             onChange={e => set({ contactPerson: e.target.value })} />
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Contact Email" type="email" value={editing.contactEmail ?? ''} fullWidth
               onChange={e => set({ contactEmail: e.target.value })} />
             <TextField label="Contact Number" value={editing.contactNumber ?? ''} fullWidth

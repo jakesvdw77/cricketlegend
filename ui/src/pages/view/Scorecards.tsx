@@ -12,7 +12,7 @@ const InningsTable: React.FC<{ title: string; innings: TeamScorecard }> = ({ tit
   <Box sx={{ mb: 3 }}>
     <Typography variant="h6">{title} — {innings.score}/{innings.wickets} ({innings.overs} overs)</Typography>
     <Typography variant="subtitle2" sx={{ mt: 1 }}>Batting</Typography>
-    <TableContainer component={Paper} variant="outlined" sx={{ mb: 1 }}>
+    <TableContainer component={Paper} variant="outlined" sx={{ mb: 1, overflowX: 'auto' }}>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -40,7 +40,7 @@ const InningsTable: React.FC<{ title: string; innings: TeamScorecard }> = ({ tit
       </Table>
     </TableContainer>
     <Typography variant="subtitle2">Bowling</Typography>
-    <TableContainer component={Paper} variant="outlined">
+    <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
       <Table size="small">
         <TableHead>
           <TableRow>

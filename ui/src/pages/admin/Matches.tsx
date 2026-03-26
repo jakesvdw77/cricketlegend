@@ -104,7 +104,7 @@ export const Matches: React.FC = () => {
           label="Tournament"
           value={filterTournament}
           onChange={e => setFilterTournament(e.target.value === '' ? '' : Number(e.target.value))}
-          sx={{ width: 220 }}
+          sx={{ width: { xs: '100%', sm: 220 } }}
         >
           <MenuItem value="">All tournaments</MenuItem>
           {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
@@ -115,7 +115,7 @@ export const Matches: React.FC = () => {
           label="Stage"
           value={filterStage}
           onChange={e => setFilterStage(e.target.value as MatchStage | '')}
-          sx={{ width: 140 }}
+          sx={{ width: { xs: '100%', sm: 140 } }}
         >
           <MenuItem value="">All stages</MenuItem>
           <MenuItem value="POOL">Pool</MenuItem>
@@ -127,7 +127,7 @@ export const Matches: React.FC = () => {
         </Button>
       </Box>
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
@@ -196,7 +196,7 @@ export const Matches: React.FC = () => {
 
           {step === 0 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
                 <TextField label="Match Date" type="date" value={editing.matchDate ?? ''} fullWidth
                   InputLabelProps={{ shrink: true }} onChange={e => setEditing({ ...editing, matchDate: e.target.value })} />
                 <TextField label="Start Time" type="time" value={editing.scheduledStartTime ?? ''} fullWidth

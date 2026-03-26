@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import {
     Drawer, List, ListItemButton, ListItemIcon, ListItemText,
     Collapse, Divider, IconButton, Toolbar, Typography, Box,
+    useMediaQuery, useTheme,
 } from '@mui/material';
 import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
@@ -21,18 +22,21 @@ interface Props {
 export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const navigate = useNavigate();
     const {isAdmin, isManager} = useAuth();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [captureOpen, setCaptureOpen] = useState(true);
     const [viewOpen, setViewOpen] = useState(true);
     const [financialsOpen, setFinancialsOpen] = useState(true);
 
-    const go = (path: string) => navigate(path);
+    const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
 
     return (
         <Drawer
-            variant="persistent"
+            variant={isMobile ? 'temporary' : 'persistent'}
             anchor="left"
             open={open}
-            sx={{width: open ? DRAWER_WIDTH : 0, flexShrink: 0, transition: 'width 0.2s', '& .MuiDrawer-paper': {width: DRAWER_WIDTH}}}
+            onClose={onClose}
+            sx={{width: !isMobile && open ? DRAWER_WIDTH : 0, flexShrink: 0, transition: 'width 0.2s', '& .MuiDrawer-paper': {width: DRAWER_WIDTH}}}
         >
             <Toolbar sx={{display: 'flex', justifyContent: 'space-between'}}>
                 <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>

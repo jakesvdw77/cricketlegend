@@ -182,7 +182,7 @@ export const Tournaments: React.FC = () => {
           label="Format"
           value={filterFormat}
           onChange={e => setFilterFormat(e.target.value as CricketFormat | '')}
-          sx={{ width: 110 }}
+          sx={{ width: { xs: '100%', sm: 110 } }}
         >
           <MenuItem value="">All</MenuItem>
           {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
@@ -193,7 +193,7 @@ export const Tournaments: React.FC = () => {
           label="Year"
           value={filterYear}
           onChange={e => setFilterYear(e.target.value === '' ? '' : Number(e.target.value))}
-          sx={{ width: 100 }}
+          sx={{ width: { xs: '100%', sm: 100 } }}
         >
           <MenuItem value="">All</MenuItem>
           {Array.from(new Set(rows.map(r => r.startDate?.slice(0, 4)).filter(Boolean)))
@@ -205,14 +205,14 @@ export const Tournaments: React.FC = () => {
           placeholder="Search name…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          sx={{ width: 220 }}
+          sx={{ width: { xs: '100%', sm: 220 } }}
         />
         <Button variant="contained" startIcon={<Add />} onClick={() => openDialog(empty)}>
           Add Tournament
         </Button>
       </Box>
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
@@ -327,7 +327,7 @@ export const Tournaments: React.FC = () => {
           <TextField select label="Format" value={editing.cricketFormat ?? ''} onChange={e => set({ cricketFormat: e.target.value as CricketFormat })}>
             {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
           </TextField>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Start Date" type="date" value={editing.startDate ?? ''} InputLabelProps={{ shrink: true }}
               onChange={e => set({ startDate: e.target.value })} fullWidth />
             <TextField label="End Date" type="date" value={editing.endDate ?? ''} InputLabelProps={{ shrink: true }}
@@ -349,7 +349,7 @@ export const Tournaments: React.FC = () => {
           <Divider />
           <Typography variant="subtitle2" color="text.secondary">Fees</Typography>
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField
               label="Entry Fee"
               type="number"

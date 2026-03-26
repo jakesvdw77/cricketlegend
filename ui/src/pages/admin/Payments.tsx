@@ -268,7 +268,7 @@ export const Payments: React.FC = () => {
       </Box>
 
       {/* ── table ───────────────────────────────────────────────────────── */}
-      <TableContainer component={Paper} id="print-area">
+      <TableContainer component={Paper} id="print-area" sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' } }}>
           <TableHead>
             <TableRow>

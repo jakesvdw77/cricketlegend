@@ -77,7 +77,7 @@ export const TournamentStandings: React.FC = () => {
             <Typography variant="h6">{pool.poolName}</Typography>
           </Box>
 
-          <TableContainer component={Paper} variant="outlined">
+          <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ '& th': { fontWeight: 700, whiteSpace: 'nowrap' } }}>

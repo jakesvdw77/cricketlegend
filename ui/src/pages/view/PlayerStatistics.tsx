@@ -36,7 +36,7 @@ export const PlayerStatistics: React.FC = () => {
         getOptionLabel={p => `${p.name} ${p.surname} (#${p.shirtNumber ?? '?'})`}
         onChange={(_, p) => { setSelected(p); setStats([]); }}
         renderInput={params => <TextField {...params} label="Select Player" />}
-        sx={{ maxWidth: 400, mb: 3 }}
+        sx={{ width: '100%', maxWidth: 400, mb: 3 }}
       />
 
       {selected && (
@@ -78,7 +78,7 @@ export const PlayerStatistics: React.FC = () => {
             ))}
           </Grid>
 
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>

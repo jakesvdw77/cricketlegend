@@ -81,13 +81,13 @@ export const Players: React.FC = () => {
           placeholder="Search name, surname, club, #…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          sx={{ width: 280 }}
+          sx={{ width: { xs: '100%', sm: 280 } }}
         />
         <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
           Add Player
         </Button>
       </Box>
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
@@ -161,13 +161,13 @@ export const Players: React.FC = () => {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.playerId ? 'Edit' : 'New'} Player</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Name" value={editing.name} fullWidth required
               onChange={e => set({ name: e.target.value })} />
             <TextField label="Surname" value={editing.surname} fullWidth required
               onChange={e => set({ surname: e.target.value })} />
           </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Date of Birth" type="date" value={editing.dateOfBirth ?? ''} fullWidth
               InputLabelProps={{ shrink: true }} onChange={e => set({ dateOfBirth: e.target.value })} />
             <TextField label="Shirt #" type="number" value={editing.shirtNumber ?? ''} fullWidth
@@ -184,7 +184,7 @@ export const Players: React.FC = () => {
               <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
             ))}
           </TextField>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Contact" value={editing.contactNumber ?? ''} fullWidth
               onChange={e => set({ contactNumber: e.target.value })} />
             <TextField label="Alt Contact" value={editing.alternativeContactNumber ?? ''} fullWidth
@@ -201,7 +201,7 @@ export const Players: React.FC = () => {
             <MenuItem value="LOWER_MIDDLE_ORDER">Lower Middle Order</MenuItem>
             <MenuItem value="LOWER_ORDER">Lower Order</MenuItem>
           </TextField>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField select label="Batting Stance" value={editing.battingStance ?? ''} fullWidth
               onChange={e => set({ battingStance: e.target.value as BattingStance })}>
               <MenuItem value="RIGHT_HANDED">Right Handed</MenuItem>
@@ -227,7 +227,7 @@ export const Players: React.FC = () => {
             <MenuItem value="CHINAMAN"><Tooltip title="Left-arm Wrist Spin · 65–85 km/h" placement="right"><span style={{ width: '100%' }}>Chinaman</span></Tooltip></MenuItem>
             <MenuItem value="NONE">Don't Bowl</MenuItem>
           </TextField>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <FormControlLabel control={<Checkbox checked={editing.wicketKeeper ?? false}
               onChange={e => set({ wicketKeeper: e.target.checked })} />} label="Wicket Keeper" />
             <FormControlLabel control={<Checkbox checked={editing.partTimeBowler ?? false}

@@ -111,14 +111,14 @@ export const Teams: React.FC = () => {
           placeholder="Search name, club…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          sx={{ width: 260 }}
+          sx={{ width: { xs: '100%', sm: 260 } }}
         />
         <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
           Add Team
         </Button>
       </Box>
 
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
@@ -181,7 +181,7 @@ export const Teams: React.FC = () => {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.teamId ? 'Edit' : 'New'} Team</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Team Name" value={editing.teamName} required fullWidth
               onChange={e => set({ teamName: e.target.value })} />
             <TextField label="Abbreviation" value={editing.abbreviation ?? ''} sx={{ width: 140 }}
@@ -202,7 +202,7 @@ export const Teams: React.FC = () => {
             onChange={e => set({ homeFieldId: +e.target.value })}>
             {fields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
           </TextField>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Coach" value={editing.coach ?? ''} fullWidth
               onChange={e => set({ coach: e.target.value })} />
             <TextField label="Manager" value={editing.manager ?? ''} fullWidth
