@@ -253,79 +253,87 @@ export const Teams: React.FC = () => {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.teamId ? 'Edit' : 'New'} Team</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Team Name" value={editing.teamName} required fullWidth
-              onChange={e => set({ teamName: e.target.value })} />
-            <TextField label="Abbreviation" value={editing.abbreviation ?? ''} sx={{ width: 140 }}
-              inputProps={{ maxLength: 10 }} helperText="Max 10 characters"
-              onChange={e => set({ abbreviation: e.target.value })} />
-          </Box>
-          <TextField label="Selector" value={editing.selector ?? ''}
-            onChange={e => set({ selector: e.target.value })} />
-          <TextField select label="Associated Club" value={editing.associatedClubId ?? ''}
-            onChange={e => set({ associatedClubId: +e.target.value })}>
-            {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
-          </TextField>
-          <TextField select label="Captain" value={editing.captainId ?? ''}
-            onChange={e => set({ captainId: +e.target.value })}>
-            {players.map(p => <MenuItem key={p.playerId} value={p.playerId}>{p.name} {p.surname}</MenuItem>)}
-          </TextField>
-          <TextField select label="Home Ground" value={editing.homeFieldId ?? ''}
-            onChange={e => set({ homeFieldId: +e.target.value })}>
-            {fields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
-          </TextField>
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Coach" value={editing.coach ?? ''} fullWidth
-              onChange={e => set({ coach: e.target.value })} />
-            <TextField label="Manager" value={editing.manager ?? ''} fullWidth
-              onChange={e => set({ manager: e.target.value })} />
-          </Box>
-          <TextField label="Email" value={editing.email ?? ''}
-            onChange={e => set({ email: e.target.value })} />
-          <TextField label="Contact Number" value={editing.contactNumber ?? ''}
-            onChange={e => set({ contactNumber: e.target.value })} />
 
           {/* Logo upload + preview */}
           <Box>
             <input
-              type="file"
-              ref={logoInputRef}
-              style={{ display: 'none' }}
-              accept="image/*"
-              onChange={handleLogoUpload}
+                type="file"
+                ref={logoInputRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={handleLogoUpload}
             />
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Avatar
-                src={editing.logoUrl ?? ''}
-                sx={{
-                  width: 64, height: 64, flexShrink: 0,
-                  cursor: editing.logoUrl ? 'pointer' : 'default',
-                }}
-                onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}
+                  src={editing.logoUrl ?? ''}
+                  sx={{
+                    width: 64, height: 64, flexShrink: 0,
+                    cursor: editing.logoUrl ? 'pointer' : 'default',
+                  }}
+                  onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}
               >
                 {editing.teamName.charAt(0)}
               </Avatar>
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={uploading}
-                  sx={{ alignSelf: 'flex-start' }}
+                    variant="outlined"
+                    size="small"
+                    startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploading}
+                    sx={{ alignSelf: 'flex-start' }}
                 >
                   {uploading ? 'Uploading…' : 'Upload Logo'}
                 </Button>
-                <TextField
-                  label="Logo URL"
-                  value={editing.logoUrl ?? ''}
-                  onChange={e => set({ logoUrl: e.target.value })}
-                  size="small"
-                  helperText="Upload a logo above or paste a URL"
-                />
               </Box>
             </Box>
           </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <TextField label="Team Name" value={editing.teamName} required fullWidth
+                       onChange={e => set({ teamName: e.target.value })} />
+            <TextField label="Abbreviation" value={editing.abbreviation ?? ''} sx={{ width: 140 }}
+                       inputProps={{ maxLength: 10 }}
+                       onChange={e => set({ abbreviation: e.target.value })} />
+          </Box>
+
+          <TextField select label="Associated Club" value={editing.associatedClubId ?? ''}
+                     onChange={e => set({ associatedClubId: +e.target.value })}>
+            {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
+          </TextField>
+
+          <TextField select label="Home Ground" value={editing.homeFieldId ?? ''}
+                     onChange={e => set({ homeFieldId: +e.target.value })}>
+            {fields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
+          </TextField>
+
+          <TextField select label="Captain" value={editing.captainId ?? ''}
+                     onChange={e => set({ captainId: +e.target.value })}>
+            {players.map(p => <MenuItem key={p.playerId} value={p.playerId}>{p.name} {p.surname}</MenuItem>)}
+          </TextField>
+
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <TextField label="Coach" value={editing.coach ?? ''} fullWidth
+                       onChange={e => set({ coach: e.target.value })} />
+            <TextField label="Manager" value={editing.manager ?? ''} fullWidth
+                       onChange={e => set({ manager: e.target.value })} />
+          </Box>
+
+
+          <TextField label="Selector" value={editing.selector ?? ''}
+            onChange={e => set({ selector: e.target.value })} />
+
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <TextField label="Email" value={editing.email ?? ''} fullWidth
+            onChange={e => set({ email: e.target.value })} />
+          <TextField label="Contact Number" value={editing.contactNumber ?? ''} fullWidth
+            onChange={e => set({ contactNumber: e.target.value })} />
+          </Box>
+
+          <TextField label="Website URL" value={editing.websiteUrl ?? ''}
+                     onChange={e => set({ websiteUrl: e.target.value })} />
+          <TextField label="Facebook URL" value={editing.facebookUrl ?? ''}
+                     onChange={e => set({ facebookUrl: e.target.value })} />
 
           {/* Team photo upload + preview */}
           <Box>
@@ -350,31 +358,29 @@ export const Teams: React.FC = () => {
                 />
               )}
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+
                 <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={uploadingPhoto ? <CircularProgress size={14} /> : <CloudUpload />}
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  sx={{ alignSelf: 'flex-start' }}
+                    variant="outlined"
+                    size="small"
+                    startIcon={uploadingPhoto ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploadingPhoto}
+                    sx={{ alignSelf: 'flex-start' }}
                 >
                   {uploadingPhoto ? 'Uploading…' : 'Upload Team Photo'}
                 </Button>
                 <TextField
-                  label="Team Photo URL"
-                  value={editing.teamPhotoUrl ?? ''}
-                  onChange={e => set({ teamPhotoUrl: e.target.value })}
-                  size="small"
-                  helperText="Upload a photo above or paste a URL"
+                    label="Team Photo URL"
+                    value={editing.teamPhotoUrl ?? ''}
+                    onChange={e => set({ teamPhotoUrl: e.target.value })}
+                    size="small"
+                    helperText="Upload a photo above or paste a URL"
                 />
               </Box>
             </Box>
           </Box>
 
-          <TextField label="Website URL" value={editing.websiteUrl ?? ''}
-            onChange={e => set({ websiteUrl: e.target.value })} />
-          <TextField label="Facebook URL" value={editing.facebookUrl ?? ''}
-            onChange={e => set({ facebookUrl: e.target.value })} />
+
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>

@@ -256,6 +256,38 @@ export const Players: React.FC = () => {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.playerId ? 'Edit' : 'New'} Player</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+
+          <Box>
+            <input
+                type="file"
+                ref={photoInputRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={handlePhotoUpload}
+            />
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Avatar
+                  src={editing.profilePictureUrl ?? ''}
+                  sx={{ width: 64, height: 64, flexShrink: 0 }}
+              >
+                {editing.name?.charAt(0)}
+              </Avatar>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => photoInputRef.current?.click()}
+                    disabled={uploading}
+                    sx={{ alignSelf: 'flex-start' }}
+                >
+                  {uploading ? 'Uploading…' : 'Upload Photo'}
+                </Button>
+
+              </Box>
+            </Box>
+          </Box>
+
           <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Name" value={editing.name} fullWidth required
               onChange={e => set({ name: e.target.value })} />
@@ -265,10 +297,25 @@ export const Players: React.FC = () => {
           <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Date of Birth" type="date" value={editing.dateOfBirth ?? ''} fullWidth
               InputLabelProps={{ shrink: true }} onChange={e => set({ dateOfBirth: e.target.value })} />
-            <TextField label="Shirt #" type="number" value={editing.shirtNumber ?? ''} fullWidth
-              onChange={e => set({ shirtNumber: +e.target.value })} />
+            <TextField
+                select
+                label="Home Club"
+                value={editing.homeClubId ?? ''} fullWidth
+                onChange={e => set({ homeClubId: e.target.value ? +e.target.value : undefined })}
+            >
+              <MenuItem value="">— None —</MenuItem>
+              {clubs.map(c => (
+                  <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
+              ))}
+            </TextField>
           </Box>
+
+
+
           <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <TextField label="Shirt #" type="number" value={editing.shirtNumber ?? ''} fullWidth
+                       onChange={e => set({ shirtNumber: +e.target.value })} />
+
             <TextField select label="Shirt Size" value={editing.shirtSize ?? ''} fullWidth
               onChange={e => set({ shirtSize: e.target.value as ClothingSize || undefined })}>
               <MenuItem value="">— None —</MenuItem>
@@ -284,17 +331,7 @@ export const Players: React.FC = () => {
               ))}
             </TextField>
           </Box>
-          <TextField
-            select
-            label="Home Club"
-            value={editing.homeClubId ?? ''}
-            onChange={e => set({ homeClubId: e.target.value ? +e.target.value : undefined })}
-          >
-            <MenuItem value="">— None —</MenuItem>
-            {clubs.map(c => (
-              <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
-            ))}
-          </TextField>
+
           <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
             <TextField label="Contact" value={editing.contactNumber ?? ''} fullWidth
               onChange={e => set({ contactNumber: e.target.value })} />
@@ -303,6 +340,14 @@ export const Players: React.FC = () => {
           </Box>
           <TextField label="Email" type="email" value={editing.email ?? ''}
             onChange={e => set({ email: e.target.value })} />
+          <TextField
+              label="Career URL"
+              type="url"
+              value={editing.careerUrl ?? ''}
+              onChange={e => set({ careerUrl: e.target.value })}
+              helperText="Link to player's career profile (e.g. CricHeroes)"
+          />
+
           <TextField select label="Batting Position" value={editing.battingPosition ?? ''}
             onChange={e => set({ battingPosition: e.target.value as BattingPosition })}>
             <MenuItem value="">— None —</MenuItem>
@@ -344,49 +389,8 @@ export const Players: React.FC = () => {
             <FormControlLabel control={<Checkbox checked={editing.partTimeBowler ?? false}
               onChange={e => set({ partTimeBowler: e.target.checked })} />} label="Part Time Bowler" />
           </Box>
-          <Box>
-            <input
-              type="file"
-              ref={photoInputRef}
-              style={{ display: 'none' }}
-              accept="image/*"
-              onChange={handlePhotoUpload}
-            />
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Avatar
-                src={editing.profilePictureUrl ?? ''}
-                sx={{ width: 64, height: 64, flexShrink: 0 }}
-              >
-                {editing.name?.charAt(0)}
-              </Avatar>
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={uploading}
-                  sx={{ alignSelf: 'flex-start' }}
-                >
-                  {uploading ? 'Uploading…' : 'Upload Photo'}
-                </Button>
-                <TextField
-                  label="Profile Picture URL"
-                  value={editing.profilePictureUrl ?? ''}
-                  onChange={e => set({ profilePictureUrl: e.target.value })}
-                  size="small"
-                  helperText="Upload a photo above or paste a URL"
-                />
-              </Box>
-            </Box>
-          </Box>
-          <TextField
-            label="Career URL"
-            type="url"
-            value={editing.careerUrl ?? ''}
-            onChange={e => set({ careerUrl: e.target.value })}
-            helperText="Link to player's career profile (e.g. CricHeroes)"
-          />
+
+
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>

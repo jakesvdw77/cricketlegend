@@ -215,12 +215,7 @@ export const Clubs: React.FC = () => {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.clubId ? 'Edit' : 'New'} Club</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          <TextField
-            label="Club Name"
-            value={editing.name}
-            onChange={e => set({ name: e.target.value })}
-            required
-          />
+
 
           {/* Logo upload + preview */}
           <Box>
@@ -253,16 +248,16 @@ export const Clubs: React.FC = () => {
                 >
                   {uploading ? 'Uploading…' : 'Upload Logo'}
                 </Button>
-                <TextField
-                  label="Club Image URL"
-                  value={editing.logoUrl ?? ''}
-                  onChange={e => set({ logoUrl: e.target.value })}
-                  size="small"
-                  helperText="Upload a logo above or paste a URL"
-                />
               </Box>
             </Box>
           </Box>
+
+          <TextField
+              label="Club Name"
+              value={editing.name}
+              onChange={e => set({ name: e.target.value })}
+              required
+          />
 
           <TextField
             label="Google Maps URL"

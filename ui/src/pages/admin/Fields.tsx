@@ -196,6 +196,17 @@ export const Fields: React.FC = () => {
             required
           />
           <TextField
+              select
+              label="Home Club"
+              value={editing.homeClubId ?? ''}
+              onChange={e => set({ homeClubId: +e.target.value })}
+          >
+            <MenuItem value="">— None —</MenuItem>
+            {clubs.map(c => (
+                <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
             label="Address"
             value={editing.address ?? ''}
             onChange={e => set({ address: e.target.value })}
@@ -208,17 +219,7 @@ export const Fields: React.FC = () => {
             onChange={e => set({ googleMapsUrl: e.target.value })}
             placeholder="https://maps.google.com/..."
           />
-          <TextField
-            select
-            label="Home Club"
-            value={editing.homeClubId ?? ''}
-            onChange={e => set({ homeClubId: +e.target.value })}
-          >
-            <MenuItem value="">— None —</MenuItem>
-            {clubs.map(c => (
-              <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
-            ))}
-          </TextField>
+
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
