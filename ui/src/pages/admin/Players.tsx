@@ -3,13 +3,14 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Checkbox, FormControlLabel, Avatar,
-  CircularProgress, Tooltip, TableSortLabel,
+  CircularProgress, Tooltip, TableSortLabel, TablePagination,
+  Popover, FormGroup,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, OpenInNew } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, OpenInNew, ViewColumn } from '@mui/icons-material';
 import { playerApi } from '../../api/playerApi';
 import { clubApi } from '../../api/clubApi';
 import { paymentApi } from '../../api/paymentApi';
-import { Player, Club, BattingPosition, BattingStance, BowlingArm, BowlingType } from '../../types';
+import { Player, Club, BattingPosition, BattingStance, BowlingArm, BowlingType, ClothingSize } from '../../types';
 import { formatEnum } from '../../utils/formatEnum';
 
 const empty: Player = { name: '', surname: '' };
@@ -21,6 +22,24 @@ const VALID_BOWLING_TYPES: BowlingType[] = [
 const validBowlingType = (v?: string): BowlingType | '' =>
   VALID_BOWLING_TYPES.includes(v as BowlingType) ? (v as BowlingType) : '';
 
+type ColKey = 'name' | 'surname' | 'shirtNumber' | 'club' | 'battingStance' | 'battingPosition' | 'bowlingArm' | 'bowlingType' | 'wicketKeeper' | 'shirtSize' | 'pantSize';
+
+const ALL_COLUMNS: { key: ColKey; label: string }[] = [
+  { key: 'name',           label: 'Name' },
+  { key: 'surname',        label: 'Surname' },
+  { key: 'shirtNumber',    label: '#' },
+  { key: 'club',           label: 'Club' },
+  { key: 'battingStance',  label: 'Batting' },
+  { key: 'battingPosition',label: 'Position' },
+  { key: 'bowlingArm',     label: 'Bowling Arm' },
+  { key: 'bowlingType',    label: 'Bowling' },
+  { key: 'wicketKeeper',   label: 'WK' },
+  { key: 'shirtSize',      label: 'Shirt Size' },
+  { key: 'pantSize',       label: 'Pant Size' },
+];
+
+const DEFAULT_VISIBLE = new Set<ColKey>(['name', 'surname', 'shirtNumber', 'club', 'battingStance', 'battingPosition', 'bowlingArm', 'bowlingType', 'wicketKeeper']);
+
 export const Players: React.FC = () => {
   const [rows, setRows] = useState<Player[]>([]);
   const [search, setSearch] = useState('');
@@ -30,6 +49,11 @@ export const Players: React.FC = () => {
   const [editing, setEditing] = useState<Player>(empty);
   const [uploading, setUploading] = useState(false);
   const [viewPhotoUrl, setViewPhotoUrl] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [clubFilter, setClubFilter] = useState<number | ''>('');
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(DEFAULT_VISIBLE);
+  const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,6 +96,32 @@ export const Players: React.FC = () => {
 
   const set = (patch: Partial<Player>) => setEditing(e => ({ ...e, ...patch }));
 
+  const toggleCol = (key: ColKey) => {
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const filtered = [...rows].filter(r => {
+    const q = search.toLowerCase();
+    const matchesSearch = !q
+      || r.name.toLowerCase().includes(q)
+      || r.surname.toLowerCase().includes(q)
+      || r.homeClubName?.toLowerCase().includes(q)
+      || r.shirtNumber?.toString().includes(q);
+    const matchesClub = !clubFilter || r.homeClubId === clubFilter;
+    return matchesSearch && matchesClub;
+  }).sort((a, b) => {
+    const cmp = a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  const col = (key: ColKey) => visibleCols.has(key);
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
@@ -80,44 +130,78 @@ export const Players: React.FC = () => {
           size="small"
           placeholder="Search name, surname, club, #…"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => { setSearch(e.target.value); setPage(0); }}
           sx={{ width: { xs: '100%', sm: 280 } }}
         />
+        <TextField
+          select
+          size="small"
+          label="Club"
+          value={clubFilter}
+          onChange={e => { setClubFilter(e.target.value === '' ? '' : +e.target.value); setPage(0); }}
+          sx={{ width: { xs: '100%', sm: 200 } }}
+        >
+          <MenuItem value="">All Clubs</MenuItem>
+          {clubs.map(c => (
+            <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
+          ))}
+        </TextField>
+        <Tooltip title="Toggle columns">
+          <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+        </Tooltip>
         <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
           Add Player
         </Button>
       </Box>
+
+      <Popover
+        open={!!colAnchor}
+        anchorEl={colAnchor}
+        onClose={() => setColAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Visible Columns</Typography>
+          <FormGroup>
+            {ALL_COLUMNS.map(c => (
+              <FormControlLabel
+                key={c.key}
+                label={c.label}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={visibleCols.has(c.key)}
+                    onChange={() => toggleCol(c.key)}
+                  />
+                }
+              />
+            ))}
+          </FormGroup>
+        </Box>
+      </Popover>
+
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
               <TableCell />
-              <TableCell>Name</TableCell>
-              <TableCell sortDirection={sortDir}>
-                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Surname</TableSortLabel>
-              </TableCell>
-              <TableCell>#</TableCell>
-              <TableCell>Club</TableCell>
-              <TableCell>Batting</TableCell>
-              <TableCell>Position</TableCell>
-              <TableCell>Bowling Arm</TableCell>
-              <TableCell>Bowling</TableCell>
-              <TableCell>WK</TableCell>
+              {col('name')            && <TableCell>Name</TableCell>}
+              {col('surname')         && <TableCell sortDirection={sortDir}><TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Surname</TableSortLabel></TableCell>}
+              {col('shirtNumber')     && <TableCell>#</TableCell>}
+              {col('club')            && <TableCell>Club</TableCell>}
+              {col('battingStance')   && <TableCell>Batting</TableCell>}
+              {col('battingPosition') && <TableCell>Position</TableCell>}
+              {col('bowlingArm')      && <TableCell>Bowling Arm</TableCell>}
+              {col('bowlingType')     && <TableCell>Bowling</TableCell>}
+              {col('wicketKeeper')    && <TableCell>WK</TableCell>}
+              {col('shirtSize')       && <TableCell>Shirt Size</TableCell>}
+              {col('pantSize')        && <TableCell>Pant Size</TableCell>}
               <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
-            {[...rows].filter(r => {
-              const q = search.toLowerCase();
-              return !q
-                || r.name.toLowerCase().includes(q)
-                || r.surname.toLowerCase().includes(q)
-                || r.homeClubName?.toLowerCase().includes(q)
-                || r.shirtNumber?.toString().includes(q);
-            }).sort((a, b) => {
-              const cmp = a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name);
-              return sortDir === 'asc' ? cmp : -cmp;
-            }).map(r => (
+            {paginated.map(r => (
               <TableRow key={r.playerId}>
                 <TableCell>
                   <Avatar
@@ -132,16 +216,20 @@ export const Players: React.FC = () => {
                     {r.name.charAt(0)}
                   </Avatar>
                 </TableCell>
-                <TableCell>{r.name}</TableCell>
-                <TableCell>{r.surname}</TableCell>
-                <TableCell>{r.shirtNumber}</TableCell>
-                <TableCell>{r.homeClubName}</TableCell>
-                <TableCell>{formatEnum(r.battingStance)}</TableCell>
-                <TableCell>{formatEnum(r.battingPosition)}</TableCell>
-                <TableCell>{r.bowlingArm && r.bowlingType !== 'NONE' ? `${formatEnum(r.bowlingArm)} Arm` : ''}</TableCell>
-                <TableCell>{formatEnum(r.bowlingType)}</TableCell>
-                <TableCell>{r.wicketKeeper ? '✓' : ''}</TableCell>
+                {col('name')            && <TableCell>{r.name}</TableCell>}
+                {col('surname')         && <TableCell>{r.surname}</TableCell>}
+                {col('shirtNumber')     && <TableCell>{r.shirtNumber}</TableCell>}
+                {col('club')            && <TableCell>{r.homeClubName}</TableCell>}
+                {col('battingStance')   && <TableCell>{formatEnum(r.battingStance)}</TableCell>}
+                {col('battingPosition') && <TableCell>{formatEnum(r.battingPosition)}</TableCell>}
+                {col('bowlingArm')      && <TableCell>{r.bowlingArm && r.bowlingType !== 'NONE' ? `${formatEnum(r.bowlingArm)} Arm` : ''}</TableCell>}
+                {col('bowlingType')     && <TableCell>{formatEnum(r.bowlingType)}</TableCell>}
+                {col('wicketKeeper')    && <TableCell>{r.wicketKeeper ? '✓' : ''}</TableCell>}
+                {col('shirtSize')       && <TableCell>{r.shirtSize ?? ''}</TableCell>}
+                {col('pantSize')        && <TableCell>{r.pantSize ?? ''}</TableCell>}
                 <TableCell>
+                  <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
+                  <IconButton size="small" color="error" onClick={() => remove(r.playerId!)}><Delete /></IconButton>
                   {r.careerUrl && (
                     <Tooltip title="Career profile">
                       <IconButton size="small" component="a" href={r.careerUrl} target="_blank" rel="noopener noreferrer">
@@ -149,13 +237,20 @@ export const Players: React.FC = () => {
                       </IconButton>
                     </Tooltip>
                   )}
-                  <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
-                  <IconButton size="small" color="error" onClick={() => remove(r.playerId!)}><Delete /></IconButton>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={filtered.length}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={e => { setRowsPerPage(+e.target.value); setPage(0); }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+        />
       </TableContainer>
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
@@ -172,6 +267,22 @@ export const Players: React.FC = () => {
               InputLabelProps={{ shrink: true }} onChange={e => set({ dateOfBirth: e.target.value })} />
             <TextField label="Shirt #" type="number" value={editing.shirtNumber ?? ''} fullWidth
               onChange={e => set({ shirtNumber: +e.target.value })} />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <TextField select label="Shirt Size" value={editing.shirtSize ?? ''} fullWidth
+              onChange={e => set({ shirtSize: e.target.value as ClothingSize || undefined })}>
+              <MenuItem value="">— None —</MenuItem>
+              {(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] as ClothingSize[]).map(s => (
+                <MenuItem key={s} value={s}>{s}</MenuItem>
+              ))}
+            </TextField>
+            <TextField select label="Pant Size" value={editing.pantSize ?? ''} fullWidth
+              onChange={e => set({ pantSize: e.target.value as ClothingSize || undefined })}>
+              <MenuItem value="">— None —</MenuItem>
+              {(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] as ClothingSize[]).map(s => (
+                <MenuItem key={s} value={s}>{s}</MenuItem>
+              ))}
+            </TextField>
           </Box>
           <TextField
             select

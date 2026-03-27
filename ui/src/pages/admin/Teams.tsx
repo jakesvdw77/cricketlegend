@@ -4,8 +4,9 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Avatar, CircularProgress,
   List, ListItem, ListItemAvatar, ListItemText, Autocomplete, TableSortLabel,
+  TablePagination, Popover, FormGroup, Checkbox, FormControlLabel, Tooltip,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket, ViewColumn } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';
 import { playerDescription } from '../../utils/playerDescription';
 import { teamApi } from '../../api/teamApi';
@@ -16,6 +17,18 @@ import { paymentApi } from '../../api/paymentApi';
 import { Team, Club, Player, Field } from '../../types';
 
 const empty: Team = { teamName: '' };
+
+type ColKey = 'teamName' | 'club' | 'captain' | 'homeGround' | 'selector' | 'coach' | 'manager';
+const ALL_COLUMNS: { key: ColKey; label: string }[] = [
+  { key: 'teamName',   label: 'Team Name' },
+  { key: 'club',       label: 'Club' },
+  { key: 'captain',    label: 'Captain' },
+  { key: 'homeGround', label: 'Home Ground' },
+  { key: 'selector',   label: 'Selector' },
+  { key: 'coach',      label: 'Coach' },
+  { key: 'manager',    label: 'Manager' },
+];
+const DEFAULT_VISIBLE = new Set<ColKey>(['teamName', 'club', 'captain', 'homeGround', 'selector', 'coach', 'manager']);
 
 export const Teams: React.FC = () => {
   const [rows, setRows] = useState<Team[]>([]);
@@ -29,6 +42,10 @@ export const Teams: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [viewLogoUrl, setViewLogoUrl] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(DEFAULT_VISIBLE);
+  const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,6 +119,28 @@ export const Teams: React.FC = () => {
     }
   };
 
+  const toggleCol = (key: ColKey) => {
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const filtered = [...rows].filter(r => {
+    const q = search.toLowerCase();
+    return !q
+      || r.teamName.toLowerCase().includes(q)
+      || r.associatedClubName?.toLowerCase().includes(q);
+  }).sort((a, b) => {
+    const cmp = a.teamName.localeCompare(b.teamName);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  const col = (key: ColKey) => visibleCols.has(key);
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
@@ -110,41 +149,65 @@ export const Teams: React.FC = () => {
           size="small"
           placeholder="Search name, club…"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => { setSearch(e.target.value); setPage(0); }}
           sx={{ width: { xs: '100%', sm: 260 } }}
         />
+        <Tooltip title="Toggle columns">
+          <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+        </Tooltip>
         <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
           Add Team
         </Button>
       </Box>
+
+      <Popover
+        open={!!colAnchor}
+        anchorEl={colAnchor}
+        onClose={() => setColAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Visible Columns</Typography>
+          <FormGroup>
+            {ALL_COLUMNS.map(c => (
+              <FormControlLabel
+                key={c.key}
+                label={c.label}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={visibleCols.has(c.key)}
+                    onChange={() => toggleCol(c.key)}
+                  />
+                }
+              />
+            ))}
+          </FormGroup>
+        </Box>
+      </Popover>
 
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
               <TableCell width={48} />
-              <TableCell sortDirection={sortDir}>
-                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Team Name</TableSortLabel>
-              </TableCell>
-              <TableCell>Club</TableCell>
-              <TableCell>Captain</TableCell>
-              <TableCell>Home Ground</TableCell>
-              <TableCell>Selector</TableCell>
-              <TableCell>Coach</TableCell>
-              <TableCell>Manager</TableCell>
+              {col('teamName')   && (
+                <TableCell sortDirection={sortDir}>
+                  <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Team Name</TableSortLabel>
+                </TableCell>
+              )}
+              {col('club')       && <TableCell>Club</TableCell>}
+              {col('captain')    && <TableCell>Captain</TableCell>}
+              {col('homeGround') && <TableCell>Home Ground</TableCell>}
+              {col('selector')   && <TableCell>Selector</TableCell>}
+              {col('coach')      && <TableCell>Coach</TableCell>}
+              {col('manager')    && <TableCell>Manager</TableCell>}
               <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
-            {[...rows].filter(r => {
-              const q = search.toLowerCase();
-              return !q
-                || r.teamName.toLowerCase().includes(q)
-                || r.associatedClubName?.toLowerCase().includes(q);
-            }).sort((a, b) => {
-              const cmp = a.teamName.localeCompare(b.teamName);
-              return sortDir === 'asc' ? cmp : -cmp;
-            }).map(r => (
+            {paginated.map(r => (
               <TableRow key={r.teamId}>
                 <TableCell>
                   <Avatar
@@ -159,13 +222,13 @@ export const Teams: React.FC = () => {
                     {r.teamName.charAt(0)}
                   </Avatar>
                 </TableCell>
-                <TableCell>{r.teamName}</TableCell>
-                <TableCell>{r.associatedClubName}</TableCell>
-                <TableCell>{r.captainName}</TableCell>
-                <TableCell>{r.homeFieldName}</TableCell>
-                <TableCell>{r.selector}</TableCell>
-                <TableCell>{r.coach}</TableCell>
-                <TableCell>{r.manager}</TableCell>
+                {col('teamName')   && <TableCell>{r.teamName}</TableCell>}
+                {col('club')       && <TableCell>{r.associatedClubName}</TableCell>}
+                {col('captain')    && <TableCell>{r.captainName}</TableCell>}
+                {col('homeGround') && <TableCell>{r.homeFieldName}</TableCell>}
+                {col('selector')   && <TableCell>{r.selector}</TableCell>}
+                {col('coach')      && <TableCell>{r.coach}</TableCell>}
+                {col('manager')    && <TableCell>{r.manager}</TableCell>}
                 <TableCell>
                   <IconButton size="small" title="Manage Squad" onClick={() => openSquad(r)}><Groups /></IconButton>
                   <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
@@ -175,6 +238,15 @@ export const Teams: React.FC = () => {
             ))}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={filtered.length}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={e => { setRowsPerPage(+e.target.value); setPage(0); }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+        />
       </TableContainer>
 
       {/* Add / Edit dialog */}

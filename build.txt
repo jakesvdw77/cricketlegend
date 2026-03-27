@@ -1,0 +1,58 @@
+GIT
+
+https://github.com/jakesvdw77/cricketlegend.git
+jakesvdw77
+
+Docker
+https://hub.docker.com/repositories/jakesvdwesthuizen
+jakesvdwesthuizen
+
+
+-- Test the UI
+source ~/.nvm/nvm.sh
+nvm use v20.17.0
+
+-- Docker Login
+
+docker login -u jakesvdwesthuizen
+Wilm..@.!1
+
+
+-- Build the UI
+cd ui
+docker build --no-cache -t jakesvdwesthuizen/cricketlegend-ui:latest ./ui
+docker push jakesvdwesthuizen/cricketlegend-ui:latest
+
+
+-- Build the Backend
+mvn compile jib:build
+
+
+-- Run KeyCloak
+
+ cd development
+ cd keycloak-22.0.1
+ cd bin
+ export KEYCLOAK_ADMIN=admin
+ export KEYCLOAK_ADMIN_PASSWORD=admin123
+ ./kc.sh start-dev --http-port=8180
+
+
+-- Start on server
+
+cd cricketlegend
+cd cricketlegend
+docker pull jakesvdwesthuizen/cricketlegend-ui:latest
+docker pull jakesvdwesthuizen/cricketlegend:latest
+
+docker-compose restart ui
+docker-compose restart backend
+
+docker-compose logs ui
+docker-compose logs backend
+
+https://cricketlegend.co.za:81
+
+
+
+

@@ -3,9 +3,10 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem,
-  Stepper, Step, StepLabel, TableSortLabel,
+  Stepper, Step, StepLabel, TableSortLabel, TablePagination,
+  Popover, FormGroup, Checkbox, FormControlLabel, Tooltip,
 } from '@mui/material';
-import { Add, Edit, Delete, Assignment, Groups } from '@mui/icons-material';
+import { Add, Edit, Delete, Assignment, Groups, ViewColumn } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
@@ -16,6 +17,18 @@ import { TeamSidePanel } from '../../components/match/TeamSidePanel';
 
 const STEPS = ['Match Details', 'Playing Teams'];
 const empty: Match = {};
+
+type ColKey = 'date' | 'tournament' | 'homeTeam' | 'opposition' | 'ground' | 'umpire' | 'stage';
+const ALL_COLUMNS: { key: ColKey; label: string }[] = [
+  { key: 'date',        label: 'Date' },
+  { key: 'tournament',  label: 'Tournament' },
+  { key: 'homeTeam',    label: 'Home Team' },
+  { key: 'opposition',  label: 'Opposition' },
+  { key: 'ground',      label: 'Ground' },
+  { key: 'umpire',      label: 'Umpire' },
+  { key: 'stage',       label: 'Stage' },
+];
+const DEFAULT_VISIBLE = new Set<ColKey>(['date', 'tournament', 'homeTeam', 'opposition', 'ground', 'umpire', 'stage']);
 
 export const Matches: React.FC = () => {
   const navigate = useNavigate();
@@ -38,6 +51,10 @@ export const Matches: React.FC = () => {
   const [savedMatchId, setSavedMatchId] = useState<number | null>(null);
   const [homeSquad, setHomeSquad] = useState<Player[]>([]);
   const [oppSquad, setOppSquad] = useState<Player[]>([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(DEFAULT_VISIBLE);
+  const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
 
   const load = () => matchApi.findAll().then(setRows);
   useEffect(() => {
@@ -91,6 +108,31 @@ export const Matches: React.FC = () => {
     if (confirm('Delete match?')) { await matchApi.delete(id); load(); }
   };
 
+  const toggleCol = (key: ColKey) => {
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const filtered = [...rows].filter(r => {
+    const matchesTournament = !filterTournament || r.tournamentId === filterTournament;
+    const matchesStage = !filterStage || r.matchStage === filterStage;
+    return matchesTournament && matchesStage;
+  }).sort((a, b) => {
+    const val = (r: typeof a) =>
+      sortField === 'matchDate' ? (r.matchDate ?? '') :
+      sortField === 'tournamentName' ? (r.tournamentName ?? '') :
+      (r.homeTeamName ?? '');
+    const cmp = val(a).localeCompare(val(b));
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  const col = (key: ColKey) => visibleCols.has(key);
+
   const homeTeam = teams.find(t => t.teamId === editing.homeTeamId);
   const oppTeam = teams.find(t => t.teamId === editing.oppositionTeamId);
 
@@ -103,7 +145,7 @@ export const Matches: React.FC = () => {
           size="small"
           label="Tournament"
           value={filterTournament}
-          onChange={e => setFilterTournament(e.target.value === '' ? '' : Number(e.target.value))}
+          onChange={e => { setFilterTournament(e.target.value === '' ? '' : Number(e.target.value)); setPage(0); }}
           sx={{ width: { xs: '100%', sm: 220 } }}
         >
           <MenuItem value="">All tournaments</MenuItem>
@@ -114,7 +156,7 @@ export const Matches: React.FC = () => {
           size="small"
           label="Stage"
           value={filterStage}
-          onChange={e => setFilterStage(e.target.value as MatchStage | '')}
+          onChange={e => { setFilterStage(e.target.value as MatchStage | ''); setPage(0); }}
           sx={{ width: { xs: '100%', sm: 140 } }}
         >
           <MenuItem value="">All stages</MenuItem>
@@ -122,52 +164,77 @@ export const Matches: React.FC = () => {
           <MenuItem value="SEMI_FINAL">Semi-Final</MenuItem>
           <MenuItem value="FINAL">Final</MenuItem>
         </TextField>
+        <Tooltip title="Toggle columns">
+          <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+        </Tooltip>
         <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
           Add Match
         </Button>
       </Box>
 
+      <Popover
+        open={!!colAnchor}
+        anchorEl={colAnchor}
+        onClose={() => setColAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Visible Columns</Typography>
+          <FormGroup>
+            {ALL_COLUMNS.map(c => (
+              <FormControlLabel
+                key={c.key}
+                label={c.label}
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={visibleCols.has(c.key)}
+                    onChange={() => toggleCol(c.key)}
+                  />
+                }
+              />
+            ))}
+          </FormGroup>
+        </Box>
+      </Popover>
+
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
-              <TableCell sortDirection={sortField === 'matchDate' ? sortDir : false}>
-                <TableSortLabel active={sortField === 'matchDate'} direction={sortDir} onClick={() => handleSort('matchDate')}>Date</TableSortLabel>
-              </TableCell>
-              <TableCell sortDirection={sortField === 'tournamentName' ? sortDir : false}>
-                <TableSortLabel active={sortField === 'tournamentName'} direction={sortDir} onClick={() => handleSort('tournamentName')}>Tournament</TableSortLabel>
-              </TableCell>
-              <TableCell sortDirection={sortField === 'homeTeamName' ? sortDir : false}>
-                <TableSortLabel active={sortField === 'homeTeamName'} direction={sortDir} onClick={() => handleSort('homeTeamName')}>Home Team</TableSortLabel>
-              </TableCell>
-              <TableCell>Opposition</TableCell>
-              <TableCell>Ground</TableCell>
-              <TableCell>Umpire</TableCell>
-              <TableCell>Stage</TableCell>
+              {col('date') && (
+                <TableCell sortDirection={sortField === 'matchDate' ? sortDir : false}>
+                  <TableSortLabel active={sortField === 'matchDate'} direction={sortDir} onClick={() => handleSort('matchDate')}>Date</TableSortLabel>
+                </TableCell>
+              )}
+              {col('tournament') && (
+                <TableCell sortDirection={sortField === 'tournamentName' ? sortDir : false}>
+                  <TableSortLabel active={sortField === 'tournamentName'} direction={sortDir} onClick={() => handleSort('tournamentName')}>Tournament</TableSortLabel>
+                </TableCell>
+              )}
+              {col('homeTeam') && (
+                <TableCell sortDirection={sortField === 'homeTeamName' ? sortDir : false}>
+                  <TableSortLabel active={sortField === 'homeTeamName'} direction={sortDir} onClick={() => handleSort('homeTeamName')}>Home Team</TableSortLabel>
+                </TableCell>
+              )}
+              {col('opposition') && <TableCell>Opposition</TableCell>}
+              {col('ground')     && <TableCell>Ground</TableCell>}
+              {col('umpire')     && <TableCell>Umpire</TableCell>}
+              {col('stage')      && <TableCell>Stage</TableCell>}
               <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
-            {[...rows].filter(r => {
-              const matchesTournament = !filterTournament || r.tournamentId === filterTournament;
-              const matchesStage = !filterStage || r.matchStage === filterStage;
-              return matchesTournament && matchesStage;
-            }).sort((a, b) => {
-              const val = (r: typeof a) =>
-                sortField === 'matchDate' ? (r.matchDate ?? '') :
-                sortField === 'tournamentName' ? (r.tournamentName ?? '') :
-                (r.homeTeamName ?? '');
-              const cmp = val(a).localeCompare(val(b));
-              return sortDir === 'asc' ? cmp : -cmp;
-            }).map(r => (
+            {paginated.map(r => (
               <TableRow key={r.matchId}>
-                <TableCell>{r.matchDate}</TableCell>
-                <TableCell>{r.tournamentName}</TableCell>
-                <TableCell>{r.homeTeamName}</TableCell>
-                <TableCell>{r.oppositionTeamName}</TableCell>
-                <TableCell>{r.fieldName}</TableCell>
-                <TableCell>{r.umpire}</TableCell>
-                <TableCell>{r.matchStage ? { POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' }[r.matchStage] : ''}</TableCell>
+                {col('date')       && <TableCell>{r.matchDate}</TableCell>}
+                {col('tournament') && <TableCell>{r.tournamentName}</TableCell>}
+                {col('homeTeam')   && <TableCell>{r.homeTeamName}</TableCell>}
+                {col('opposition') && <TableCell>{r.oppositionTeamName}</TableCell>}
+                {col('ground')     && <TableCell>{r.fieldName}</TableCell>}
+                {col('umpire')     && <TableCell>{r.umpire}</TableCell>}
+                {col('stage')      && <TableCell>{r.matchStage ? { POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' }[r.matchStage] : ''}</TableCell>}
                 <TableCell>
                   <IconButton size="small" title="Team Sheet" onClick={() => navigate(`/admin/matches/${r.matchId}/teamsheet`)}>
                     <Groups />
@@ -182,6 +249,15 @@ export const Matches: React.FC = () => {
             ))}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={filtered.length}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={e => { setRowsPerPage(+e.target.value); setPage(0); }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+        />
       </TableContainer>
 
       <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>

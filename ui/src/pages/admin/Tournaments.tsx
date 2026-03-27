@@ -5,8 +5,9 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete,
   Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
+  TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { teamApi } from '../../api/teamApi';
@@ -19,6 +20,19 @@ const empty: Tournament = { name: '', pointsForWin: 2, pointsForDraw: 1, pointsF
 
 interface LocalPoolTeam { teamId: number; teamName: string; tournamentTeamId?: number }
 interface LocalPool { poolId?: number; poolName: string; teams: LocalPoolTeam[] }
+
+type ColKey = 'name' | 'format' | 'startDate' | 'endDate' | 'pools' | 'winner' | 'sponsors' | 'links';
+const ALL_COLUMNS: { key: ColKey; label: string }[] = [
+  { key: 'name',      label: 'Name' },
+  { key: 'format',    label: 'Format' },
+  { key: 'startDate', label: 'Start Date' },
+  { key: 'endDate',   label: 'End Date' },
+  { key: 'pools',     label: 'Pools' },
+  { key: 'winner',    label: 'Winner' },
+  { key: 'sponsors',  label: 'Sponsors' },
+  { key: 'links',     label: 'Links' },
+];
+const DEFAULT_VISIBLE = new Set<ColKey>(['name', 'format', 'startDate', 'endDate', 'pools', 'winner', 'sponsors', 'links']);
 
 export const Tournaments: React.FC = () => {
   const navigate = useNavigate();
@@ -41,6 +55,24 @@ export const Tournaments: React.FC = () => {
   const [localPools, setLocalPools] = useState<LocalPool[]>([]);
   const [originalPools, setOriginalPools] = useState<LocalPool[]>([]);
   const [newPoolName, setNewPoolName] = useState('');
+
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+
+  // Column visibility state
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(DEFAULT_VISIBLE));
+  const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
+
+  const col = (key: ColKey) => visibleCols.has(key);
+
+  const toggleCol = (key: ColKey) => {
+    setVisibleCols(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
+      return next;
+    });
+  };
 
   const load = () => tournamentApi.findAll().then(setRows);
   useEffect(() => {
@@ -172,6 +204,20 @@ export const Tournaments: React.FC = () => {
     ));
   };
 
+  // Filtered + sorted rows
+  const filtered = [...rows].filter(r => {
+    const q = search.toLowerCase();
+    const matchesName = !q || r.name.toLowerCase().includes(q);
+    const matchesFormat = !filterFormat || r.cricketFormat === filterFormat;
+    const matchesYear = !filterYear || r.startDate?.startsWith(String(filterYear));
+    return matchesName && matchesFormat && matchesYear;
+  }).sort((a, b) => {
+    const cmp = a.name.localeCompare(b.name);
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
@@ -181,7 +227,7 @@ export const Tournaments: React.FC = () => {
           size="small"
           label="Format"
           value={filterFormat}
-          onChange={e => setFilterFormat(e.target.value as CricketFormat | '')}
+          onChange={e => { setFilterFormat(e.target.value as CricketFormat | ''); setPage(0); }}
           sx={{ width: { xs: '100%', sm: 110 } }}
         >
           <MenuItem value="">All</MenuItem>
@@ -192,7 +238,7 @@ export const Tournaments: React.FC = () => {
           size="small"
           label="Year"
           value={filterYear}
-          onChange={e => setFilterYear(e.target.value === '' ? '' : Number(e.target.value))}
+          onChange={e => { setFilterYear(e.target.value === '' ? '' : Number(e.target.value)); setPage(0); }}
           sx={{ width: { xs: '100%', sm: 100 } }}
         >
           <MenuItem value="">All</MenuItem>
@@ -204,9 +250,42 @@ export const Tournaments: React.FC = () => {
           size="small"
           placeholder="Search name…"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={e => { setSearch(e.target.value); setPage(0); }}
           sx={{ width: { xs: '100%', sm: 220 } }}
         />
+        <IconButton
+          size="small"
+          title="Toggle columns"
+          onClick={e => setColAnchor(e.currentTarget)}
+        >
+          <ViewColumn />
+        </IconButton>
+        <Popover
+          open={Boolean(colAnchor)}
+          anchorEl={colAnchor}
+          onClose={() => setColAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Box sx={{ p: 2, minWidth: 160 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Columns</Typography>
+            <FormGroup>
+              {ALL_COLUMNS.map(c => (
+                <FormControlLabel
+                  key={c.key}
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={visibleCols.has(c.key)}
+                      onChange={() => toggleCol(c.key)}
+                    />
+                  }
+                  label={c.label}
+                />
+              ))}
+            </FormGroup>
+          </Box>
+        </Popover>
         <Button variant="contained" startIcon={<Add />} onClick={() => openDialog(empty)}>
           Add Tournament
         </Button>
@@ -217,30 +296,23 @@ export const Tournaments: React.FC = () => {
           <TableHead>
             <TableRow>
               <TableCell width={48} />
-              <TableCell sortDirection={sortDir}>
-                <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
-              </TableCell>
-              <TableCell>Format</TableCell>
-              <TableCell>Start Date</TableCell>
-              <TableCell>End Date</TableCell>
-              <TableCell>Pools</TableCell>
-              <TableCell>Winner</TableCell>
-              <TableCell>Sponsors</TableCell>
-              <TableCell>Links</TableCell>
+              {col('name') && (
+                <TableCell sortDirection={sortDir}>
+                  <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
+                </TableCell>
+              )}
+              {col('format') && <TableCell>Format</TableCell>}
+              {col('startDate') && <TableCell>Start Date</TableCell>}
+              {col('endDate') && <TableCell>End Date</TableCell>}
+              {col('pools') && <TableCell>Pools</TableCell>}
+              {col('winner') && <TableCell>Winner</TableCell>}
+              {col('sponsors') && <TableCell>Sponsors</TableCell>}
+              {col('links') && <TableCell>Links</TableCell>}
               <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
-            {[...rows].filter(r => {
-              const q = search.toLowerCase();
-              const matchesName = !q || r.name.toLowerCase().includes(q);
-              const matchesFormat = !filterFormat || r.cricketFormat === filterFormat;
-              const matchesYear = !filterYear || r.startDate?.startsWith(String(filterYear));
-              return matchesName && matchesFormat && matchesYear;
-            }).sort((a, b) => {
-              const cmp = a.name.localeCompare(b.name);
-              return sortDir === 'asc' ? cmp : -cmp;
-            }).map(r => (
+            {paginated.map(r => (
               <TableRow key={r.tournamentId}>
                 <TableCell>
                   <Avatar
@@ -256,55 +328,63 @@ export const Tournaments: React.FC = () => {
                     {r.name.charAt(0)}
                   </Avatar>
                 </TableCell>
-                <TableCell>{r.name}</TableCell>
-                <TableCell><Chip label={r.cricketFormat} size="small" /></TableCell>
-                <TableCell>{r.startDate}</TableCell>
-                <TableCell>{r.endDate}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={r.pools?.length ?? 0}
-                    size="small"
-                    clickable
-                    onClick={() => navigate(`/admin/tournaments/${r.tournamentId}/pools`)}
-                    title="View pools"
-                  />
-                </TableCell>
-                <TableCell>
-                  {r.winningTeamName && (
-                    <Chip icon={<EmojiEvents />} label={r.winningTeamName} size="small" color="warning" variant="outlined" />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                    {r.sponsors?.map(s => (
-                      <Chip key={s.sponsorId} label={s.name} size="small" variant="outlined" />
-                    ))}
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    {r.websiteLink && (
-                      <IconButton size="small" component="a" href={r.websiteLink} target="_blank" rel="noopener noreferrer" title="Website">
-                        <Language fontSize="small" />
-                      </IconButton>
+                {col('name') && <TableCell>{r.name}</TableCell>}
+                {col('format') && <TableCell><Chip label={r.cricketFormat} size="small" /></TableCell>}
+                {col('startDate') && <TableCell>{r.startDate}</TableCell>}
+                {col('endDate') && <TableCell>{r.endDate}</TableCell>}
+                {col('pools') && (
+                  <TableCell>
+                    <Chip
+                      label={r.pools?.length ?? 0}
+                      size="small"
+                      clickable
+                      onClick={() => navigate(`/admin/tournaments/${r.tournamentId}/pools`)}
+                      title="View pools"
+                    />
+                  </TableCell>
+                )}
+                {col('winner') && (
+                  <TableCell>
+                    {r.winningTeamName && (
+                      <Chip icon={<EmojiEvents />} label={r.winningTeamName} size="small" color="warning" variant="outlined" />
                     )}
-                    {r.facebookLink && (
-                      <IconButton size="small" component="a" href={r.facebookLink} target="_blank" rel="noopener noreferrer" title="Facebook" sx={{ color: '#1877F2' }}>
-                        <Facebook fontSize="small" />
-                      </IconButton>
-                    )}
-                    {r.playingConditionsUrl && (
-                      <IconButton size="small" component="a" href={r.playingConditionsUrl} target="_blank" rel="noopener noreferrer" title="Playing Conditions" color="error">
-                        <PictureAsPdf fontSize="small" />
-                      </IconButton>
-                    )}
-                    {r.registrationPageUrl && (
-                      <IconButton size="small" component="a" href={r.registrationPageUrl} target="_blank" rel="noopener noreferrer" title="Registration">
-                        <AppRegistration fontSize="small" />
-                      </IconButton>
-                    )}
-                  </Box>
-                </TableCell>
+                  </TableCell>
+                )}
+                {col('sponsors') && (
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      {r.sponsors?.map(s => (
+                        <Chip key={s.sponsorId} label={s.name} size="small" variant="outlined" />
+                      ))}
+                    </Box>
+                  </TableCell>
+                )}
+                {col('links') && (
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      {r.websiteLink && (
+                        <IconButton size="small" component="a" href={r.websiteLink} target="_blank" rel="noopener noreferrer" title="Website">
+                          <Language fontSize="small" />
+                        </IconButton>
+                      )}
+                      {r.facebookLink && (
+                        <IconButton size="small" component="a" href={r.facebookLink} target="_blank" rel="noopener noreferrer" title="Facebook" sx={{ color: '#1877F2' }}>
+                          <Facebook fontSize="small" />
+                        </IconButton>
+                      )}
+                      {r.playingConditionsUrl && (
+                        <IconButton size="small" component="a" href={r.playingConditionsUrl} target="_blank" rel="noopener noreferrer" title="Playing Conditions" color="error">
+                          <PictureAsPdf fontSize="small" />
+                        </IconButton>
+                      )}
+                      {r.registrationPageUrl && (
+                        <IconButton size="small" component="a" href={r.registrationPageUrl} target="_blank" rel="noopener noreferrer" title="Registration">
+                          <AppRegistration fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
+                  </TableCell>
+                )}
                 <TableCell>
                   <IconButton size="small" onClick={() => openDialog(r)}><Edit /></IconButton>
                   <IconButton size="small" color="error" onClick={() => remove(r.tournamentId!)}><Delete /></IconButton>
@@ -313,9 +393,18 @@ export const Tournaments: React.FC = () => {
             ))}
           </TableBody>
         </Table>
+        <TablePagination
+          component="div"
+          count={filtered.length}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+          rowsPerPageOptions={[10, 20, 50, 100]}
+        />
       </TableContainer>
 
-      {/* Add / Edit dialog */}
+      {/* Add / Edit dialog — keep everything below exactly as-is */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editing.tournamentId ? 'Edit' : 'New'} Tournament</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Toolbar, useMediaQuery, useTheme } from '@mui/material';
+import { Box, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 
 const DRAWER_WIDTH = 240;
+const version = import.meta.env.VITE_APP_VERSION;
 
 export const AppLayout: React.FC = () => {
   const theme = useTheme();
@@ -32,6 +33,21 @@ export const AppLayout: React.FC = () => {
         <Toolbar />
         <Outlet />
       </Box>
+      {version && (
+        <Typography
+          variant="caption"
+          sx={{
+            position: 'fixed',
+            bottom: 8,
+            right: 12,
+            color: 'text.disabled',
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        >
+          v{version}
+        </Typography>
+      )}
     </Box>
   );
 };

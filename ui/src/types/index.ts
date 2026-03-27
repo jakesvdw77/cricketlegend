@@ -3,6 +3,7 @@ export type BattingPosition = 'OPENER' | 'TOP_ORDER' | 'MIDDLE_ORDER' | 'LOWER_M
 export type BattingStance = 'LEFT_HANDED' | 'RIGHT_HANDED';
 export type BowlingArm = 'LEFT' | 'RIGHT';
 export type BowlingType = 'VERY_FAST' | 'FAST' | 'FAST_MEDIUM' | 'MEDIUM_FAST' | 'MEDIUM' | 'MEDIUM_SLOW' | 'OFF_SPIN' | 'LEG_SPIN' | 'SLOW_LEFT_ARM_ORTHODOX' | 'CHINAMAN' | 'NONE';
+export type ClothingSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | 'XXXL';
 export type DismissalType = 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' | 'HIT_WICKET' | 'NOT_OUT';
 
 export type MatchStage = 'POOL' | 'SEMI_FINAL' | 'FINAL';
@@ -79,6 +80,8 @@ export interface Player {
   bowlingType?: BowlingType;
   wicketKeeper?: boolean;
   partTimeBowler?: boolean;
+  shirtSize?: ClothingSize;
+  pantSize?: ClothingSize;
   homeClubId?: number;
   homeClubName?: string;
   mediaContent?: MediaContent[];
