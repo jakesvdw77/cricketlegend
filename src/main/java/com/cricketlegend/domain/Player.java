@@ -4,6 +4,7 @@ import com.cricketlegend.domain.enums.BattingPosition;
 import com.cricketlegend.domain.enums.BattingStance;
 import com.cricketlegend.domain.enums.BowlingArm;
 import com.cricketlegend.domain.enums.BowlingType;
+import com.cricketlegend.domain.enums.ClothingSize;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -48,6 +49,12 @@ public class Player {
 
     private Boolean wicketKeeper;
     private Boolean partTimeBowler;
+
+    @Enumerated(EnumType.STRING)
+    private ClothingSize shirtSize;
+
+    @Enumerated(EnumType.STRING)
+    private ClothingSize pantSize;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_club_id")

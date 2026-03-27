@@ -27,5 +27,6 @@
     <include file="db/changelog/v1/020-player-part-time-bowler.sql"/>
     <include file="db/changelog/v1/021-match-side-team-announced.sql"/>
     <include file="db/changelog/v1/022-team-selector.sql"/>
+    <include file="db/changelog/v1/023-player-clothing-size.sql"/>
 
 </databaseChangeLog>
