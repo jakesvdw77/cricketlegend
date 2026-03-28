@@ -65,6 +65,7 @@ services:
     volumes:
       - ./keycloak/certs:/opt/keycloak/certs:ro
       - ./keycloak/themes/cricketlegend:/opt/keycloak/themes/cricketlegend
+      - ./keycloak/themes/quizmaster:/opt/keycloak/themes/quizmaster
     depends_on:
       keycloak-db:
         condition: service_healthy
