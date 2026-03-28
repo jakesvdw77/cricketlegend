@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Grid, Card, CardContent, Chip, Divider, Button, Avatar,
 } from '@mui/material';
-import { CalendarMonth, LocationOn, EmojiEvents, ScoreboardOutlined } from '@mui/icons-material';
+import { CalendarMonth, LocationOn, EmojiEvents, ScoreboardOutlined, AccessTime } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { Match } from '../../types';
@@ -41,6 +41,7 @@ export const UpcomingMatches: React.FC = () => {
                 </Box>
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {m.tossTime && <Chip size="small" icon={<AccessTime />} label={`Toss: ${m.tossTime}`} variant="outlined" />}
                   <Chip size="small" icon={<CalendarMonth />} label={`${m.scheduledStartTime ?? 'TBA'}`} />
                   <Chip
                     size="small"

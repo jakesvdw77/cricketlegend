@@ -4,7 +4,7 @@ import App from './App';
 import keycloak from './keycloak';
 
 keycloak
-  .init({ onLoad: 'login-required', checkLoginIframe: false })
+  .init({ onLoad: 'check-sso', checkLoginIframe: false })
   .then(() => {
     ReactDOM.createRoot(document.getElementById('root')!).render(
       <React.StrictMode>

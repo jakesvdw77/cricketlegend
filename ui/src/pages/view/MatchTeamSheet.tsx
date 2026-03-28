@@ -75,6 +75,7 @@ function buildWhatsAppText(
   if (match.tournamentName) lines.push(`🏆 ${match.tournamentName}`);
   const details = [
     match.matchDate ? `📅 ${match.matchDate}` : '',
+    match.tossTime ? `🕐 Toss: ${match.tossTime}` : '',
     match.scheduledStartTime ? `⏰ ${match.scheduledStartTime}` : '',
     match.fieldName ? `📍 ${match.fieldName}` : '',
     match.umpire ? `Umpire: ${match.umpire}` : '',
@@ -217,6 +218,7 @@ export const MatchTeamSheet: React.FC = () => {
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mt: 1, flexWrap: 'wrap' }}>
             <Typography variant="body2">📅 {match.matchDate}</Typography>
+            {match.tossTime && <Typography variant="body2">🕐 Toss: {match.tossTime}</Typography>}
             {match.scheduledStartTime && <Typography variant="body2">⏰ {match.scheduledStartTime}</Typography>}
             {match.fieldName && <Typography variant="body2">📍 {match.fieldName}</Typography>}
             {match.umpire && <Typography variant="body2">Umpire: {match.umpire}</Typography>}

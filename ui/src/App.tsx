@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { AppLayout } from './components/layout/AppLayout';
 import { useAuth } from './hooks/useAuth';
+import keycloak from './keycloak';
+import { LandingPage } from './pages/LandingPage';
 
 // Admin pages
 import { Tournaments } from './pages/admin/Tournaments';
@@ -35,14 +37,24 @@ const theme = createTheme({
   },
 });
 
+const LandingRoute: React.FC = () => {
+  if (keycloak.authenticated) return <Navigate to="/matches/upcoming" replace />;
+  return <LandingPage />;
+};
+
+const ProtectedLayout: React.FC = () => {
+  if (!keycloak.authenticated) return <Navigate to="/" replace />;
+  return <AppLayout />;
+};
+
 const AdminRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
   const { isAdmin } = useAuth();
-  return isAdmin ? element : <Navigate to="/" replace />;
+  return isAdmin ? element : <Navigate to="/matches/upcoming" replace />;
 };
 
 const ManagerRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
   const { isAdmin, isManager } = useAuth();
-  return (isAdmin || isManager) ? element : <Navigate to="/" replace />;
+  return (isAdmin || isManager) ? element : <Navigate to="/matches/upcoming" replace />;
 };
 
 export default function App() {
@@ -51,8 +63,9 @@ export default function App() {
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Navigate to="/matches/upcoming" replace />} />
+          <Route path="/" element={<LandingRoute />} />
+          <Route element={<ProtectedLayout />}>
+            <Route path="matches/upcoming" element={<UpcomingMatches />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />
@@ -71,7 +84,6 @@ export default function App() {
             <Route path="matches/previous" element={<PreviousMatches />} />
             <Route path="matches/scorecards" element={<Scorecards />} />
             <Route path="player/statistics" element={<PlayerStatistics />} />
-            <Route path="matches/upcoming" element={<UpcomingMatches />} />
             <Route path="matches/:matchId/teamsheet" element={<MatchTeamSheet />} />
             <Route path="teams" element={<TeamsView />} />
             <Route path="tournaments" element={<TournamentView />} />

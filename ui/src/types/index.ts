@@ -155,6 +155,7 @@ export interface Match {
   matchId?: number;
   matchDate?: string;
   scheduledStartTime?: string;
+  tossTime?: string;
   umpire?: string;
   matchStage?: MatchStage;
   homeTeamId?: number;

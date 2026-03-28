@@ -6,6 +6,7 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete,
   Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
+  Tabs, Tab,
 } from '@mui/material';
 import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -51,6 +52,9 @@ export const Tournaments: React.FC = () => {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState(0);
+
   // Pool management state
   const [localPools, setLocalPools] = useState<LocalPool[]>([]);
   const [originalPools, setOriginalPools] = useState<LocalPool[]>([]);
@@ -95,6 +99,7 @@ export const Tournaments: React.FC = () => {
     setLocalPools(pools);
     setOriginalPools(JSON.parse(JSON.stringify(pools)));
     setNewPoolName('');
+    setActiveTab(0);
     setOpen(true);
   };
 
@@ -404,235 +409,236 @@ export const Tournaments: React.FC = () => {
         />
       </TableContainer>
 
-      {/* Add / Edit dialog — keep everything below exactly as-is */}
+      {/* Add / Edit dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editing.tournamentId ? 'Edit' : 'New'} Tournament</DialogTitle>
+        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}>
+          <Tab label="General Info" />
+          <Tab label="Pools" />
+          <Tab label="Media & Links" />
+          <Tab label="Sponsors" />
+        </Tabs>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
 
-          {/* Basic Info */}
-          <TextField label="Name" value={editing.name} onChange={e => set({ name: e.target.value })} required />
-          <TextField label="Description" value={editing.description ?? ''} multiline rows={2}
-            onChange={e => set({ description: e.target.value })} />
-          <TextField select label="Format" value={editing.cricketFormat ?? ''} onChange={e => set({ cricketFormat: e.target.value as CricketFormat })}>
-            {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
-          </TextField>
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Start Date" type="date" value={editing.startDate ?? ''} InputLabelProps={{ shrink: true }}
-              onChange={e => set({ startDate: e.target.value })} fullWidth />
-            <TextField label="End Date" type="date" value={editing.endDate ?? ''} InputLabelProps={{ shrink: true }}
-              onChange={e => set({ endDate: e.target.value })} fullWidth />
-          </Box>
-
-          {/* Scoring */}
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <TextField label="Win Pts" type="number" value={editing.pointsForWin ?? 2}
-              onChange={e => set({ pointsForWin: +e.target.value })} />
-            <TextField label="Draw Pts" type="number" value={editing.pointsForDraw ?? 1}
-              onChange={e => set({ pointsForDraw: +e.target.value })} />
-            <TextField label="No Result Pts" type="number" value={editing.pointsForNoResult ?? 1}
-              onChange={e => set({ pointsForNoResult: +e.target.value })} />
-            <TextField label="Bonus Pts" type="number" value={editing.pointsForBonus ?? 1}
-              onChange={e => set({ pointsForBonus: +e.target.value })} />
-          </Box>
-
-          <Divider />
-          <Typography variant="subtitle2" color="text.secondary">Fees</Typography>
-
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField
-              label="Entry Fee"
-              type="number"
-              value={editing.entryFee ?? ''}
-              onChange={e => set({ entryFee: e.target.value ? +e.target.value : undefined })}
-              InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-              fullWidth
-            />
-            <TextField
-              label="Registration Fee"
-              type="number"
-              value={editing.registrationFee ?? ''}
-              onChange={e => set({ registrationFee: e.target.value ? +e.target.value : undefined })}
-              InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-              fullWidth
-            />
-            <TextField
-              label="Match Fee"
-              type="number"
-              value={editing.matchFee ?? ''}
-              onChange={e => set({ matchFee: e.target.value ? +e.target.value : undefined })}
-              InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-              fullWidth
-            />
-          </Box>
-          <TextField
-            label="Registration Page URL"
-            value={editing.registrationPageUrl ?? ''}
-            onChange={e => set({ registrationPageUrl: e.target.value })}
-          />
-
-          <Divider />
-          <Typography variant="subtitle2" color="text.secondary">Media &amp; Links</Typography>
-
-          {/* Logo upload + preview */}
-          <Box>
-            <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleLogoUpload} />
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Avatar
-                src={editing.logoUrl ?? ''}
-                variant="rounded"
-                sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.logoUrl ? 'pointer' : 'default' }}
-                onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}
-              >
-                {editing.name.charAt(0)}
-              </Avatar>
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={uploading}
-                  sx={{ alignSelf: 'flex-start' }}
-                >
-                  {uploading ? 'Uploading…' : 'Upload Logo'}
-                </Button>
-                <TextField
-                  label="Logo URL"
-                  value={editing.logoUrl ?? ''}
-                  onChange={e => set({ logoUrl: e.target.value })}
-                  size="small"
-                  helperText="Upload a logo above or paste a URL"
-                />
-              </Box>
-            </Box>
-          </Box>
-
-          {/* Playing conditions PDF upload */}
-          <Box>
-            <input type="file" ref={pdfInputRef} style={{ display: 'none' }} accept="application/pdf" onChange={handlePdfUpload} />
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Box sx={{ width: 64, height: 64, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {editing.playingConditionsUrl ? (
-                  <IconButton
-                    component="a"
-                    href={editing.playingConditionsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    color="error"
-                    size="large"
+          {/* Tab 0: General Info */}
+          {activeTab === 0 && (
+            <>
+              {/* Logo upload + preview */}
+              <Box>
+                <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleLogoUpload} />
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Avatar
+                    src={editing.logoUrl ?? ''}
+                    variant="rounded"
+                    sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.logoUrl ? 'pointer' : 'default' }}
+                    onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}
                   >
-                    <PictureAsPdf sx={{ fontSize: 40 }} />
-                  </IconButton>
-                ) : (
-                  <PictureAsPdf sx={{ fontSize: 40, color: 'text.disabled' }} />
-                )}
+                    {editing.name.charAt(0)}
+                  </Avatar>
+                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                      onClick={() => logoInputRef.current?.click()}
+                      disabled={uploading}
+                      sx={{ alignSelf: 'flex-start' }}
+                    >
+                      {uploading ? 'Uploading…' : 'Upload Logo'}
+                    </Button>
+                  </Box>
+                </Box>
               </Box>
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={uploadingPdf ? <CircularProgress size={14} /> : <CloudUpload />}
-                  onClick={() => pdfInputRef.current?.click()}
-                  disabled={uploadingPdf}
-                  sx={{ alignSelf: 'flex-start' }}
-                >
-                  {uploadingPdf ? 'Uploading…' : 'Upload Playing Conditions'}
-                </Button>
+
+              <TextField label="Name" value={editing.name} onChange={e => set({ name: e.target.value })} required />
+              <TextField label="Description" value={editing.description ?? ''} multiline rows={2}
+                onChange={e => set({ description: e.target.value })} />
+              <TextField select label="Format" value={editing.cricketFormat ?? ''} onChange={e => set({ cricketFormat: e.target.value as CricketFormat })}>
+                {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+              </TextField>
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField label="Start Date" type="date" value={editing.startDate ?? ''} InputLabelProps={{ shrink: true }}
+                  onChange={e => set({ startDate: e.target.value })} fullWidth />
+                <TextField label="End Date" type="date" value={editing.endDate ?? ''} InputLabelProps={{ shrink: true }}
+                  onChange={e => set({ endDate: e.target.value })} fullWidth />
+              </Box>
+
+              <Divider />
+              <Typography variant="subtitle2" color="text.secondary">Scoring</Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField label="Win Pts" type="number" value={editing.pointsForWin ?? 2}
+                  onChange={e => set({ pointsForWin: +e.target.value })} />
+                <TextField label="Draw Pts" type="number" value={editing.pointsForDraw ?? 1}
+                  onChange={e => set({ pointsForDraw: +e.target.value })} />
+                <TextField label="No Result Pts" type="number" value={editing.pointsForNoResult ?? 1}
+                  onChange={e => set({ pointsForNoResult: +e.target.value })} />
+                <TextField label="Bonus Pts" type="number" value={editing.pointsForBonus ?? 1}
+                  onChange={e => set({ pointsForBonus: +e.target.value })} />
+              </Box>
+
+              <Divider />
+              <Typography variant="subtitle2" color="text.secondary">Fees</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
                 <TextField
-                  label="Playing Conditions URL"
-                  value={editing.playingConditionsUrl ?? ''}
-                  onChange={e => set({ playingConditionsUrl: e.target.value })}
-                  size="small"
-                  helperText="Upload a PDF above or paste a URL"
+                  label="Entry Fee"
+                  type="number"
+                  value={editing.entryFee ?? ''}
+                  onChange={e => set({ entryFee: e.target.value ? +e.target.value : undefined })}
+                  InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
+                  fullWidth
+                />
+                <TextField
+                  label="Registration Fee"
+                  type="number"
+                  value={editing.registrationFee ?? ''}
+                  onChange={e => set({ registrationFee: e.target.value ? +e.target.value : undefined })}
+                  InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
+                  fullWidth
+                />
+                <TextField
+                  label="Match Fee"
+                  type="number"
+                  value={editing.matchFee ?? ''}
+                  onChange={e => set({ matchFee: e.target.value ? +e.target.value : undefined })}
+                  InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
+                  fullWidth
                 />
               </Box>
-            </Box>
-          </Box>
 
-          <TextField label="Banner URL" value={editing.bannerUrl ?? ''} onChange={e => set({ bannerUrl: e.target.value })} />
-          <TextField label="Website" value={editing.websiteLink ?? ''} onChange={e => set({ websiteLink: e.target.value })} />
-          <TextField label="Facebook" value={editing.facebookLink ?? ''} onChange={e => set({ facebookLink: e.target.value })} />
+              <Divider />
+              <Typography variant="subtitle2" color="text.secondary">Winner</Typography>
+              <Autocomplete
+                options={allTeams}
+                getOptionLabel={t => t.teamName}
+                value={allTeams.find(t => t.teamId === editing.winningTeamId) ?? null}
+                onChange={(_, team) => set({ winningTeamId: team?.teamId ?? undefined, winningTeamName: team?.teamName ?? undefined })}
+                isOptionEqualToValue={(o, v) => o.teamId === v.teamId}
+                renderInput={params => (
+                  <TextField {...params} label="Winning Team" InputProps={{ ...params.InputProps, startAdornment: <><EmojiEvents sx={{ color: 'warning.main', mr: 0.5, fontSize: 20 }} />{params.InputProps.startAdornment}</> }} />
+                )}
+              />
+            </>
+          )}
 
-          <Autocomplete
-            multiple
-            options={sponsors}
-            getOptionLabel={s => s.name}
-            value={editing.sponsors ?? []}
-            onChange={(_, value) => set({ sponsors: value })}
-            isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
-            renderTags={(value, getTagProps) =>
-              value.map((s, idx) => (
-                <Chip label={s.name} size="small" {...getTagProps({ index: idx })} key={s.sponsorId} />
-              ))
-            }
-            renderInput={params => <TextField {...params} label="Sponsors" />}
-          />
+          {/* Tab 1: Pools */}
+          {activeTab === 1 && (
+            <>
+              {localPools.map((pool, poolIdx) => (
+                <Paper key={poolIdx} variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TextField
+                      label="Pool Name"
+                      value={pool.poolName}
+                      size="small"
+                      sx={{ flex: 1 }}
+                      onChange={e => setLocalPools(pools => pools.map((p, i) =>
+                        i === poolIdx ? { ...p, poolName: e.target.value } : p
+                      ))}
+                    />
+                    <IconButton size="small" color="error" onClick={() => removePool(poolIdx)}>
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', minHeight: 28 }}>
+                    {pool.teams.map(t => (
+                      <Chip
+                        key={t.teamId}
+                        label={t.teamName}
+                        size="small"
+                        onDelete={() => removeTeamFromLocalPool(poolIdx, t.teamId)}
+                      />
+                    ))}
+                  </Box>
+                  <Autocomplete
+                    options={allTeams.filter(t => !pool.teams.find(pt => pt.teamId === t.teamId))}
+                    getOptionLabel={t => t.teamName}
+                    onChange={(_, team) => { if (team) addTeamToLocalPool(poolIdx, team); }}
+                    value={null}
+                    blurOnSelect
+                    renderInput={params => <TextField {...params} label="Add team to pool" size="small" />}
+                  />
+                </Paper>
+              ))}
 
-          <Autocomplete
-            options={allTeams}
-            getOptionLabel={t => t.teamName}
-            value={allTeams.find(t => t.teamId === editing.winningTeamId) ?? null}
-            onChange={(_, team) => set({ winningTeamId: team?.teamId ?? undefined, winningTeamName: team?.teamName ?? undefined })}
-            isOptionEqualToValue={(o, v) => o.teamId === v.teamId}
-            renderInput={params => (
-              <TextField {...params} label="Winning Team" InputProps={{ ...params.InputProps, startAdornment: <><EmojiEvents sx={{ color: 'warning.main', mr: 0.5, fontSize: 20 }} />{params.InputProps.startAdornment}</> }} />
-            )}
-          />
-
-          <Divider />
-          <Typography variant="subtitle2" color="text.secondary">Pools</Typography>
-
-          {localPools.map((pool, poolIdx) => (
-            <Paper key={poolIdx} variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                 <TextField
-                  label="Pool Name"
-                  value={pool.poolName}
+                  label="New Pool Name"
+                  value={newPoolName}
                   size="small"
                   sx={{ flex: 1 }}
-                  onChange={e => setLocalPools(pools => pools.map((p, i) =>
-                    i === poolIdx ? { ...p, poolName: e.target.value } : p
-                  ))}
+                  onChange={e => setNewPoolName(e.target.value)}
+                  placeholder={`Pool ${String.fromCharCode(65 + localPools.length)}`}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPool(); } }}
                 />
-                <IconButton size="small" color="error" onClick={() => removePool(poolIdx)}>
-                  <Delete fontSize="small" />
-                </IconButton>
+                <Button variant="outlined" size="small" startIcon={<Add />} onClick={addPool}>
+                  Add Pool
+                </Button>
               </Box>
-              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', minHeight: 28 }}>
-                {pool.teams.map(t => (
-                  <Chip
-                    key={t.teamId}
-                    label={t.teamName}
-                    size="small"
-                    onDelete={() => removeTeamFromLocalPool(poolIdx, t.teamId)}
-                  />
-                ))}
-              </Box>
-              <Autocomplete
-                options={allTeams.filter(t => !pool.teams.find(pt => pt.teamId === t.teamId))}
-                getOptionLabel={t => t.teamName}
-                onChange={(_, team) => { if (team) addTeamToLocalPool(poolIdx, team); }}
-                value={null}
-                blurOnSelect
-                renderInput={params => <TextField {...params} label="Add team to pool" size="small" />}
-              />
-            </Paper>
-          ))}
+            </>
+          )}
 
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <TextField
-              label="New Pool Name"
-              value={newPoolName}
-              size="small"
-              sx={{ flex: 1 }}
-              onChange={e => setNewPoolName(e.target.value)}
-              placeholder={`Pool ${String.fromCharCode(65 + localPools.length)}`}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPool(); } }}
+          {/* Tab 2: Media & Links */}
+          {activeTab === 2 && (
+            <>
+              <input type="file" ref={pdfInputRef} style={{ display: 'none' }} accept="application/pdf" onChange={handlePdfUpload} />
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box sx={{ width: 64, height: 64, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {editing.playingConditionsUrl ? (
+                    <IconButton
+                      component="a"
+                      href={editing.playingConditionsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      color="error"
+                      size="large"
+                    >
+                      <PictureAsPdf sx={{ fontSize: 40 }} />
+                    </IconButton>
+                  ) : (
+                    <PictureAsPdf sx={{ fontSize: 40, color: 'text.disabled' }} />
+                  )}
+                </Box>
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={uploadingPdf ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => pdfInputRef.current?.click()}
+                    disabled={uploadingPdf}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    {uploadingPdf ? 'Uploading…' : 'Upload Playing Conditions'}
+                  </Button>
+                </Box>
+              </Box>
+
+              <TextField label="Website" value={editing.websiteLink ?? ''} onChange={e => set({ websiteLink: e.target.value })} />
+              <TextField label="Facebook" value={editing.facebookLink ?? ''} onChange={e => set({ facebookLink: e.target.value })} />
+              <TextField
+                label="Registration Page URL"
+                value={editing.registrationPageUrl ?? ''}
+                onChange={e => set({ registrationPageUrl: e.target.value })}
+              />
+            </>
+          )}
+
+          {/* Tab 3: Sponsors */}
+          {activeTab === 3 && (
+            <Autocomplete
+              multiple
+              options={sponsors}
+              getOptionLabel={s => s.name}
+              value={editing.sponsors ?? []}
+              onChange={(_, value) => set({ sponsors: value })}
+              isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
+              renderTags={(value, getTagProps) =>
+                value.map((s, idx) => (
+                  <Chip label={s.name} size="small" {...getTagProps({ index: idx })} key={s.sponsorId} />
+                ))
+              }
+              renderInput={params => <TextField {...params} label="Sponsors" />}
             />
-            <Button variant="outlined" size="small" startIcon={<Add />} onClick={addPool}>
-              Add Pool
-            </Button>
-          </Box>
+          )}
 
         </DialogContent>
         <DialogActions>

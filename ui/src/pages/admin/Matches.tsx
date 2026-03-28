@@ -275,6 +275,8 @@ export const Matches: React.FC = () => {
               <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
                 <TextField label="Match Date" type="date" value={editing.matchDate ?? ''} fullWidth
                   InputLabelProps={{ shrink: true }} onChange={e => setEditing({ ...editing, matchDate: e.target.value })} />
+                <TextField label="Toss Time" type="time" value={editing.tossTime ?? ''} fullWidth
+                  InputLabelProps={{ shrink: true }} onChange={e => setEditing({ ...editing, tossTime: e.target.value })} />
                 <TextField label="Start Time" type="time" value={editing.scheduledStartTime ?? ''} fullWidth
                   InputLabelProps={{ shrink: true }} onChange={e => setEditing({ ...editing, scheduledStartTime: e.target.value })} />
               </Box>

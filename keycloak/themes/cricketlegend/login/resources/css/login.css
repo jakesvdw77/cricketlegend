@@ -1,17 +1,20 @@
-/* Cricket Legend Theme */
+/* Cricket Legend Theme — matches landing page palette */
 
+/* ── Background: landing page hero gradient ─────────────────────────────── */
 body {
-    background: url('../background.svg') center center / cover no-repeat fixed;
+    background: linear-gradient(135deg, #1a5276 0%, #1a5276 60%, #28b463 100%) fixed;
+    background-attachment: fixed;
     margin: 0;
     padding: 0;
+    min-height: 100vh;
 }
 
-/* Dark overlay over the whole background */
+/* Subtle texture overlay */
 body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(0, 0, 0, 0.25);
     z-index: 0;
 }
 
@@ -20,103 +23,136 @@ body::before {
     z-index: 1;
 }
 
-/* Hide default Keycloak header text — the background image has the title */
+/* ── Header ─────────────────────────────────────────────────────────────── */
 #kc-header {
-    display: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 0 20px;
 }
 
-/* Center card on screen */
+#kc-header-wrapper {
+    color: #ffffff;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Center card ─────────────────────────────────────────────────────────── */
 .login-pf-page .login-pf-sidebar,
 #kc-content {
     margin-left: auto;
     margin-right: auto;
 }
 
-/* Login card */
+/* ── Login card ──────────────────────────────────────────────────────────── */
 .login-pf-page .card-pf {
-    background: rgba(15, 25, 50, 0.88);
-    border: none;
-    border-radius: 10px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7);
-    padding: 32px 28px;
-    max-width: 340px;
+    background: rgba(10, 30, 60, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+    padding: 36px 32px;
+    max-width: 360px;
     width: 100%;
     margin: 0 auto;
+    backdrop-filter: blur(6px);
 }
 
-/* Form labels */
+/* ── Form labels ─────────────────────────────────────────────────────────── */
 .login-pf-page label {
-    color: #e0e0e0;
+    color: #cce3f5;
     font-weight: 500;
 }
 
-/* Inputs */
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
 .login-pf-page .form-control {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 6px;
     color: #ffffff;
-    height: 42px;
+    height: 44px;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .login-pf-page .form-control::placeholder {
-    color: rgba(255, 255, 255, 0.45);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .login-pf-page .form-control:focus {
-    background: rgba(255, 255, 255, 0.18);
-    border-color: #f9a825;
-    box-shadow: 0 0 0 3px rgba(249, 168, 37, 0.25);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: #28b463;
+    box-shadow: 0 0 0 3px rgba(40, 180, 99, 0.3);
     color: #ffffff;
+    outline: none;
 }
 
-/* LOG IN button — gold like the design */
+/* ── Sign In button ──────────────────────────────────────────────────────── */
 .login-pf-page #kc-login,
 .login-pf-page .btn-primary {
-    background: #f9a825 !important;
-    background-image: linear-gradient(180deg, #fbc02d, #f9a825) !important;
+    background: #28b463 !important;
+    background-image: linear-gradient(180deg, #2ecc71, #28b463) !important;
     border: none !important;
     border-radius: 6px !important;
-    color: #1a1a1a !important;
+    color: #ffffff !important;
     font-weight: 700 !important;
     font-size: 1rem !important;
-    letter-spacing: 1px !important;
-    text-transform: uppercase !important;
-    height: 44px;
+    letter-spacing: 0.5px !important;
+    height: 46px;
     width: 100%;
+    transition: background 0.2s !important;
 }
 
 .login-pf-page #kc-login:hover,
 .login-pf-page .btn-primary:hover {
-    background: #fbc02d !important;
-    background-image: linear-gradient(180deg, #fdd835, #fbc02d) !important;
+    background: #1e8449 !important;
+    background-image: linear-gradient(180deg, #28b463, #1e8449) !important;
 }
 
-/* Links (Forgot Password etc.) */
+/* ── Links ───────────────────────────────────────────────────────────────── */
 .login-pf-page a {
-    color: #f9a825 !important;
+    color: #5dde8e !important;
 }
 
 .login-pf-page a:hover {
-    color: #fdd835 !important;
+    color: #82e9aa !important;
     text-decoration: underline !important;
 }
 
-/* Remember me checkbox label */
+/* ── Remember me ─────────────────────────────────────────────────────────── */
 #rememberMe + label,
 .login-pf-page .checkbox label {
-    color: #cccccc;
+    color: #b0cfe0;
 }
 
-/* Alert / error messages */
+/* ── Alert / error messages ──────────────────────────────────────────────── */
 .login-pf-page .alert-error {
-    background: rgba(183, 28, 28, 0.6);
+    background: rgba(183, 28, 28, 0.55);
     border: 1px solid #e53935;
     border-radius: 6px;
     color: #ffcdd2;
 }
 
-/* Social login buttons if present */
+.login-pf-page .alert-warning {
+    background: rgba(230, 81, 0, 0.45);
+    border: 1px solid #ff6d00;
+    border-radius: 6px;
+    color: #ffe0b2;
+}
+
+.login-pf-page .alert-success {
+    background: rgba(27, 94, 32, 0.5);
+    border: 1px solid #28b463;
+    border-radius: 6px;
+    color: #c8e6c9;
+}
+
+/* ── Social / identity provider buttons ─────────────────────────────────── */
 .login-pf-page .zocial {
     border-radius: 6px;
+}
+
+/* ── Dividers ────────────────────────────────────────────────────────────── */
+.login-pf-page hr {
+    border-color: rgba(255, 255, 255, 0.15);
 }
