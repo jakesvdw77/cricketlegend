@@ -3,8 +3,9 @@ import {
   AppBar, Toolbar, IconButton, Typography, Box, Avatar,
   Menu, MenuItem, Tooltip, Chip,
 } from '@mui/material';
-import { Menu as MenuIcon, SportsCricket } from '@mui/icons-material';
+import { Menu as MenuIcon, SportsCricket, Person } from '@mui/icons-material';
 import { useAuth } from '../../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 interface Props {
   sidebarOpen: boolean;
@@ -14,6 +15,7 @@ interface Props {
 export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
   const { username, firstName, lastName, email, isAdmin, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const navigate = useNavigate();
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || username.charAt(0).toUpperCase();
 
   return (
@@ -43,6 +45,9 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
             <Typography variant="caption" color="text.secondary">Role: {isAdmin ? 'Admin' : 'Player'}</Typography>
           </Box>
           <MenuItem divider disabled />
+          <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile'); }}>
+            <Person fontSize="small" sx={{ mr: 1 }} /> My Profile
+          </MenuItem>
           <MenuItem onClick={logout}>Logout</MenuItem>
         </Menu>
       </Toolbar>

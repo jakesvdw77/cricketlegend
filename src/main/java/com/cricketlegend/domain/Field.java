@@ -19,6 +19,8 @@ public class Field {
 
     private String googleMapsUrl;
 
+    private String iconUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_club_id")
     private Club homeClub;

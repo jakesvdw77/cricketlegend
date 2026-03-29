@@ -8,12 +8,12 @@ import {
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
   Tabs, Tab,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn, ContentCopy } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { teamApi } from '../../api/teamApi';
 import { paymentApi } from '../../api/paymentApi';
-import { Tournament, CricketFormat, Sponsor, Team, TournamentPool } from '../../types';
+import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender } from '../../types';
 
 const FORMATS: CricketFormat[] = ['T20', 'T30', 'T45', 'T50'];
 
@@ -22,18 +22,38 @@ const empty: Tournament = { name: '', pointsForWin: 2, pointsForDraw: 1, pointsF
 interface LocalPoolTeam { teamId: number; teamName: string; tournamentTeamId?: number }
 interface LocalPool { poolId?: number; poolName: string; teams: LocalPoolTeam[] }
 
-type ColKey = 'name' | 'format' | 'startDate' | 'endDate' | 'pools' | 'winner' | 'sponsors' | 'links';
+const AGE_GROUP_LABEL: Record<string, string> = {
+  UNDER_9: 'Under 9', UNDER_10: 'Under 10', UNDER_11: 'Under 11', UNDER_12: 'Under 12',
+  UNDER_13: 'Under 13', UNDER_14: 'Under 14', UNDER_15: 'Under 15', UNDER_16: 'Under 16',
+  UNDER_18: 'Under 18', UNDER_19: 'Under 19', OPEN: 'Open', VETERANS: 'Veterans',
+  OVER_50: 'Over 50', OVER_60: 'Over 60',
+};
+const GENDER_LABEL: Record<string, string> = {
+  MEN: 'Men', WOMEN: 'Women', BOYS: 'Boys', GIRLS: 'Girls',
+};
+const formatCategory = (ageGroup?: string, gender?: string): string => {
+  const g = gender ? GENDER_LABEL[gender] : '';
+  const a = ageGroup ? AGE_GROUP_LABEL[ageGroup] : '';
+  if (!g && !a) return '';
+  if (a === 'Open') return `${g} Open`;
+  if (a === 'Veterans') return `${g} Veterans`;
+  if (a) return `${a} ${g}`;
+  return g;
+};
+
+type ColKey = 'name' | 'category' | 'format' | 'startDate' | 'endDate' | 'pools' | 'winner' | 'sponsors' | 'links';
 const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'name',      label: 'Name' },
+  { key: 'category',  label: 'Category' },
   { key: 'format',    label: 'Format' },
   { key: 'startDate', label: 'Start Date' },
   { key: 'endDate',   label: 'End Date' },
-  { key: 'pools',     label: 'Pools' },
   { key: 'winner',    label: 'Winner' },
+  { key: 'pools',     label: 'Pools' },
   { key: 'sponsors',  label: 'Sponsors' },
   { key: 'links',     label: 'Links' },
 ];
-const DEFAULT_VISIBLE = new Set<ColKey>(['name', 'format', 'startDate', 'endDate', 'pools', 'winner', 'sponsors', 'links']);
+const DEFAULT_VISIBLE = new Set<ColKey>(['name', 'category', 'format', 'startDate', 'endDate', 'pools', 'winner', 'sponsors', 'links']);
 
 export const Tournaments: React.FC = () => {
   const navigate = useNavigate();
@@ -150,6 +170,11 @@ export const Tournaments: React.FC = () => {
 
   const remove = async (id: number) => {
     if (confirm('Delete this tournament?')) { await tournamentApi.delete(id); load(); }
+  };
+
+  const duplicate = (t: Tournament) => {
+    const { tournamentId, pools, winningTeamId, winningTeamName, ...rest } = t;
+    openDialog({ ...rest, name: `${t.name} (Copy)`, sponsors: [] });
   };
 
   const set = (patch: Partial<Tournament>) => setEditing(e => ({ ...e, ...patch }));
@@ -306,11 +331,12 @@ export const Tournaments: React.FC = () => {
                   <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
                 </TableCell>
               )}
+              {col('category') && <TableCell>Category</TableCell>}
               {col('format') && <TableCell>Format</TableCell>}
               {col('startDate') && <TableCell>Start Date</TableCell>}
               {col('endDate') && <TableCell>End Date</TableCell>}
-              {col('pools') && <TableCell>Pools</TableCell>}
               {col('winner') && <TableCell>Winner</TableCell>}
+              {col('pools') && <TableCell>Pools</TableCell>}
               {col('sponsors') && <TableCell>Sponsors</TableCell>}
               {col('links') && <TableCell>Links</TableCell>}
               <TableCell />
@@ -334,9 +360,23 @@ export const Tournaments: React.FC = () => {
                   </Avatar>
                 </TableCell>
                 {col('name') && <TableCell>{r.name}</TableCell>}
+                {col('category') && (
+                  <TableCell>
+                    {formatCategory(r.ageGroup, r.tournamentGender) && (
+                      <Chip label={formatCategory(r.ageGroup, r.tournamentGender)} size="small" variant="outlined" />
+                    )}
+                  </TableCell>
+                )}
                 {col('format') && <TableCell><Chip label={r.cricketFormat} size="small" /></TableCell>}
                 {col('startDate') && <TableCell>{r.startDate}</TableCell>}
                 {col('endDate') && <TableCell>{r.endDate}</TableCell>}
+                {col('winner') && (
+                  <TableCell>
+                    {r.winningTeamName && (
+                      <Chip icon={<EmojiEvents />} label={r.winningTeamName} size="small" color="warning" variant="outlined" />
+                    )}
+                  </TableCell>
+                )}
                 {col('pools') && (
                   <TableCell>
                     <Chip
@@ -348,20 +388,15 @@ export const Tournaments: React.FC = () => {
                     />
                   </TableCell>
                 )}
-                {col('winner') && (
-                  <TableCell>
-                    {r.winningTeamName && (
-                      <Chip icon={<EmojiEvents />} label={r.winningTeamName} size="small" color="warning" variant="outlined" />
-                    )}
-                  </TableCell>
-                )}
                 {col('sponsors') && (
                   <TableCell>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                      {r.sponsors?.map(s => (
-                        <Chip key={s.sponsorId} label={s.name} size="small" variant="outlined" />
-                      ))}
-                    </Box>
+                    <Chip
+                      label={r.sponsors?.length ?? 0}
+                      size="small"
+                      clickable
+                      onClick={() => navigate('/admin/sponsors')}
+                      title="View sponsors"
+                    />
                   </TableCell>
                 )}
                 {col('links') && (
@@ -391,6 +426,7 @@ export const Tournaments: React.FC = () => {
                   </TableCell>
                 )}
                 <TableCell>
+                  <IconButton size="small" title="Duplicate" onClick={() => duplicate(r)}><ContentCopy fontSize="small" /></IconButton>
                   <IconButton size="small" onClick={() => openDialog(r)}><Edit /></IconButton>
                   <IconButton size="small" color="error" onClick={() => remove(r.tournamentId!)}><Delete /></IconButton>
                 </TableCell>
@@ -453,8 +489,34 @@ export const Tournaments: React.FC = () => {
               <TextField label="Name" value={editing.name} onChange={e => set({ name: e.target.value })} required />
               <TextField label="Description" value={editing.description ?? ''} multiline rows={2}
                 onChange={e => set({ description: e.target.value })} />
-              <TextField select label="Format" value={editing.cricketFormat ?? ''} onChange={e => set({ cricketFormat: e.target.value as CricketFormat })}>
-                {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField select label="Format" value={editing.cricketFormat ?? ''} fullWidth onChange={e => set({ cricketFormat: e.target.value as CricketFormat })}>
+                  {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+                </TextField>
+                <TextField select label="Gender" value={editing.tournamentGender ?? ''} fullWidth onChange={e => set({ tournamentGender: e.target.value as TournamentGender || undefined })}>
+                  <MenuItem value="">— None —</MenuItem>
+                  <MenuItem value="MEN">Men</MenuItem>
+                  <MenuItem value="WOMEN">Women</MenuItem>
+                  <MenuItem value="BOYS">Boys</MenuItem>
+                  <MenuItem value="GIRLS">Girls</MenuItem>
+                </TextField>
+              </Box>
+              <TextField select label="Age Group" value={editing.ageGroup ?? ''} onChange={e => set({ ageGroup: e.target.value as AgeGroup || undefined })}>
+                <MenuItem value="">— None —</MenuItem>
+                <MenuItem value="UNDER_9">Under 9</MenuItem>
+                <MenuItem value="UNDER_10">Under 10</MenuItem>
+                <MenuItem value="UNDER_11">Under 11</MenuItem>
+                <MenuItem value="UNDER_12">Under 12</MenuItem>
+                <MenuItem value="UNDER_13">Under 13</MenuItem>
+                <MenuItem value="UNDER_14">Under 14</MenuItem>
+                <MenuItem value="UNDER_15">Under 15</MenuItem>
+                <MenuItem value="UNDER_16">Under 16</MenuItem>
+                <MenuItem value="UNDER_18">Under 18</MenuItem>
+                <MenuItem value="UNDER_19">Under 19</MenuItem>
+                <MenuItem value="OPEN">Open</MenuItem>
+                <MenuItem value="VETERANS">Veterans</MenuItem>
+                <MenuItem value="OVER_50">Over 50</MenuItem>
+                <MenuItem value="OVER_60">Over 60</MenuItem>
               </TextField>
               <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
                 <TextField label="Start Date" type="date" value={editing.startDate ?? ''} InputLabelProps={{ shrink: true }}

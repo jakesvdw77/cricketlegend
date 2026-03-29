@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +47,18 @@ public class PlayerController {
     @Operation(summary = "Get player statistics (all match results)")
     public ResponseEntity<List<PlayerResultDTO>> getStatistics(@PathVariable Long id) {
         return ResponseEntity.ok(playerResultService.findByPlayer(id));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get the player profile for the currently authenticated user")
+    public ResponseEntity<PlayerDTO> findMe(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(playerService.findMe(jwt.getClaimAsString("email")));
+    }
+
+    @PutMapping("/me")
+    @Operation(summary = "Update the player profile for the currently authenticated user")
+    public ResponseEntity<PlayerDTO> updateMe(@AuthenticationPrincipal Jwt jwt, @RequestBody PlayerDTO dto) {
+        return ResponseEntity.ok(playerService.updateMe(jwt.getClaimAsString("email"), dto));
     }
 
     @PostMapping

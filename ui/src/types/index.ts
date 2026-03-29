@@ -4,6 +4,9 @@ export type BattingStance = 'LEFT_HANDED' | 'RIGHT_HANDED';
 export type BowlingArm = 'LEFT' | 'RIGHT';
 export type BowlingType = 'VERY_FAST' | 'FAST' | 'FAST_MEDIUM' | 'MEDIUM_FAST' | 'MEDIUM' | 'MEDIUM_SLOW' | 'OFF_SPIN' | 'LEG_SPIN' | 'SLOW_LEFT_ARM_ORTHODOX' | 'CHINAMAN' | 'NONE';
 export type ClothingSize = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | 'XXXL';
+export type Gender = 'MALE' | 'FEMALE';
+export type AgeGroup = 'UNDER_9' | 'UNDER_10' | 'UNDER_11' | 'UNDER_12' | 'UNDER_13' | 'UNDER_14' | 'UNDER_15' | 'UNDER_16' | 'UNDER_18' | 'UNDER_19' | 'OPEN' | 'VETERANS' | 'OVER_50' | 'OVER_60';
+export type TournamentGender = 'MEN' | 'WOMEN' | 'BOYS' | 'GIRLS';
 export type DismissalType = 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' | 'HIT_WICKET' | 'NOT_OUT';
 
 export type MatchStage = 'POOL' | 'SEMI_FINAL' | 'FINAL';
@@ -59,6 +62,7 @@ export interface Field {
   name: string;
   address?: string;
   googleMapsUrl?: string;
+  iconUrl?: string;
   homeClubId?: number;
   homeClubName?: string;
 }
@@ -82,6 +86,7 @@ export interface Player {
   partTimeBowler?: boolean;
   shirtSize?: ClothingSize;
   pantSize?: ClothingSize;
+  gender?: Gender;
   homeClubId?: number;
   homeClubName?: string;
   mediaContent?: MediaContent[];
@@ -131,6 +136,8 @@ export interface Tournament {
   startDate?: string;
   endDate?: string;
   cricketFormat?: CricketFormat;
+  ageGroup?: AgeGroup;
+  tournamentGender?: TournamentGender;
   bannerUrl?: string;
   logoUrl?: string;
   playingConditionsUrl?: string;
@@ -156,6 +163,7 @@ export interface Match {
   matchDate?: string;
   scheduledStartTime?: string;
   tossTime?: string;
+  arrivalTime?: string;
   umpire?: string;
   matchStage?: MatchStage;
   homeTeamId?: number;

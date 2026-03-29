@@ -58,6 +58,8 @@ public class TournamentServiceImpl implements TournamentService {
         existing.setStartDate(dto.getStartDate());
         existing.setEndDate(dto.getEndDate());
         existing.setCricketFormat(dto.getCricketFormat());
+        existing.setAgeGroup(dto.getAgeGroup());
+        existing.setTournamentGender(dto.getTournamentGender());
         existing.setBannerUrl(dto.getBannerUrl());
         existing.setLogoUrl(dto.getLogoUrl());
         existing.setPlayingConditionsUrl(dto.getPlayingConditionsUrl());

@@ -12,6 +12,7 @@ public class MatchDTO {
     private LocalDate matchDate;
     private LocalTime scheduledStartTime;
     private LocalTime tossTime;
+    private LocalTime arrivalTime;
     private String umpire;
     private String scoringUrl;
     private MatchStage matchStage;

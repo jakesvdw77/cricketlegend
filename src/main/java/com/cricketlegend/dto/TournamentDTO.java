@@ -1,6 +1,8 @@
 package com.cricketlegend.dto;
 
+import com.cricketlegend.domain.enums.AgeGroup;
 import com.cricketlegend.domain.enums.CricketFormat;
+import com.cricketlegend.domain.enums.TournamentGender;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -15,6 +17,8 @@ public class TournamentDTO {
     private LocalDate startDate;
     private LocalDate endDate;
     private CricketFormat cricketFormat;
+    private AgeGroup ageGroup;
+    private TournamentGender tournamentGender;
     private String bannerUrl;
     private String logoUrl;
     private String playingConditionsUrl;

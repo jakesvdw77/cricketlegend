@@ -51,6 +51,7 @@ public class FieldServiceImpl implements FieldService {
         existing.setName(dto.getName());
         existing.setAddress(dto.getAddress());
         existing.setGoogleMapsUrl(dto.getGoogleMapsUrl());
+        existing.setIconUrl(dto.getIconUrl());
         resolveClub(existing, dto.getHomeClubId());
         return fieldMapper.toDto(fieldRepository.save(existing));
     }

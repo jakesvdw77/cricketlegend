@@ -5,20 +5,117 @@ import {
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, LocationOn, AccessTime, Login, SportsCricket,
-  PhotoLibrary,
+  PhotoLibrary, FiberManualRecord,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { Match } from '../types';
 import keycloak from '../keycloak';
 
+const STAGE_LABEL: Record<string, string> = { POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
+
+const today = () => new Date().toISOString().slice(0, 10);
+const tenDaysAgo = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 10);
+  return d.toISOString().slice(0, 10);
+};
+
+const isToday = (date?: string) => !!date && date === today();
+const isRecent = (date?: string) => !!date && date >= tenDaysAgo() && date < today();
+
+// ── Shared match card ────────────────────────────────────────────────────────
+
+const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
+  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, position: 'relative', overflow: 'visible' }}>
+    {live && (
+      <Box sx={{
+        position: 'absolute', top: -10, right: 12,
+        bgcolor: '#e53935', color: 'white',
+        borderRadius: 1, px: 1, py: 0.25,
+        display: 'flex', alignItems: 'center', gap: 0.4,
+        fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.5,
+      }}>
+        <FiberManualRecord sx={{ fontSize: 8 }} /> LIVE
+      </Box>
+    )}
+    <CardContent>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+        <Chip label={m.tournamentName} size="small" icon={<EmojiEvents />} color="primary" variant="outlined" />
+        {m.matchStage && (
+          <Chip label={STAGE_LABEL[m.matchStage] ?? m.matchStage} size="small" variant="outlined" />
+        )}
+      </Box>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, my: 1.5 }}>
+        <Avatar src={m.homeTeamLogoUrl} sx={{ width: 40, height: 40 }}>
+          {m.homeTeamName?.charAt(0)}
+        </Avatar>
+        <Box sx={{ textAlign: 'center' }}>
+          <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{m.homeTeamName}</Typography>
+          <Typography variant="caption" color="text.secondary">vs</Typography>
+          <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{m.oppositionTeamName}</Typography>
+        </Box>
+        <Avatar src={m.oppositionTeamLogoUrl} sx={{ width: 40, height: 40 }}>
+          {m.oppositionTeamName?.charAt(0)}
+        </Avatar>
+      </Box>
+
+      <Divider sx={{ my: 1 }} />
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        {m.matchDate && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <CalendarMonth sx={{ fontSize: 16, color: 'text.secondary' }} />
+            <Typography variant="body2">{m.matchDate}</Typography>
+          </Box>
+        )}
+        {m.tossTime && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
+            <Typography variant="body2">Toss: {m.tossTime}</Typography>
+          </Box>
+        )}
+        {m.scheduledStartTime && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
+            <Typography variant="body2">Start: {m.scheduledStartTime}</Typography>
+          </Box>
+        )}
+        {m.fieldName && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} />
+            <Typography
+              variant="body2"
+              component={m.fieldGoogleMapsUrl ? 'a' : 'span'}
+              href={m.fieldGoogleMapsUrl ?? undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={m.fieldGoogleMapsUrl ? { color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } } : {}}
+            >
+              {m.fieldName}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+    </CardContent>
+  </Card>
+);
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
 export const LandingPage: React.FC = () => {
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
+  const [previousMatches, setPreviousMatches] = useState<Match[]>([]);
 
   useEffect(() => {
     matchApi.findUpcoming().then(setUpcomingMatches).catch(() => {});
+    matchApi.findPrevious().then(setPreviousMatches).catch(() => {});
   }, []);
 
   const handleLogin = () => keycloak.login();
+
+  const liveAndRecent = previousMatches.filter(m => isToday(m.matchDate) || isRecent(m.matchDate));
+  const liveMatches = liveAndRecent.filter(m => isToday(m.matchDate));
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -61,18 +158,14 @@ export const LandingPage: React.FC = () => {
             size="large"
             startIcon={<Login />}
             onClick={handleLogin}
-            sx={{
-              bgcolor: '#28b463',
-              '&:hover': { bgcolor: '#1e8449' },
-              px: 4, py: 1.5, fontSize: '1rem', borderRadius: 2,
-            }}
+            sx={{ bgcolor: '#28b463', '&:hover': { bgcolor: '#1e8449' }, px: 4, py: 1.5, fontSize: '1rem', borderRadius: 2 }}
           >
             Sign In to the App
           </Button>
         </Container>
       </Box>
 
-      {/* About / Feature highlights */}
+      {/* Feature highlights */}
       <Box sx={{ py: 8, bgcolor: 'grey.50' }}>
         <Container maxWidth="lg">
           <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom color="primary">
@@ -99,8 +192,39 @@ export const LandingPage: React.FC = () => {
         </Container>
       </Box>
 
+      {/* Live & Recent Matches */}
+      {liveAndRecent.length > 0 && (
+        <Box sx={{ py: 8 }}>
+          <Container maxWidth="lg">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
+              {liveMatches.length > 0 && (
+                <Chip
+                  icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
+                  label="LIVE"
+                  size="small"
+                  sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
+                />
+              )}
+              <Typography variant="h4" fontWeight="bold" color="primary">
+                Live &amp; Recent Matches
+              </Typography>
+            </Box>
+            <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
+              Matches played today or in the last 10 days.
+            </Typography>
+            <Grid container spacing={2}>
+              {liveAndRecent.map(m => (
+                <Grid item xs={12} sm={6} md={4} key={m.matchId}>
+                  <MatchCard m={m} live={isToday(m.matchDate)} />
+                </Grid>
+              ))}
+            </Grid>
+          </Container>
+        </Box>
+      )}
+
       {/* Upcoming Matches */}
-      <Box sx={{ py: 8 }}>
+      <Box sx={{ py: 8, bgcolor: liveAndRecent.length > 0 ? 'grey.50' : undefined }}>
         <Container maxWidth="lg">
           <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom color="primary">
             Upcoming Matches
@@ -108,7 +232,6 @@ export const LandingPage: React.FC = () => {
           <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
             Stay up to date with what's on the schedule.
           </Typography>
-
           {upcomingMatches.length === 0 ? (
             <Typography textAlign="center" color="text.secondary">
               No upcoming matches scheduled at this time.
@@ -117,76 +240,7 @@ export const LandingPage: React.FC = () => {
             <Grid container spacing={2}>
               {upcomingMatches.map(m => (
                 <Grid item xs={12} sm={6} md={4} key={m.matchId}>
-                  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2 }}>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                        <Chip label={m.tournamentName} size="small" icon={<EmojiEvents />} color="primary" variant="outlined" />
-                        {m.matchStage && (
-                          <Chip
-                            label={{ POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' }[m.matchStage] ?? m.matchStage}
-                            size="small"
-                            variant="outlined"
-                          />
-                        )}
-                      </Box>
-
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, my: 1.5 }}>
-                        <Avatar src={m.homeTeamLogoUrl} sx={{ width: 40, height: 40 }}>
-                          {m.homeTeamName?.charAt(0)}
-                        </Avatar>
-                        <Box sx={{ textAlign: 'center' }}>
-                          <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>
-                            {m.homeTeamName}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">vs</Typography>
-                          <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>
-                            {m.oppositionTeamName}
-                          </Typography>
-                        </Box>
-                        <Avatar src={m.oppositionTeamLogoUrl} sx={{ width: 40, height: 40 }}>
-                          {m.oppositionTeamName?.charAt(0)}
-                        </Avatar>
-                      </Box>
-
-                      <Divider sx={{ my: 1 }} />
-
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        {m.matchDate && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <CalendarMonth sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography variant="body2">{m.matchDate}</Typography>
-                          </Box>
-                        )}
-                        {m.tossTime && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography variant="body2">Toss: {m.tossTime}</Typography>
-                          </Box>
-                        )}
-                        {m.scheduledStartTime && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <AccessTime sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography variant="body2">Start: {m.scheduledStartTime}</Typography>
-                          </Box>
-                        )}
-                        {m.fieldName && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <LocationOn sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography
-                              variant="body2"
-                              component={m.fieldGoogleMapsUrl ? 'a' : 'span'}
-                              href={m.fieldGoogleMapsUrl ?? undefined}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              sx={m.fieldGoogleMapsUrl ? { color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } } : {}}
-                            >
-                              {m.fieldName}
-                            </Typography>
-                          </Box>
-                        )}
-                      </Box>
-                    </CardContent>
-                  </Card>
+                  <MatchCard m={m} />
                 </Grid>
               ))}
             </Grid>
@@ -206,14 +260,7 @@ export const LandingPage: React.FC = () => {
           <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
             Photos and highlights from our matches and tournaments.
           </Typography>
-          <Box sx={{
-            border: '2px dashed',
-            borderColor: 'grey.300',
-            borderRadius: 3,
-            py: 8,
-            textAlign: 'center',
-            color: 'text.disabled',
-          }}>
+          <Box sx={{ border: '2px dashed', borderColor: 'grey.300', borderRadius: 3, py: 8, textAlign: 'center', color: 'text.disabled' }}>
             <PhotoLibrary sx={{ fontSize: 64, mb: 2 }} />
             <Typography variant="h6">No photos yet</Typography>
             <Typography variant="body2">Match and tournament photos will appear here.</Typography>

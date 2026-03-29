@@ -1,26 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Link, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
+  Avatar, CircularProgress,
 } from '@mui/material';
-import { Add, Edit, Delete, OpenInNew, ViewColumn } from '@mui/icons-material';
+import { Add, Edit, Delete, OpenInNew, ViewColumn, CloudUpload } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { fieldApi } from '../../api/fieldApi';
 import { clubApi } from '../../api/clubApi';
+import { paymentApi } from '../../api/paymentApi';
 import { Field, Club } from '../../types';
 
 const empty: Field = { name: '' };
 
-type ColKey = 'name' | 'address' | 'homeClub' | 'map';
+type ColKey = 'icon' | 'name' | 'address' | 'homeClub' | 'map';
 const ALL_COLUMNS: { key: ColKey; label: string }[] = [
+  { key: 'icon',     label: 'Icon' },
   { key: 'name',     label: 'Name' },
   { key: 'address',  label: 'Address' },
   { key: 'homeClub', label: 'Home Club' },
   { key: 'map',      label: 'Map' },
 ];
-const DEFAULT_VISIBLE = new Set<ColKey>(['name', 'address', 'homeClub', 'map']);
+const DEFAULT_VISIBLE = new Set<ColKey>(['icon', 'name', 'address', 'homeClub', 'map']);
 
 export const Fields: React.FC = () => {
   const navigate = useNavigate();
@@ -30,6 +33,8 @@ export const Fields: React.FC = () => {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Field>(empty);
+  const [uploading, setUploading] = useState(false);
+  const iconInputRef = useRef<HTMLInputElement>(null);
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -57,6 +62,21 @@ export const Fields: React.FC = () => {
   };
 
   const set = (patch: Partial<Field>) => setEditing(e => ({ ...e, ...patch }));
+
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const url = await paymentApi.uploadFile(formData);
+      set({ iconUrl: url });
+    } finally {
+      setUploading(false);
+      if (iconInputRef.current) iconInputRef.current.value = '';
+    }
+  };
 
   const toggleCol = (key: ColKey) => {
     setVisibleCols(prev => {
@@ -129,6 +149,7 @@ export const Fields: React.FC = () => {
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
           <TableHead>
             <TableRow>
+              {col('icon') && <TableCell>Icon</TableCell>}
               {col('name') && (
                 <TableCell sortDirection={sortDir}>
                   <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
@@ -143,6 +164,13 @@ export const Fields: React.FC = () => {
           <TableBody>
             {paginated.map(r => (
               <TableRow key={r.fieldId}>
+                {col('icon') && (
+                  <TableCell>
+                    <Avatar src={r.iconUrl ?? ''} variant="rounded" sx={{ width: 36, height: 36, fontSize: 13 }}>
+                      {!r.iconUrl && r.name.substring(0, 2).toUpperCase()}
+                    </Avatar>
+                  </TableCell>
+                )}
                 {col('name') && <TableCell>{r.name}</TableCell>}
                 {col('address') && <TableCell>{r.address}</TableCell>}
                 {col('homeClub') && (
@@ -189,6 +217,22 @@ export const Fields: React.FC = () => {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.fieldId ? 'Edit' : 'New'} Field</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+          {/* Icon upload */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={editing.iconUrl ?? ''} variant="rounded" sx={{ width: 64, height: 64, flexShrink: 0 }}>
+              {!editing.iconUrl && editing.name.substring(0, 2).toUpperCase()}
+            </Avatar>
+            <input ref={iconInputRef} type="file" accept="image/*" hidden onChange={handleIconUpload} />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+              onClick={() => iconInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading…' : 'Upload Icon'}
+            </Button>
+          </Box>
           <TextField
             label="Name"
             value={editing.name}

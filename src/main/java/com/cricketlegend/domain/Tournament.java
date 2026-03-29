@@ -1,6 +1,8 @@
 package com.cricketlegend.domain;
 
+import com.cricketlegend.domain.enums.AgeGroup;
 import com.cricketlegend.domain.enums.CricketFormat;
+import com.cricketlegend.domain.enums.TournamentGender;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,6 +31,12 @@ public class Tournament {
 
     @Enumerated(EnumType.STRING)
     private CricketFormat cricketFormat;
+
+    @Enumerated(EnumType.STRING)
+    private AgeGroup ageGroup;
+
+    @Enumerated(EnumType.STRING)
+    private TournamentGender tournamentGender;
 
     private String bannerUrl;
     private String logoUrl;

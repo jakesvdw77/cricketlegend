@@ -22,6 +22,8 @@ import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
 
+import { MyProfile } from './pages/MyProfile';
+
 // View pages
 import { PreviousMatches } from './pages/view/PreviousMatches';
 import { Scorecards } from './pages/view/Scorecards';
@@ -66,6 +68,7 @@ export default function App() {
           <Route path="/" element={<LandingRoute />} />
           <Route element={<ProtectedLayout />}>
             <Route path="matches/upcoming" element={<UpcomingMatches />} />
+            <Route path="profile" element={<MyProfile />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />

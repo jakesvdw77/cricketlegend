@@ -8,6 +8,8 @@ public interface PlayerService {
     List<PlayerDTO> findAll();
     PlayerDTO findById(Long id);
     List<PlayerDTO> search(String query);
+    PlayerDTO findMe(String email);
+    PlayerDTO updateMe(String email, PlayerDTO dto);
     PlayerDTO create(PlayerDTO dto);
     PlayerDTO update(Long id, PlayerDTO dto);
     void delete(Long id);

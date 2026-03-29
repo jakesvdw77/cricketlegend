@@ -5,6 +5,7 @@ import com.cricketlegend.domain.enums.BattingStance;
 import com.cricketlegend.domain.enums.BowlingArm;
 import com.cricketlegend.domain.enums.BowlingType;
 import com.cricketlegend.domain.enums.ClothingSize;
+import com.cricketlegend.domain.enums.Gender;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ public class PlayerDTO {
     private Boolean partTimeBowler;
     private ClothingSize shirtSize;
     private ClothingSize pantSize;
+    private Gender gender;
     private Long homeClubId;
     private String homeClubName;
     private List<MediaContentDTO> mediaContent;

@@ -8,6 +8,7 @@ public class FieldDTO {
     private String name;
     private String address;
     private String googleMapsUrl;
+    private String iconUrl;
     private Long homeClubId;
     private String homeClubName;
 }

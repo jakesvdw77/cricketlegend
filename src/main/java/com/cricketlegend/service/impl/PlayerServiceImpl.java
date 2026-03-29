@@ -43,6 +43,22 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
+    public PlayerDTO findMe(String email) {
+        return playerRepository.findByEmailIgnoreCase(email)
+                .map(playerMapper::toDto)
+                .orElseThrow(() -> new com.cricketlegend.exception.NotFoundException("No player profile linked to " + email));
+    }
+
+    @Override
+    @Transactional
+    public PlayerDTO updateMe(String email, PlayerDTO dto) {
+        Player existing = playerRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new com.cricketlegend.exception.NotFoundException("No player profile linked to " + email));
+        dto.setEmail(email); // email is the identifier — cannot be changed via self-service
+        return update(existing.getPlayerId(), dto);
+    }
+
+    @Override
     @Transactional
     public PlayerDTO create(PlayerDTO dto) {
         Player player = playerMapper.toEntity(dto);
@@ -70,6 +86,7 @@ public class PlayerServiceImpl implements PlayerService {
         existing.setBowlingType(dto.getBowlingType());
         existing.setWicketKeeper(dto.getWicketKeeper());
         existing.setPartTimeBowler(dto.getPartTimeBowler());
+        existing.setGender(dto.getGender());
         resolveClub(existing, dto.getHomeClubId());
         return playerMapper.toDto(playerRepository.save(existing));
     }

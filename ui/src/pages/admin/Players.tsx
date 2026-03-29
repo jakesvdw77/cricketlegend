@@ -1,26 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, MenuItem, Checkbox, FormControlLabel, Avatar,
-  CircularProgress, Tooltip, TableSortLabel, TablePagination,
-  Popover, FormGroup,
+  DialogContent, DialogActions, TextField, MenuItem, Avatar,
+  Tooltip, TableSortLabel, TablePagination,
+  Popover, FormGroup, Checkbox, FormControlLabel,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, OpenInNew, ViewColumn } from '@mui/icons-material';
+import { Add, Edit, Delete, OpenInNew, ViewColumn } from '@mui/icons-material';
 import { playerApi } from '../../api/playerApi';
 import { clubApi } from '../../api/clubApi';
-import { paymentApi } from '../../api/paymentApi';
-import { Player, Club, BattingPosition, BattingStance, BowlingArm, BowlingType, ClothingSize } from '../../types';
+import { Player, Club } from '../../types';
 import { formatEnum } from '../../utils/formatEnum';
+import { PlayerEditForm } from '../../components/player/PlayerEditForm';
 
 const empty: Player = { name: '', surname: '' };
-
-const VALID_BOWLING_TYPES: BowlingType[] = [
-  'VERY_FAST', 'FAST', 'FAST_MEDIUM', 'MEDIUM_FAST', 'MEDIUM', 'MEDIUM_SLOW',
-  'OFF_SPIN', 'LEG_SPIN', 'SLOW_LEFT_ARM_ORTHODOX', 'CHINAMAN', 'NONE',
-];
-const validBowlingType = (v?: string): BowlingType | '' =>
-  VALID_BOWLING_TYPES.includes(v as BowlingType) ? (v as BowlingType) : '';
 
 type ColKey = 'name' | 'surname' | 'shirtNumber' | 'club' | 'battingStance' | 'battingPosition' | 'bowlingArm' | 'bowlingType' | 'wicketKeeper' | 'shirtSize' | 'pantSize';
 
@@ -47,29 +40,12 @@ export const Players: React.FC = () => {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Player>(empty);
-  const [uploading, setUploading] = useState(false);
   const [viewPhotoUrl, setViewPhotoUrl] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [clubFilter, setClubFilter] = useState<number | ''>('');
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(DEFAULT_VISIBLE);
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const url = await paymentApi.uploadFile(formData);
-      set({ profilePictureUrl: url });
-    } finally {
-      setUploading(false);
-      if (photoInputRef.current) photoInputRef.current.value = '';
-    }
-  };
 
   const load = () => playerApi.findAll().then(setRows);
   useEffect(() => {
@@ -255,142 +231,8 @@ export const Players: React.FC = () => {
 
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.playerId ? 'Edit' : 'New'} Player</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-
-          <Box>
-            <input
-                type="file"
-                ref={photoInputRef}
-                style={{ display: 'none' }}
-                accept="image/*"
-                onChange={handlePhotoUpload}
-            />
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Avatar
-                  src={editing.profilePictureUrl ?? ''}
-                  sx={{ width: 64, height: 64, flexShrink: 0 }}
-              >
-                {editing.name?.charAt(0)}
-              </Avatar>
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={uploading}
-                    sx={{ alignSelf: 'flex-start' }}
-                >
-                  {uploading ? 'Uploading…' : 'Upload Photo'}
-                </Button>
-
-              </Box>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Name" value={editing.name} fullWidth required
-              onChange={e => set({ name: e.target.value })} />
-            <TextField label="Surname" value={editing.surname} fullWidth required
-              onChange={e => set({ surname: e.target.value })} />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Date of Birth" type="date" value={editing.dateOfBirth ?? ''} fullWidth
-              InputLabelProps={{ shrink: true }} onChange={e => set({ dateOfBirth: e.target.value })} />
-            <TextField
-                select
-                label="Home Club"
-                value={editing.homeClubId ?? ''} fullWidth
-                onChange={e => set({ homeClubId: e.target.value ? +e.target.value : undefined })}
-            >
-              <MenuItem value="">— None —</MenuItem>
-              {clubs.map(c => (
-                  <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
-              ))}
-            </TextField>
-          </Box>
-
-
-
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Shirt #" type="number" value={editing.shirtNumber ?? ''} fullWidth
-                       onChange={e => set({ shirtNumber: +e.target.value })} />
-
-            <TextField select label="Shirt Size" value={editing.shirtSize ?? ''} fullWidth
-              onChange={e => set({ shirtSize: e.target.value as ClothingSize || undefined })}>
-              <MenuItem value="">— None —</MenuItem>
-              {(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] as ClothingSize[]).map(s => (
-                <MenuItem key={s} value={s}>{s}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select label="Pant Size" value={editing.pantSize ?? ''} fullWidth
-              onChange={e => set({ pantSize: e.target.value as ClothingSize || undefined })}>
-              <MenuItem value="">— None —</MenuItem>
-              {(['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] as ClothingSize[]).map(s => (
-                <MenuItem key={s} value={s}>{s}</MenuItem>
-              ))}
-            </TextField>
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Contact" value={editing.contactNumber ?? ''} fullWidth
-              onChange={e => set({ contactNumber: e.target.value })} />
-            <TextField label="Alt Contact" value={editing.alternativeContactNumber ?? ''} fullWidth
-              onChange={e => set({ alternativeContactNumber: e.target.value })} />
-          </Box>
-          <TextField label="Email" type="email" value={editing.email ?? ''}
-            onChange={e => set({ email: e.target.value })} />
-          <TextField
-              label="Career URL"
-              type="url"
-              value={editing.careerUrl ?? ''}
-              onChange={e => set({ careerUrl: e.target.value })}
-              helperText="Link to player's career profile (e.g. CricHeroes)"
-          />
-
-          <TextField select label="Batting Position" value={editing.battingPosition ?? ''}
-            onChange={e => set({ battingPosition: e.target.value as BattingPosition })}>
-            <MenuItem value="">— None —</MenuItem>
-            <MenuItem value="OPENER">Opener</MenuItem>
-            <MenuItem value="TOP_ORDER">Top Order</MenuItem>
-            <MenuItem value="MIDDLE_ORDER">Middle Order</MenuItem>
-            <MenuItem value="LOWER_MIDDLE_ORDER">Lower Middle Order</MenuItem>
-            <MenuItem value="LOWER_ORDER">Lower Order</MenuItem>
-          </TextField>
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField select label="Batting Stance" value={editing.battingStance ?? ''} fullWidth
-              onChange={e => set({ battingStance: e.target.value as BattingStance })}>
-              <MenuItem value="RIGHT_HANDED">Right Handed</MenuItem>
-              <MenuItem value="LEFT_HANDED">Left Handed</MenuItem>
-            </TextField>
-            <TextField select label="Bowling Arm" value={editing.bowlingArm ?? ''} fullWidth
-              onChange={e => set({ bowlingArm: e.target.value as BowlingArm })}>
-              <MenuItem value="RIGHT">Right</MenuItem>
-              <MenuItem value="LEFT">Left</MenuItem>
-            </TextField>
-          </Box>
-          <TextField select label="Bowling Type" value={validBowlingType(editing.bowlingType)}
-            onChange={e => set({ bowlingType: e.target.value as BowlingType })}>
-            <MenuItem value="VERY_FAST"><Tooltip title="150+ km/h" placement="right"><span style={{ width: '100%' }}>Very Fast</span></Tooltip></MenuItem>
-            <MenuItem value="FAST"><Tooltip title="140–150 km/h" placement="right"><span style={{ width: '100%' }}>Fast</span></Tooltip></MenuItem>
-            <MenuItem value="FAST_MEDIUM"><Tooltip title="130–140 km/h" placement="right"><span style={{ width: '100%' }}>Fast Medium</span></Tooltip></MenuItem>
-            <MenuItem value="MEDIUM_FAST"><Tooltip title="120–130 km/h" placement="right"><span style={{ width: '100%' }}>Medium Fast</span></Tooltip></MenuItem>
-            <MenuItem value="MEDIUM"><Tooltip title="100–120 km/h" placement="right"><span style={{ width: '100%' }}>Medium</span></Tooltip></MenuItem>
-            <MenuItem value="MEDIUM_SLOW"><Tooltip title="85–100 km/h" placement="right"><span style={{ width: '100%' }}>Medium Slow</span></Tooltip></MenuItem>
-            <MenuItem value="OFF_SPIN"><Tooltip title="Finger Spin · 70–90 km/h" placement="right"><span style={{ width: '100%' }}>Off Spin</span></Tooltip></MenuItem>
-            <MenuItem value="LEG_SPIN"><Tooltip title="Wrist Spin · 70–90 km/h" placement="right"><span style={{ width: '100%' }}>Leg Spin</span></Tooltip></MenuItem>
-            <MenuItem value="SLOW_LEFT_ARM_ORTHODOX"><Tooltip title="Left-arm Finger Spin · 70–90 km/h" placement="right"><span style={{ width: '100%' }}>Slow Left-Arm Orthodox</span></Tooltip></MenuItem>
-            <MenuItem value="CHINAMAN"><Tooltip title="Left-arm Wrist Spin · 65–85 km/h" placement="right"><span style={{ width: '100%' }}>Chinaman</span></Tooltip></MenuItem>
-            <MenuItem value="NONE">Don't Bowl</MenuItem>
-          </TextField>
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <FormControlLabel control={<Checkbox checked={editing.wicketKeeper ?? false}
-              onChange={e => set({ wicketKeeper: e.target.checked })} />} label="Wicket Keeper" />
-            <FormControlLabel control={<Checkbox checked={editing.partTimeBowler ?? false}
-              onChange={e => set({ partTimeBowler: e.target.checked })} />} label="Part Time Bowler" />
-          </Box>
-
-
+        <DialogContent sx={{ pt: 2 }}>
+          <PlayerEditForm editing={editing} onChange={set} clubs={clubs} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>

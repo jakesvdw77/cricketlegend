@@ -6,7 +6,7 @@ import {
   List, ListItem, ListItemAvatar, ListItemText, Autocomplete, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel, Tooltip,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket, ViewColumn } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket, ViewColumn, ContentCopy } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';
 import { playerDescription } from '../../utils/playerDescription';
 import { teamApi } from '../../api/teamApi';
@@ -69,6 +69,12 @@ export const Teams: React.FC = () => {
 
   const remove = async (id: number) => {
     if (confirm('Delete team?')) { await teamApi.delete(id); load(); }
+  };
+
+  const duplicate = (t: Team) => {
+    const { teamId, captainName, associatedClubName, homeFieldName, ...rest } = t;
+    setEditing({ ...rest, teamName: `${t.teamName} (Copy)` });
+    setOpen(true);
   };
 
   const set = (patch: Partial<Team>) => setEditing(e => ({ ...e, ...patch }));
@@ -231,6 +237,7 @@ export const Teams: React.FC = () => {
                 {col('manager')    && <TableCell>{r.manager}</TableCell>}
                 <TableCell>
                   <IconButton size="small" title="Manage Squad" onClick={() => openSquad(r)}><Groups /></IconButton>
+                  <IconButton size="small" title="Duplicate" onClick={() => duplicate(r)}><ContentCopy fontSize="small" /></IconButton>
                   <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
                   <IconButton size="small" color="error" onClick={() => remove(r.teamId!)}><Delete /></IconButton>
                 </TableCell>
