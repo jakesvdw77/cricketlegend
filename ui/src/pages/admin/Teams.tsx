@@ -5,6 +5,7 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Avatar, CircularProgress,
   List, ListItem, ListItemAvatar, ListItemText, Autocomplete, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel, Tooltip,
+  useMediaQuery, useTheme,
 } from '@mui/material';
 import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket, ViewColumn, ContentCopy } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';
@@ -22,15 +23,18 @@ type ColKey = 'teamName' | 'club' | 'captain' | 'homeGround' | 'selector' | 'coa
 const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'teamName',   label: 'Team Name' },
   { key: 'club',       label: 'Club' },
-  { key: 'captain',    label: 'Captain' },
   { key: 'homeGround', label: 'Home Ground' },
+  { key: 'captain',    label: 'Captain' },
   { key: 'selector',   label: 'Selector' },
   { key: 'coach',      label: 'Coach' },
   { key: 'manager',    label: 'Manager' },
 ];
-const DEFAULT_VISIBLE = new Set<ColKey>(['teamName', 'club', 'captain', 'homeGround', 'selector', 'coach', 'manager']);
+const DEFAULT_VISIBLE = new Set<ColKey>(['teamName', 'club', 'homeGround', 'captain', 'selector', 'coach', 'manager']);
+const MOBILE_VISIBLE = new Set<ColKey>(['teamName', 'club', 'captain']);
 
 export const Teams: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Team[]>([]);
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -44,7 +48,7 @@ export const Teams: React.FC = () => {
   const [viewLogoUrl, setViewLogoUrl] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(DEFAULT_VISIBLE);
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);

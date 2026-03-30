@@ -6,7 +6,7 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete,
   Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
-  Tabs, Tab,
+  Tabs, Tab, useMediaQuery, useTheme,
 } from '@mui/material';
 import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn, ContentCopy } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -54,9 +54,12 @@ const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'links',     label: 'Links' },
 ];
 const DEFAULT_VISIBLE = new Set<ColKey>(['name', 'category', 'format', 'startDate', 'endDate', 'pools', 'winner', 'sponsors', 'links']);
+const MOBILE_VISIBLE = new Set<ColKey>(['name', 'category', 'format', 'pools', 'winner', 'links']);
 
 export const Tournaments: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Tournament[]>([]);
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -85,7 +88,7 @@ export const Tournaments: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(20);
 
   // Column visibility state
-  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(DEFAULT_VISIBLE));
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
 
   const col = (key: ColKey) => visibleCols.has(key);

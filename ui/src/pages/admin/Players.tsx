@@ -4,7 +4,7 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Avatar,
   Tooltip, TableSortLabel, TablePagination,
-  Popover, FormGroup, Checkbox, FormControlLabel,
+  Popover, FormGroup, Checkbox, FormControlLabel, useMediaQuery, useTheme,
 } from '@mui/material';
 import { Add, Edit, Delete, OpenInNew, ViewColumn } from '@mui/icons-material';
 import { playerApi } from '../../api/playerApi';
@@ -32,8 +32,11 @@ const ALL_COLUMNS: { key: ColKey; label: string }[] = [
 ];
 
 const DEFAULT_VISIBLE = new Set<ColKey>(['name', 'surname', 'shirtNumber', 'club', 'battingStance', 'battingPosition', 'bowlingArm', 'bowlingType', 'wicketKeeper']);
+const MOBILE_VISIBLE = new Set<ColKey>(['name', 'surname', 'shirtNumber', 'club', 'bowlingType']);
 
 export const Players: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Player[]>([]);
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -44,7 +47,7 @@ export const Players: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [clubFilter, setClubFilter] = useState<number | ''>('');
-  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(DEFAULT_VISIBLE);
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
 
   const load = () => playerApi.findAll().then(setRows);

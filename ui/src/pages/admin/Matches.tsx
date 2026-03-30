@@ -4,7 +4,7 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem,
   Stepper, Step, StepLabel, TableSortLabel, TablePagination,
-  Popover, FormGroup, Checkbox, FormControlLabel, Tooltip,
+  Popover, FormGroup, Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
 import { Add, Edit, Delete, Assignment, Groups, ViewColumn } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -29,9 +29,12 @@ const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'stage',       label: 'Stage' },
 ];
 const DEFAULT_VISIBLE = new Set<ColKey>(['date', 'tournament', 'homeTeam', 'opposition', 'ground', 'umpire', 'stage']);
+const MOBILE_VISIBLE = new Set<ColKey>(['date', 'tournament', 'homeTeam', 'opposition', 'ground']);
 
 export const Matches: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Match[]>([]);
   const [sortField, setSortField] = useState<'matchDate' | 'tournamentName' | 'homeTeamName'>('matchDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -53,7 +56,7 @@ export const Matches: React.FC = () => {
   const [oppSquad, setOppSquad] = useState<Player[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(DEFAULT_VISIBLE);
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
 
   const load = () => matchApi.findAll().then(setRows);

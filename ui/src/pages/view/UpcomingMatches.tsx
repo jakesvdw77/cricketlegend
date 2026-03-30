@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box, Typography, Grid, Card, CardContent, Chip, Divider, Button, Avatar,
+  TextField, MenuItem,
 } from '@mui/material';
 import { CalendarMonth, LocationOn, EmojiEvents, ScoreboardOutlined, AccessTime } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -9,16 +10,48 @@ import { Match } from '../../types';
 
 export const UpcomingMatches: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
+  const [filterTournament, setFilterTournament] = useState('');
+  const [filterTeam, setFilterTeam] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => { matchApi.findUpcoming().then(setMatches); }, []);
 
+  const tournaments = useMemo(() =>
+    [...new Set(matches.map(m => m.tournamentName).filter(Boolean))].sort(),
+    [matches]);
+
+  const teams = useMemo(() =>
+    [...new Set(matches.flatMap(m => [m.homeTeamName, m.oppositionTeamName]).filter(Boolean))].sort(),
+    [matches]);
+
+  const filtered = matches.filter(m => {
+    if (filterTournament && m.tournamentName !== filterTournament) return false;
+    if (filterTeam && m.homeTeamName !== filterTeam && m.oppositionTeamName !== filterTeam) return false;
+    return true;
+  });
+
   return (
     <Box>
       <Typography variant="h5" gutterBottom>Upcoming Matches</Typography>
-      {matches.length === 0 && <Typography color="text.secondary">No upcoming matches scheduled.</Typography>}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <TextField
+          select label="Tournament" size="small" sx={{ minWidth: 200 }}
+          value={filterTournament} onChange={e => setFilterTournament(e.target.value)}
+        >
+          <MenuItem value="">All Tournaments</MenuItem>
+          {tournaments.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+        </TextField>
+        <TextField
+          select label="Team" size="small" sx={{ minWidth: 200 }}
+          value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
+        >
+          <MenuItem value="">All Teams</MenuItem>
+          {teams.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+        </TextField>
+      </Box>
+      {filtered.length === 0 && <Typography color="text.secondary">No upcoming matches scheduled.</Typography>}
       <Grid container spacing={2}>
-        {matches.map(m => (
+        {filtered.map(m => (
           <Grid item xs={12} sm={6} md={4} key={m.matchId}>
             <Card variant="outlined">
               <CardContent>

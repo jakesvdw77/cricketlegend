@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, Avatar, CircularProgress, Snackbar, TableSortLabel,
-  TablePagination, Popover, FormGroup, FormControlLabel, Checkbox, Tooltip,
+  TablePagination, Popover, FormGroup, FormControlLabel, Checkbox, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
 import { Add, Edit, Delete, OpenInNew, CloudUpload, ViewColumn } from '@mui/icons-material';
 import { clubApi } from '../../api/clubApi';
@@ -21,8 +21,11 @@ const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'links',         label: 'Links' },
 ];
 const DEFAULT_VISIBLE = new Set<ColKey>(['name', 'contactPerson', 'email', 'contactNumber', 'links']);
+const MOBILE_VISIBLE = new Set<ColKey>(['name', 'contactPerson', 'links']);
 
 export const Clubs: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Club[]>([]);
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -33,7 +36,7 @@ export const Clubs: React.FC = () => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(DEFAULT_VISIBLE));
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
