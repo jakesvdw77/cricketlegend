@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, Avatar, Divider, Grid, TextField, MenuItem,
-  Accordion, AccordionSummary, AccordionDetails, Tooltip,
+  Accordion, AccordionSummary, AccordionDetails, Tooltip, IconButton,
 } from '@mui/material';
-import { ExpandMore, SportsCricket, Person, Phone, Shield } from '@mui/icons-material';
+import { ExpandMore, SportsCricket, Person, Phone, Shield, Print } from '@mui/icons-material';
 import { teamApi } from '../../api/teamApi';
 import { playerDescription } from '../../utils/playerDescription';
+import { printSquad } from '../../utils/printSquad';
 import { tournamentApi } from '../../api/tournamentApi';
 import { clubApi } from '../../api/clubApi';
 import { Team, Player, Tournament, Club } from '../../types';
@@ -176,15 +177,31 @@ export const TeamsView: React.FC = () => {
               onChange={(_, expanded) => { if (expanded) handleExpand(team.teamId!); }}
             >
               <AccordionSummary expandIcon={<ExpandMore />}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
                   <Avatar src={team.logoUrl} variant="rounded" sx={{ width: 48, height: 48 }}>
                     {team.teamName.charAt(0)}
                   </Avatar>
-                  <Box>
+                  <Box sx={{ flex: 1 }}>
                     <Typography fontWeight="bold">
                       {team.teamName}{team.abbreviation && ` (${team.abbreviation})`}
                     </Typography>
                   </Box>
+                  <Tooltip title="Print / Export PDF">
+                    <IconButton
+                      size="small"
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (!squads[team.teamId!]) {
+                          alert('Squad not loaded yet — please expand the team first.');
+                          return;
+                        }
+                        const s = squads[team.teamId!];
+                        printSquad(team, [...s].sort((a, b) => a.surname.localeCompare(b.surname)));
+                      }}
+                    >
+                      <Print fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
               </AccordionSummary>
 
@@ -195,9 +212,7 @@ export const TeamsView: React.FC = () => {
                     Management
                   </Typography>
                   <Box sx={{ mt: 0.75 }}>
-                    <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Selector" value={team.selector} />
                     <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Captain" value={team.captainName} />
-                    <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Coach" value={team.coach} />
                     <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Manager" value={team.manager} />
                     <ManagementRow icon={<Person sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Administrator" value={team.administrator} />
                     <ManagementRow icon={<Phone sx={{ fontSize: 14, color: 'text.secondary' }} />} label="Contact" value={team.contactNumber} />

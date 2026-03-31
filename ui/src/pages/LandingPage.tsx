@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Box, Typography, Button, AppBar, Toolbar, Avatar, Card, CardContent,
-  Chip, Divider, Grid, Container, Paper,
+  Chip, Divider, Grid, Container, Paper, Fade,
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, LocationOn, AccessTime, Login, SportsCricket,
-  PhotoLibrary, FiberManualRecord,
+  PhotoLibrary, FiberManualRecord, Handshake, Language,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
-import { Match } from '../types';
+import { sponsorApi } from '../api/sponsorApi';
+import { Match, Sponsor } from '../types';
 import keycloak from '../keycloak';
 
 const STAGE_LABEL: Record<string, string> = { POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
@@ -106,11 +107,28 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
 export const LandingPage: React.FC = () => {
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [previousMatches, setPreviousMatches] = useState<Match[]>([]);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [sponsorIndex, setSponsorIndex] = useState(0);
+  const [sponsorVisible, setSponsorVisible] = useState(true);
+  const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     matchApi.findUpcoming().then(setUpcomingMatches).catch(() => {});
     matchApi.findPrevious().then(setPreviousMatches).catch(() => {});
+    sponsorApi.findAll().then(setSponsors).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (sponsors.length <= 1) return;
+    rotateRef.current = setInterval(() => {
+      setSponsorVisible(false);
+      setTimeout(() => {
+        setSponsorIndex(i => (i + 1) % sponsors.length);
+        setSponsorVisible(true);
+      }, 400);
+    }, 4000);
+    return () => { if (rotateRef.current) clearInterval(rotateRef.current); };
+  }, [sponsors.length]);
 
   const handleLogin = () => keycloak.login();
 
@@ -267,6 +285,70 @@ export const LandingPage: React.FC = () => {
           </Box>
         </Container>
       </Box>
+
+      {/* Sponsors */}
+      {sponsors.length > 0 && (
+        <Box sx={{ py: 6, bgcolor: 'grey.50' }}>
+          <Container maxWidth="sm">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
+              <Handshake color="primary" />
+              <Typography variant="h5" fontWeight="bold" color="primary">
+                Our Sponsors
+              </Typography>
+            </Box>
+            <Fade in={sponsorVisible} timeout={400}>
+              <Paper
+                variant="outlined"
+                sx={{ p: 3, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2.5 }}
+              >
+                <Avatar
+                  src={sponsors[sponsorIndex].brandLogoUrl}
+                  variant="rounded"
+                  sx={{ width: 64, height: 64, flexShrink: 0 }}
+                >
+                  {sponsors[sponsorIndex].name.charAt(0)}
+                </Avatar>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="h6" fontWeight="bold" noWrap>
+                    {sponsors[sponsorIndex].name}
+                  </Typography>
+                  {sponsors[sponsorIndex].brandWebsite && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                      <Language sx={{ fontSize: 14, color: 'text.secondary' }} />
+                      <Typography
+                        variant="body2"
+                        component="a"
+                        href={sponsors[sponsorIndex].brandWebsite}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {sponsors[sponsorIndex].brandWebsite}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+                {sponsors.length > 1 && (
+                  <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                    {sponsors.map((_, i) => (
+                      <Box
+                        key={i}
+                        sx={{
+                          width: 6, height: 6, borderRadius: '50%',
+                          bgcolor: i === sponsorIndex ? 'primary.main' : 'grey.300',
+                          transition: 'background-color 0.3s',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => { setSponsorVisible(false); setTimeout(() => { setSponsorIndex(i); setSponsorVisible(true); }, 400); }}
+                      />
+                    ))}
+                  </Box>
+                )}
+              </Paper>
+            </Fade>
+          </Container>
+        </Box>
+      )}
 
       {/* Footer */}
       <Box sx={{ bgcolor: '#1a5276', color: 'rgba(255,255,255,0.7)', py: 3, textAlign: 'center' }}>

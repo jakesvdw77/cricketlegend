@@ -6,7 +6,7 @@ import {
   Stepper, Step, StepLabel, TableSortLabel, TablePagination,
   Popover, FormGroup, Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
-import { Add, Edit, Delete, Assignment, Groups, ViewColumn } from '@mui/icons-material';
+import { Add, Edit, Delete, Assignment, Groups, ViewColumn, Print } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
@@ -241,6 +241,9 @@ export const Matches: React.FC = () => {
                 <TableCell>
                   <IconButton size="small" title="Team Sheet" onClick={() => navigate(`/admin/matches/${r.matchId}/teamsheet`)}>
                     <Groups />
+                  </IconButton>
+                  <IconButton size="small" title="Print Team Sheet" onClick={() => navigate(`/matches/${r.matchId}/teamsheet`)}>
+                    <Print />
                   </IconButton>
                   <IconButton size="small" title="Capture Result" onClick={() => navigate(`/admin/matches/${r.matchId}/result`)}>
                     <Assignment />

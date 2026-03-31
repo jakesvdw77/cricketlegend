@@ -120,48 +120,44 @@ export const Sponsors: React.FC = () => {
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.sponsorId ? 'Edit' : 'New'} Sponsor</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          <TextField label="Sponsor Name" value={editing.name} required
-            onChange={e => set({ name: e.target.value })} />
 
           {/* Logo upload + preview */}
           <Box>
             <input
-              type="file"
-              ref={logoInputRef}
-              style={{ display: 'none' }}
-              accept="image/*"
-              onChange={handleLogoUpload}
+                type="file"
+                ref={logoInputRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={handleLogoUpload}
             />
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Avatar
-                src={editing.brandLogoUrl ?? ''}
-                variant="rounded"
-                sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.brandLogoUrl ? 'pointer' : 'default' }}
-                onClick={() => editing.brandLogoUrl && setViewLogoUrl(editing.brandLogoUrl)}
+                  src={editing.brandLogoUrl ?? ''}
+                  variant="rounded"
+                  sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.brandLogoUrl ? 'pointer' : 'default' }}
+                  onClick={() => editing.brandLogoUrl && setViewLogoUrl(editing.brandLogoUrl)}
               >
                 {editing.name.charAt(0)}
               </Avatar>
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={uploading}
-                  sx={{ alignSelf: 'flex-start' }}
+                    variant="outlined"
+                    size="small"
+                    startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploading}
+                    sx={{ alignSelf: 'flex-start' }}
                 >
                   {uploading ? 'Uploading…' : 'Upload Logo'}
                 </Button>
-                <TextField
-                  label="Brand Logo URL"
-                  value={editing.brandLogoUrl ?? ''}
-                  onChange={e => set({ brandLogoUrl: e.target.value })}
-                  size="small"
-                  helperText="Upload a logo above or paste a URL"
-                />
               </Box>
             </Box>
           </Box>
+
+          <TextField label="Sponsor Name" value={editing.name} required
+            onChange={e => set({ name: e.target.value })} />
+
+
 
           <TextField label="Brand Website" value={editing.brandWebsite ?? ''}
             onChange={e => set({ brandWebsite: e.target.value })} />

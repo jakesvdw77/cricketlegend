@@ -26,7 +26,8 @@ public class SecurityConfig {
             "/actuator/health",
             "/api/v1/files/**",
             "/api/v1/matches/upcoming",
-            "/api/v1/matches/previous"
+            "/api/v1/matches/previous",
+            "/api/v1/sponsors"
     };
 
     @Bean

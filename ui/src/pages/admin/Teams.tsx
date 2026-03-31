@@ -241,6 +241,10 @@ export const Teams: React.FC = () => {
                 {col('manager')    && <TableCell>{r.manager}</TableCell>}
                 <TableCell>
                   <IconButton size="small" title="Manage Squad" onClick={() => openSquad(r)}><Groups /></IconButton>
+                  <IconButton size="small" title="Print Squad" onClick={async () => {
+                    const squad = await teamApi.getSquad(r.teamId!);
+                    printSquad(r, [...squad].sort((a, b) => a.surname.localeCompare(b.surname)));
+                  }}><Print fontSize="small" /></IconButton>
                   <IconButton size="small" title="Duplicate" onClick={() => duplicate(r)}><ContentCopy fontSize="small" /></IconButton>
                   <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
                   <IconButton size="small" color="error" onClick={() => remove(r.teamId!)}><Delete /></IconButton>

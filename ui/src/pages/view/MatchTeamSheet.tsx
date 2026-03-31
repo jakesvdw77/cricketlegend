@@ -8,6 +8,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
 import { Match, MatchSide, Player } from '../../types';
+import { printTeamSheet } from '../../utils/printTeamSheet';
 
 // ── Role icon helpers (UI) ─────────────────────────────────────────────────
 
@@ -203,7 +204,7 @@ export const MatchTeamSheet: React.FC = () => {
             Live Scoring
           </Button>
         )}
-        <Button variant="contained" startIcon={<Print />} onClick={() => window.print()}>
+        <Button variant="contained" startIcon={<Print />} onClick={() => printTeamSheet(match!, side!, xi, captain, twelfth, teamName!)}>
           Print {teamName}
         </Button>
       </Box>
@@ -268,10 +269,21 @@ export const MatchTeamSheet: React.FC = () => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell width={32}>#</TableCell>
-                    <TableCell>Player</TableCell>
-                    <TableCell width={80}>Shirt</TableCell>
-                    <TableCell width={80}>Role</TableCell>
+                    {(['#', 'Player', 'Shirt', 'Role'] as const).map((label, i) => (
+                      <TableCell
+                        key={label}
+                        width={i === 0 ? 32 : i >= 2 ? 80 : undefined}
+                        style={{
+                          backgroundColor: '#1a237e',
+                          color: '#ffffff',
+                          fontWeight: 'bold',
+                          WebkitPrintColorAdjust: 'exact',
+                          printColorAdjust: 'exact',
+                        } as React.CSSProperties}
+                      >
+                        {label}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>

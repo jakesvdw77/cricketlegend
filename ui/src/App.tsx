@@ -21,6 +21,7 @@ import { MatchResultCapture } from './pages/admin/MatchResultCapture';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
+import { TournamentSponsors } from './pages/view/TournamentSponsors';
 
 import { MyProfile } from './pages/MyProfile';
 
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="tournaments/:tournamentId/pools" element={<TournamentPools />} />
             <Route path="tournaments/:tournamentId/standings" element={<TournamentStandings />} />
             <Route path="tournaments/:tournamentId/results" element={<TournamentResults />} />
+            <Route path="tournaments/:tournamentId/sponsors" element={<TournamentSponsors />} />
           </Route>
         </Routes>
       </BrowserRouter>

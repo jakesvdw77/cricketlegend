@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { Box, Typography, Button } from '@mui/material';
+import { Print } from '@mui/icons-material';
+import { useParams, useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
 import { Match, Player } from '../../types';
@@ -8,6 +9,7 @@ import { TeamSidePanel } from '../../components/match/TeamSidePanel';
 
 export const Teamsheet: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
+  const navigate = useNavigate();
   const id = Number(matchId);
   const [match, setMatch] = useState<Match | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -26,12 +28,23 @@ export const Teamsheet: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>
-        Team Sheet — {match?.homeTeamName} vs {match?.oppositionTeamName}
-      </Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom>
-        {match?.matchDate} | {match?.fieldName}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap', gap: 1 }}>
+        <Box>
+          <Typography variant="h5">
+            Team Sheet — {match?.homeTeamName} vs {match?.oppositionTeamName}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {match?.matchDate} | {match?.fieldName}
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<Print />}
+          onClick={() => navigate(`/matches/${id}/teamsheet`)}
+        >
+          Print / Export PDF
+        </Button>
+      </Box>
       <Box sx={{ display: 'flex', gap: 3, mt: 2, flexWrap: 'wrap' }}>
         {teamIds.map(teamId => (
           <TeamSidePanel

@@ -111,10 +111,13 @@ export function printSquad(team: Team, squad: Player[]): void {
       padding: 5px 8px;
       border-bottom: 1px solid #e0e0e0;
     }
-    .num  { width: 28px; color: #333; text-align: center; }
-    .shirt { width: 40px; color: #111; text-align: center; font-weight: 600; }
+    .num  { width: 28px; text-align: center; }
+    .shirt { width: 40px; text-align: center; font-weight: 600; }
     .name  { font-weight: 600; }
-    .roles { color: #111; font-size: 11px; }
+    .roles { font-size: 11px; }
+    tbody .num  { color: #333; }
+    tbody .shirt { color: #111; }
+    tbody .roles { color: #111; }
 
     /* ── Footer ──────────────────────────────── */
     .footer {
