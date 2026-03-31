@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, Chip, Divider, Button, ToggleButton, ToggleButtonGroup,
   Table, TableHead, TableRow, TableCell, TableBody, Tooltip, Snackbar,
+  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
 } from '@mui/material';
 import { Print, ArrowBack, Star, SportsCricket, WhatsApp, ContentCopy, ScoreboardOutlined } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -126,6 +127,8 @@ export const MatchTeamSheet: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [whatsAppOpen, setWhatsAppOpen] = useState(false);
+  const [whatsAppText, setWhatsAppText] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -160,9 +163,17 @@ export const MatchTeamSheet: React.FC = () => {
   const twelfth = side ? get12th(side) : undefined;
   const teamName = selectedTeamId === match.homeTeamId ? match.homeTeamName : match.oppositionTeamName;
 
-  const handleCopyWhatsApp = () => {
+  const handleOpenWhatsApp = () => {
     const text = buildWhatsAppText(match, teamName!, xi, captain, twelfth, side?.wicketKeeperPlayerId);
-    navigator.clipboard.writeText(text).then(() => setCopied(true));
+    setWhatsAppText(text);
+    setWhatsAppOpen(true);
+  };
+
+  const handleCopyWhatsApp = () => {
+    navigator.clipboard.writeText(whatsAppText).then(() => {
+      setCopied(true);
+      setWhatsAppOpen(false);
+    });
   };
 
   return (
@@ -183,15 +194,19 @@ export const MatchTeamSheet: React.FC = () => {
           ))}
         </ToggleButtonGroup>
         <Box sx={{ flex: 1 }} />
-        <Button
-          variant="outlined"
-          startIcon={<ContentCopy />}
-          onClick={handleCopyWhatsApp}
-          sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', color: '#128C7E' } }}
-        >
-          <WhatsApp sx={{ mr: 0.5, fontSize: 18 }} />
-          Copy for WhatsApp
-        </Button>
+        <Tooltip title={!side?.teamAnnounced ? 'Team has not been announced yet' : ''}>
+          <span>
+            <Button
+              variant="outlined"
+              onClick={handleOpenWhatsApp}
+              disabled={!side?.teamAnnounced}
+              sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', color: '#128C7E' }, '&.Mui-disabled': { borderColor: 'rgba(0,0,0,0.12)' } }}
+            >
+              <WhatsApp sx={{ mr: 0.5, fontSize: 18 }} />
+              Copy for WhatsApp
+            </Button>
+          </span>
+        </Tooltip>
         {match.scoringUrl && (
           <Button
             variant="outlined"
@@ -204,9 +219,13 @@ export const MatchTeamSheet: React.FC = () => {
             Live Scoring
           </Button>
         )}
-        <Button variant="contained" startIcon={<Print />} onClick={() => printTeamSheet(match!, side!, xi, captain, twelfth, teamName!)}>
-          Print {teamName}
-        </Button>
+        <Tooltip title={!side?.teamAnnounced ? 'Team has not been announced yet' : ''}>
+          <span>
+            <Button variant="contained" startIcon={<Print />} disabled={!side?.teamAnnounced} onClick={() => printTeamSheet(match!, side!, xi, captain, twelfth, teamName!)}>
+              Print {teamName}
+            </Button>
+          </span>
+        </Tooltip>
       </Box>
 
       {/* Printable content */}
@@ -340,6 +359,35 @@ export const MatchTeamSheet: React.FC = () => {
           )}
         </Paper>
       </Box>
+
+      <Dialog open={whatsAppOpen} onClose={() => setWhatsAppOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WhatsApp sx={{ color: '#25D366' }} /> WhatsApp Message
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            multiline
+            fullWidth
+            minRows={10}
+            value={whatsAppText}
+            onChange={e => setWhatsAppText(e.target.value)}
+            variant="outlined"
+            sx={{ mt: 1, fontFamily: 'monospace' }}
+            inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWhatsAppOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            startIcon={<ContentCopy />}
+            onClick={handleCopyWhatsApp}
+            sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#128C7E' } }}
+          >
+            Copy to Clipboard
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={copied}
