@@ -37,6 +37,7 @@ export const Teams: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Team[]>([]);
   const [search, setSearch] = useState('');
+  const [filterClubId, setFilterClubId] = useState<number | ''>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [clubs, setClubs] = useState<Club[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -139,9 +140,9 @@ export const Teams: React.FC = () => {
 
   const filtered = [...rows].filter(r => {
     const q = search.toLowerCase();
-    return !q
-      || r.teamName.toLowerCase().includes(q)
-      || r.associatedClubName?.toLowerCase().includes(q);
+    const matchesSearch = !q || r.teamName.toLowerCase().includes(q) || r.associatedClubName?.toLowerCase().includes(q);
+    const matchesClub = !filterClubId || (filterClubId === -1 ? !r.associatedClubId : r.associatedClubId === filterClubId);
+    return matchesSearch && matchesClub;
   }).sort((a, b) => {
     const cmp = a.teamName.localeCompare(b.teamName);
     return sortDir === 'asc' ? cmp : -cmp;
@@ -155,6 +156,20 @@ export const Teams: React.FC = () => {
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
         <Typography variant="h5" sx={{ mr: 'auto' }}>Teams</Typography>
+        <TextField
+          select
+          size="small"
+          label="Club"
+          value={filterClubId}
+          onChange={e => { setFilterClubId(e.target.value === '' ? '' : Number(e.target.value)); setPage(0); }}
+          sx={{ width: { xs: '100%', sm: 200 } }}
+        >
+          <MenuItem value="">All clubs</MenuItem>
+          <MenuItem value={-1}>No club</MenuItem>
+          {clubs.map(c => (
+            <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
+          ))}
+        </TextField>
         <TextField
           size="small"
           placeholder="Search name, club…"
