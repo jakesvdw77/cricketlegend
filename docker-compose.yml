@@ -60,6 +60,7 @@ services:
       KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/certs/privkey.pem
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
+      KC_FEATURES: token-exchange
     ports:
       - "8443:8443"
     volumes:

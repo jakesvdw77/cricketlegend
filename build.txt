@@ -35,7 +35,7 @@ mvn compile jib:build
  cd bin
  export KEYCLOAK_ADMIN=admin
  export KEYCLOAK_ADMIN_PASSWORD=admin123
- ./kc.sh start-dev --http-port=8180
+ ./kc.sh start-dev --http-port=8180 --features="token-exchange"
 
 
 -- Start on server
