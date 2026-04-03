@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Avatar, CircularProgress, Alert,
-  Card, CardContent, Grid, Divider, IconButton, Tooltip,
+  Card, CardContent, Grid, Divider, Tooltip,
 } from '@mui/material';
 import { ArrowBack, Language, Email, Phone, Person } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
