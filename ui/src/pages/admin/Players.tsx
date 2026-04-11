@@ -12,6 +12,8 @@ import { clubApi } from '../../api/clubApi';
 import { Player, Club } from '../../types';
 import { formatEnum } from '../../utils/formatEnum';
 import { PlayerEditForm } from '../../components/player/PlayerEditForm';
+import { useAuth } from '../../hooks/useAuth';
+import { useManagerTeams } from '../../hooks/useManagerTeams';
 
 const empty: Player = { name: '', surname: '' };
 
@@ -37,6 +39,8 @@ const MOBILE_VISIBLE = new Set<ColKey>(['name', 'surname', 'shirtNumber', 'club'
 export const Players: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { isAdmin } = useAuth();
+  const { squadPlayerIds, restrictByTeam, loaded: managerLoaded } = useManagerTeams();
   const [rows, setRows] = useState<Player[]>([]);
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -128,9 +132,11 @@ export const Players: React.FC = () => {
         <Tooltip title="Toggle columns">
           <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
         </Tooltip>
-        <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
-          Add Player
-        </Button>
+        {isAdmin && (
+          <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
+            Add Player
+          </Button>
+        )}
       </Box>
 
       <Popover
@@ -207,8 +213,12 @@ export const Players: React.FC = () => {
                 {col('shirtSize')       && <TableCell>{r.shirtSize ?? ''}</TableCell>}
                 {col('pantSize')        && <TableCell>{r.pantSize ?? ''}</TableCell>}
                 <TableCell>
-                  <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
-                  <IconButton size="small" color="error" onClick={() => remove(r.playerId!)}><Delete /></IconButton>
+                  {(!restrictByTeam || squadPlayerIds.has(r.playerId!)) && managerLoaded && (
+                    <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
+                  )}
+                  {isAdmin && (
+                    <IconButton size="small" color="error" onClick={() => remove(r.playerId!)}><Delete /></IconButton>
+                  )}
                   {r.careerUrl && (
                     <Tooltip title="Career profile">
                       <IconButton size="small" component="a" href={r.careerUrl} target="_blank" rel="noopener noreferrer">

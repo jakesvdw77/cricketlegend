@@ -16,6 +16,9 @@ import { playerApi } from '../../api/playerApi';
 import { fieldApi } from '../../api/fieldApi';
 import { paymentApi } from '../../api/paymentApi';
 import { Team, Club, Player, Field } from '../../types';
+import { ManagerDTO } from '../../api/managerApi';
+import { useAuth } from '../../hooks/useAuth';
+import { useManagerTeams } from '../../hooks/useManagerTeams';
 
 const empty: Team = { teamName: '' };
 
@@ -35,6 +38,10 @@ const MOBILE_VISIBLE = new Set<ColKey>(['teamName', 'club', 'captain']);
 export const Teams: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { isAdmin } = useAuth();
+  const { teamIds: managerTeamIds, restrictByTeam } = useManagerTeams();
+
+  const canManage = (teamId: number) => !restrictByTeam || managerTeamIds.has(teamId);
   const [rows, setRows] = useState<Team[]>([]);
   const [search, setSearch] = useState('');
   const [filterClubId, setFilterClubId] = useState<number | ''>('');
@@ -54,6 +61,8 @@ export const Teams: React.FC = () => {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  const [teamManagers, setTeamManagers] = useState<ManagerDTO[]>([]);
+
   // Squad management
   const [squadTeam, setSquadTeam] = useState<Team | null>(null);
   const [squad, setSquad] = useState<Player[]>([]);
@@ -65,6 +74,20 @@ export const Teams: React.FC = () => {
     playerApi.findAll().then(setPlayers);
     fieldApi.findAll().then(setFields);
   }, []);
+
+  const openCreate = () => {
+    setEditing(empty);
+    setTeamManagers([]);
+    setOpen(true);
+  };
+
+  const openEdit = (team: Team) => {
+    setEditing(team);
+    if (team.teamId) {
+      teamApi.getManagers(team.teamId).then(setTeamManagers).catch(() => setTeamManagers([]));
+    }
+    setOpen(true);
+  };
 
   const save = async () => {
     if (editing.teamId) { await teamApi.update(editing.teamId, editing); }
@@ -180,9 +203,11 @@ export const Teams: React.FC = () => {
         <Tooltip title="Toggle columns">
           <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
         </Tooltip>
-        <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
-          Add Team
-        </Button>
+        {isAdmin && (
+          <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
+            Add Team
+          </Button>
+        )}
       </Box>
 
       <Popover
@@ -255,14 +280,22 @@ export const Teams: React.FC = () => {
                 {col('coach')      && <TableCell>{r.coach}</TableCell>}
                 {col('manager')    && <TableCell>{r.manager}</TableCell>}
                 <TableCell>
-                  <IconButton size="small" title="Manage Squad" onClick={() => openSquad(r)}><Groups /></IconButton>
+                  {canManage(r.teamId!) && (
+                    <IconButton size="small" title="Manage Squad" onClick={() => openSquad(r)}><Groups /></IconButton>
+                  )}
                   <IconButton size="small" title="Print Squad" onClick={async () => {
                     const squad = await teamApi.getSquad(r.teamId!);
                     printSquad(r, [...squad].sort((a, b) => a.surname.localeCompare(b.surname)));
                   }}><Print fontSize="small" /></IconButton>
-                  <IconButton size="small" title="Duplicate" onClick={() => duplicate(r)}><ContentCopy fontSize="small" /></IconButton>
-                  <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
-                  <IconButton size="small" color="error" onClick={() => remove(r.teamId!)}><Delete /></IconButton>
+                  {isAdmin && (
+                    <IconButton size="small" title="Duplicate" onClick={() => duplicate(r)}><ContentCopy fontSize="small" /></IconButton>
+                  )}
+                  {canManage(r.teamId!) && (
+                    <IconButton size="small" onClick={() => openEdit(r)}><Edit /></IconButton>
+                  )}
+                  {isAdmin && (
+                    <IconButton size="small" color="error" onClick={() => remove(r.teamId!)}><Delete /></IconButton>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -343,15 +376,30 @@ export const Teams: React.FC = () => {
           </TextField>
 
           <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Coach" value={editing.coach ?? ''} fullWidth
-                       onChange={e => set({ coach: e.target.value })} />
-            <TextField label="Manager" value={editing.manager ?? ''} fullWidth
-                       onChange={e => set({ manager: e.target.value })} />
+            <TextField select label="Coach" value={editing.coach ?? ''} fullWidth
+                       onChange={e => set({ coach: e.target.value })}
+                       helperText={!editing.teamId ? 'Save team first to load managers' : undefined}>
+              <MenuItem value="">— None —</MenuItem>
+              {teamManagers.map(m => (
+                <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>
+              ))}
+            </TextField>
+            <TextField select label="Manager" value={editing.manager ?? ''} fullWidth
+                       onChange={e => set({ manager: e.target.value })}>
+              <MenuItem value="">— None —</MenuItem>
+              {teamManagers.map(m => (
+                <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>
+              ))}
+            </TextField>
           </Box>
 
-
-          <TextField label="Selector" value={editing.selector ?? ''}
-            onChange={e => set({ selector: e.target.value })} />
+          <TextField select label="Selector" value={editing.selector ?? ''}
+                     onChange={e => set({ selector: e.target.value })}>
+            <MenuItem value="">— None —</MenuItem>
+            {teamManagers.map(m => (
+              <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>
+            ))}
+          </TextField>
 
           <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
           <TextField label="Email" value={editing.email ?? ''} fullWidth

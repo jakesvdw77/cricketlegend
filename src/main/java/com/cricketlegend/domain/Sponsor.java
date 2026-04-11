@@ -20,4 +20,7 @@ public class Sponsor {
     private String contactPerson;
     private String contactNumber;
     private String contactEmail;
+    private String address;
+    private String vatNumber;
+    private String registrationNumber;
 }

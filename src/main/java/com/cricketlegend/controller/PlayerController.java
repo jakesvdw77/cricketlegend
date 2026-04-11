@@ -2,6 +2,7 @@ package com.cricketlegend.controller;
 
 import com.cricketlegend.dto.PlayerDTO;
 import com.cricketlegend.dto.PlayerResultDTO;
+import com.cricketlegend.service.ManagerTeamService;
 import com.cricketlegend.service.PlayerResultService;
 import com.cricketlegend.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,7 @@ public class PlayerController {
 
     private final PlayerService playerService;
     private final PlayerResultService playerResultService;
+    private final ManagerTeamService managerTeamService;
 
     @GetMapping
     @Operation(summary = "Get all players")
@@ -69,9 +72,21 @@ public class PlayerController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasAnyRole('admin','manager')")
     @Operation(summary = "Update a player")
-    public ResponseEntity<PlayerDTO> update(@PathVariable Long id, @RequestBody PlayerDTO dto) {
+    public ResponseEntity<PlayerDTO> update(
+            @PathVariable Long id,
+            @RequestBody PlayerDTO dto,
+            Authentication authentication,
+            @AuthenticationPrincipal Jwt jwt) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            if (!managerTeamService.canManagePlayer(email, id)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
         return ResponseEntity.ok(playerService.update(id, dto));
     }
 

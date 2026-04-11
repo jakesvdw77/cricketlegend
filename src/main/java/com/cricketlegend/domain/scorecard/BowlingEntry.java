@@ -7,6 +7,7 @@ public class BowlingEntry {
     private Long playerId;
     private String playerName;
     private String overs;
+    private Integer maidens;
     private Integer runs;
     private Integer wickets;
     private Integer dots;

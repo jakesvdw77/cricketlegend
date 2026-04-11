@@ -169,6 +169,14 @@ export const Sponsors: React.FC = () => {
             <TextField label="Contact Number" value={editing.contactNumber ?? ''} fullWidth
               onChange={e => set({ contactNumber: e.target.value })} />
           </Box>
+          <TextField label="Address" value={editing.address ?? ''}
+            onChange={e => set({ address: e.target.value })} multiline rows={2} />
+          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+            <TextField label="VAT Number" value={editing.vatNumber ?? ''} fullWidth
+              onChange={e => set({ vatNumber: e.target.value })} />
+            <TextField label="Registration Number" value={editing.registrationNumber ?? ''} fullWidth
+              onChange={e => set({ registrationNumber: e.target.value })} />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>

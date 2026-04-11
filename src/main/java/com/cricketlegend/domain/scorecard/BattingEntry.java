@@ -9,6 +9,7 @@ public class BattingEntry {
     private Integer battingPosition;
     private Boolean batted;
     private Integer score;
+    private Integer ballsFaced;
     private Integer fours;
     private Integer sixes;
     private Integer dots;

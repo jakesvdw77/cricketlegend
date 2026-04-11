@@ -1,5 +1,6 @@
 import api from './axiosConfig';
 import { Player, Team } from '../types';
+import { ManagerDTO } from './managerApi';
 
 export const teamApi = {
   findAll: () => api.get<Team[]>('/teams').then(r => r.data),
@@ -7,6 +8,8 @@ export const teamApi = {
   create: (dto: Team) => api.post<Team>('/teams', dto).then(r => r.data),
   update: (id: number, dto: Team) => api.put<Team>(`/teams/${id}`, dto).then(r => r.data),
   delete: (id: number) => api.delete(`/teams/${id}`),
+
+  getManagers: (teamId: number) => api.get<ManagerDTO[]>(`/teams/${teamId}/managers`).then(r => r.data),
 
   getSquad: (teamId: number) => api.get<Player[]>(`/teams/${teamId}/squad`).then(r => r.data),
   addToSquad: (teamId: number, playerId: number) => api.post(`/teams/${teamId}/squad/${playerId}`),

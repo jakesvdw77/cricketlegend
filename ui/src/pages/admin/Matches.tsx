@@ -6,13 +6,13 @@ import {
   Stepper, Step, StepLabel, TableSortLabel, TablePagination,
   Popover, FormGroup, Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
-import { Add, Edit, Delete, Assignment, Groups, ViewColumn, Print } from '@mui/icons-material';
+import { Add, Edit, Delete, Assignment, Groups, ViewColumn, Print, HowToVote } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
 import { fieldApi } from '../../api/fieldApi';
 import { tournamentApi } from '../../api/tournamentApi';
-import { Match, Team, Field, Tournament, Player, MatchStage } from '../../types';
+import { Match, Team, Field, Tournament, Player, MatchStage, TossWinner, TossDecision } from '../../types';
 import { TeamSidePanel } from '../../components/match/TeamSidePanel';
 
 const STEPS = ['Match Details', 'Playing Teams'];
@@ -242,6 +242,9 @@ export const Matches: React.FC = () => {
                   <IconButton size="small" title="Team Sheet" onClick={() => navigate(`/admin/matches/${r.matchId}/teamsheet`)}>
                     <Groups />
                   </IconButton>
+                  <IconButton size="small" title="Availability Poll" onClick={() => navigate(`/admin/matches/${r.matchId}/availability`)}>
+                    <HowToVote />
+                  </IconButton>
                   <IconButton size="small" title="Print Team Sheet" onClick={() => navigate(`/matches/${r.matchId}/teamsheet`)}>
                     <Print />
                   </IconButton>
@@ -314,6 +317,20 @@ export const Matches: React.FC = () => {
                 <MenuItem value="SEMI_FINAL">Semi-Final</MenuItem>
                 <MenuItem value="FINAL">Final</MenuItem>
               </TextField>
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField select label="Toss Won By" value={editing.tossWonBy ?? ''} fullWidth
+                  onChange={e => setEditing({ ...editing, tossWonBy: e.target.value as TossWinner || undefined })}>
+                  <MenuItem value="">Unknown</MenuItem>
+                  <MenuItem value="HOME">{editing.homeTeamId ? (teams.find(t => t.teamId === editing.homeTeamId)?.teamName ?? 'Home Team') : 'Home Team'}</MenuItem>
+                  <MenuItem value="OPPOSITION">{editing.oppositionTeamId ? (teams.find(t => t.teamId === editing.oppositionTeamId)?.teamName ?? 'Opposition') : 'Opposition'}</MenuItem>
+                </TextField>
+                <TextField select label="Toss Decision" value={editing.tossDecision ?? ''} fullWidth
+                  onChange={e => setEditing({ ...editing, tossDecision: e.target.value as TossDecision || undefined })}>
+                  <MenuItem value="">Unknown</MenuItem>
+                  <MenuItem value="BAT">Decided to bat first</MenuItem>
+                  <MenuItem value="BOWL">Decided to bowl first</MenuItem>
+                </TextField>
+              </Box>
             </Box>
           )}
 

@@ -33,5 +33,14 @@
     <include file="db/changelog/v1/026-player-gender.sql"/>
     <include file="db/changelog/v1/027-tournament-age-gender.sql"/>
     <include file="db/changelog/v1/028-field-icon-url.sql"/>
+    <include file="db/changelog/v1/029-match-availability-poll.sql"/>
+    <include file="db/changelog/v1/030-player-availability.sql"/>
+    <include file="db/changelog/v1/031-player-notification.sql"/>
+    <include file="db/changelog/v1/032-manager-team.sql"/>
+    <include file="db/changelog/v1/033-manager.sql"/>
+    <include file="db/changelog/v1/034-manager-team-refactor.sql"/>
+    <include file="db/changelog/v1/035-sponsor-company-fields.sql"/>
+    <include file="db/changelog/v1/036-match-toss-result.sql"/>
+    <include file="db/changelog/v1/037-media-content-tags.sql"/>
 
 </databaseChangeLog>

@@ -18,6 +18,10 @@ import { Sponsors } from './pages/admin/Sponsors';
 import { Payments } from './pages/admin/Payments';
 import { TournamentPools } from './pages/admin/TournamentPools';
 import { MatchResultCapture } from './pages/admin/MatchResultCapture';
+import { MatchAvailabilityManager } from './pages/admin/MatchAvailabilityManager';
+import { ManagerTeams } from './pages/admin/ManagerTeams';
+import { Managers } from './pages/admin/Managers';
+import { MediaLibrary } from './pages/admin/MediaLibrary';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
@@ -31,6 +35,8 @@ import { Scorecards } from './pages/view/Scorecards';
 import { PlayerStatistics } from './pages/view/PlayerStatistics';
 import { UpcomingMatches } from './pages/view/UpcomingMatches';
 import { MatchTeamSheet } from './pages/view/MatchTeamSheet';
+import { MatchAvailabilityPoll } from './pages/view/MatchAvailabilityPoll';
+import { MyAvailability } from './pages/view/MyAvailability';
 import { TeamsView } from './pages/view/TeamsView';
 
 const theme = createTheme({
@@ -77,9 +83,13 @@ export default function App() {
             <Route path="admin/players" element={<ManagerRoute element={<Players />} />} />
             <Route path="admin/tournaments" element={<ManagerRoute element={<Tournaments />} />} />
             <Route path="admin/matches" element={<ManagerRoute element={<Matches />} />} />
+            <Route path="admin/media" element={<ManagerRoute element={<MediaLibrary />} />} />
             <Route path="admin/matches/:matchId/teamsheet" element={<ManagerRoute element={<Teamsheet />} />} />
             <Route path="admin/matches/:matchId/result" element={<ManagerRoute element={<MatchResultCapture />} />} />
+            <Route path="admin/matches/:matchId/availability" element={<ManagerRoute element={<MatchAvailabilityManager />} />} />
             <Route path="admin/fields" element={<ManagerRoute element={<Fields />} />} />
+            <Route path="admin/managers" element={<AdminRoute element={<Managers />} />} />
+            <Route path="admin/manager-teams" element={<AdminRoute element={<ManagerTeams />} />} />
             <Route path="admin/sponsors" element={<AdminRoute element={<Sponsors />} />} />
             <Route path="admin/payments" element={<AdminRoute element={<Payments />} />} />
             <Route path="admin/tournaments/:tournamentId/pools" element={<ManagerRoute element={<TournamentPools />} />} />
@@ -89,6 +99,8 @@ export default function App() {
             <Route path="matches/scorecards" element={<Scorecards />} />
             <Route path="player/statistics" element={<PlayerStatistics />} />
             <Route path="matches/:matchId/teamsheet" element={<MatchTeamSheet />} />
+            <Route path="poll/:matchId/:teamId" element={<MatchAvailabilityPoll />} />
+            <Route path="my-availability" element={<MyAvailability />} />
             <Route path="teams" element={<TeamsView />} />
             <Route path="tournaments" element={<TournamentView />} />
             <Route path="tournaments/:tournamentId/pools" element={<TournamentPools />} />

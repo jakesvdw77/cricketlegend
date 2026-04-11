@@ -10,4 +10,7 @@ public class SponsorDTO {
     private String brandWebsite;
     private String contactNumber;
     private String contactEmail;
+    private String address;
+    private String vatNumber;
+    private String registrationNumber;
 }

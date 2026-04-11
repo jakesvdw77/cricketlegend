@@ -1,6 +1,8 @@
 package com.cricketlegend.dto;
 
 import com.cricketlegend.domain.enums.MatchStage;
+import com.cricketlegend.domain.enums.TossDecision;
+import com.cricketlegend.domain.enums.TossWinner;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -16,6 +18,8 @@ public class MatchDTO {
     private String umpire;
     private String scoringUrl;
     private MatchStage matchStage;
+    private TossWinner tossWonBy;
+    private TossDecision tossDecision;
     private Long homeTeamId;
     private String homeTeamName;
     private String homeTeamLogoUrl;

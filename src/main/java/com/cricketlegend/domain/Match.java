@@ -1,6 +1,8 @@
 package com.cricketlegend.domain;
 
 import com.cricketlegend.domain.enums.MatchStage;
+import com.cricketlegend.domain.enums.TossDecision;
+import com.cricketlegend.domain.enums.TossWinner;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,6 +27,12 @@ public class Match {
 
     @Enumerated(EnumType.STRING)
     private MatchStage matchStage;
+
+    @Enumerated(EnumType.STRING)
+    private TossWinner tossWonBy;
+
+    @Enumerated(EnumType.STRING)
+    private TossDecision tossDecision;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_team_id")

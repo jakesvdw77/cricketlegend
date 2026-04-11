@@ -10,6 +10,8 @@ export type TournamentGender = 'MEN' | 'WOMEN' | 'BOYS' | 'GIRLS';
 export type DismissalType = 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' | 'HIT_WICKET' | 'NOT_OUT';
 
 export type MatchStage = 'POOL' | 'SEMI_FINAL' | 'FINAL';
+export type TossWinner = 'HOME' | 'OPPOSITION';
+export type TossDecision = 'BAT' | 'BOWL';
 
 export type PaymentType = 'PLAYER' | 'SPONSOR' | 'AD_HOC';
 export type PaymentCategory = 'TOURNAMENT_FEE' | 'ANNUAL_SUBSCRIPTION' | 'SPONSORSHIP' | 'AD_HOC';
@@ -39,6 +41,9 @@ export interface Sponsor {
   contactPerson?: string;
   contactNumber?: string;
   contactEmail?: string;
+  address?: string;
+  vatNumber?: string;
+  registrationNumber?: string;
 }
 
 export interface Club {
@@ -52,9 +57,26 @@ export interface Club {
   contactNumber?: string;
 }
 
+export type MediaFileType = 'IMAGE' | 'VIDEO';
+
 export interface MediaContent {
   id?: number;
   url: string;
+  caption?: string;
+  mediaType?: MediaFileType;
+  playerId?: number;
+  playerName?: string;
+  teamId?: number;
+  teamName?: string;
+  matchId?: number;
+  matchLabel?: string;
+  tournamentId?: number;
+  tournamentName?: string;
+  fieldId?: number;
+  fieldName?: string;
+  clubId?: number;
+  clubName?: string;
+  uploadedAt?: string;
 }
 
 export interface Field {
@@ -166,6 +188,8 @@ export interface Match {
   arrivalTime?: string;
   umpire?: string;
   matchStage?: MatchStage;
+  tossWonBy?: TossWinner;
+  tossDecision?: TossDecision;
   homeTeamId?: number;
   homeTeamName?: string;
   homeTeamLogoUrl?: string;
@@ -186,6 +210,7 @@ export interface BattingEntry {
   battingPosition?: number;
   batted?: boolean;
   score?: number;
+  ballsFaced?: number;
   fours?: number;
   sixes?: number;
   dots?: number;
@@ -199,6 +224,7 @@ export interface BowlingEntry {
   playerId?: number;
   playerName?: string;
   overs?: string;
+  maidens?: number;
   runs?: number;
   wickets?: number;
   dots?: number;
@@ -308,6 +334,38 @@ export interface PlayerResult {
   dots?: number;
   catches?: number;
   manOfMatch?: boolean;
+}
+
+export type AvailabilityStatus = 'YES' | 'NO' | 'UNSURE';
+
+export interface PlayerAvailabilityEntry {
+  playerId: number;
+  playerName: string;
+  status?: AvailabilityStatus;
+}
+
+export interface MatchPoll {
+  pollId?: number;
+  matchId: number;
+  matchDate?: string;
+  homeTeamName?: string;
+  oppositionTeamName?: string;
+  teamId: number;
+  teamName?: string;
+  open: boolean;
+  availability?: PlayerAvailabilityEntry[];
+}
+
+export interface PlayerNotification {
+  notificationId: number;
+  type: 'POLL_AVAILABLE' | 'TEAM_ANNOUNCED';
+  matchId?: number;
+  teamId?: number;
+  matchDate?: string;
+  homeTeamName?: string;
+  oppositionTeamName?: string;
+  read: boolean;
+  createdAt?: string;
 }
 
 export interface MatchSide {

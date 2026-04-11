@@ -7,7 +7,8 @@ import {
 import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft, SportsCricket,
-    History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments,
+    History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
+    PermMedia,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -25,8 +26,9 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [captureOpen, setCaptureOpen] = useState(true);
-    const [viewOpen, setViewOpen] = useState(true);
-    const [financialsOpen, setFinancialsOpen] = useState(true);
+    const [viewOpen, setViewOpen] = useState(false);
+    const [financialsOpen, setFinancialsOpen] = useState(false);
+    const [accessOpen, setAccessOpen] = useState(false);
 
     const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
 
@@ -36,23 +38,27 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
             anchor="left"
             open={open}
             onClose={onClose}
-            sx={{width: !isMobile && open ? DRAWER_WIDTH : 0, flexShrink: 0, transition: 'width 0.2s', '& .MuiDrawer-paper': {width: DRAWER_WIDTH}}}
+            sx={{width: !isMobile && open ? DRAWER_WIDTH : 0, flexShrink: 0, transition: 'width 0.2s', '& .MuiDrawer-paper': {width: DRAWER_WIDTH, display: 'flex', flexDirection: 'column'}}}
         >
-            <Toolbar sx={{display: 'flex', justifyContent: 'space-between'}}>
+            <Toolbar sx={{display: 'flex', justifyContent: 'space-between', flexShrink: 0}}>
                 <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
                     <SportsCricket color="primary"/>
                     <Typography variant="subtitle1" fontWeight="bold">Cricket Legend</Typography>
                 </Box>
                 <IconButton onClick={onClose}><ChevronLeft/></IconButton>
             </Toolbar>
-            <Divider/>
+            <Divider sx={{flexShrink: 0}}/>
+
+            <Box sx={{overflowY: 'auto', flex: 1}}>
 
             {(isAdmin || isManager) ? (
                 <>
-                    <ListItemButton onClick={() => setCaptureOpen(!captureOpen)}>
-                        <ListItemText primary="Capture & View" primaryTypographyProps={{fontWeight: 'bold'}}/>
-                        {captureOpen ? <ExpandLess/> : <ExpandMore/>}
-                    </ListItemButton>
+                    <List disablePadding>
+                        <ListItemButton onClick={() => setCaptureOpen(!captureOpen)}>
+                            <ListItemText primary="Capture & View" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            {captureOpen ? <ExpandLess/> : <ExpandMore/>}
+                        </ListItemButton>
+                    </List>
                     <Collapse in={captureOpen} timeout="auto" unmountOnExit>
                         <List disablePadding>
 
@@ -86,6 +92,11 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemText primary="Matches"/>
                             </ListItemButton>
 
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/media')}>
+                                <ListItemIcon><PermMedia/></ListItemIcon>
+                                <ListItemText primary="Media Library"/>
+                            </ListItemButton>
+
                         </List>
                     </Collapse>
                     <Divider/>
@@ -94,10 +105,12 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
 
             {isAdmin ? (
                 <>
-                    <ListItemButton onClick={() => setFinancialsOpen(!financialsOpen)}>
-                        <ListItemText primary="Financials" primaryTypographyProps={{fontWeight: 'bold'}}/>
-                        {financialsOpen ? <ExpandLess/> : <ExpandMore/>}
-                    </ListItemButton>
+                    <List disablePadding>
+                        <ListItemButton onClick={() => setFinancialsOpen(!financialsOpen)}>
+                            <ListItemText primary="Financials" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            {financialsOpen ? <ExpandLess/> : <ExpandMore/>}
+                        </ListItemButton>
+                    </List>
                     <Collapse in={financialsOpen} timeout="auto" unmountOnExit>
                         <List disablePadding>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/sponsors')}>
@@ -111,13 +124,35 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         </List>
                     </Collapse>
                     <Divider/>
+
+                    <List disablePadding>
+                        <ListItemButton onClick={() => setAccessOpen(!accessOpen)}>
+                            <ListItemText primary="Access" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            {accessOpen ? <ExpandLess/> : <ExpandMore/>}
+                        </ListItemButton>
+                    </List>
+                    <Collapse in={accessOpen} timeout="auto" unmountOnExit>
+                        <List disablePadding>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/managers')}>
+                                <ListItemIcon><ManageAccounts/></ListItemIcon>
+                                <ListItemText primary="Managers"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/manager-teams')}>
+                                <ListItemIcon><ManageAccounts/></ListItemIcon>
+                                <ListItemText primary="Manager Teams"/>
+                            </ListItemButton>
+                        </List>
+                    </Collapse>
+                    <Divider/>
                 </>
             ) : null}
 
-            <ListItemButton onClick={() => setViewOpen(!viewOpen)}>
-                <ListItemText primary="View" primaryTypographyProps={{fontWeight: 'bold'}}/>
-                {viewOpen ? <ExpandLess/> : <ExpandMore/>}
-            </ListItemButton>
+            <List disablePadding>
+                <ListItemButton onClick={() => setViewOpen(!viewOpen)}>
+                    <ListItemText primary="View" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                    {viewOpen ? <ExpandLess/> : <ExpandMore/>}
+                </ListItemButton>
+            </List>
             <Collapse in={viewOpen} timeout="auto" unmountOnExit>
                 <List disablePadding>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/teams')}>
@@ -144,8 +179,14 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         <ListItemIcon><CalendarMonth/></ListItemIcon>
                         <ListItemText primary="Upcoming Matches"/>
                     </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-availability')}>
+                        <ListItemIcon><HowToVote/></ListItemIcon>
+                        <ListItemText primary="My Availability"/>
+                    </ListItemButton>
                 </List>
             </Collapse>
+
+            </Box>
         </Drawer>
     );
 };

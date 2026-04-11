@@ -79,6 +79,10 @@ public class MatchServiceImpl implements MatchService {
         existing.setUmpire(dto.getUmpire());
         existing.setScoringUrl(dto.getScoringUrl());
         existing.setMatchStage(dto.getMatchStage());
+        existing.setTossTime(dto.getTossTime());
+        existing.setArrivalTime(dto.getArrivalTime());
+        existing.setTossWonBy(dto.getTossWonBy());
+        existing.setTossDecision(dto.getTossDecision());
         resolveAssociations(existing, dto);
         return matchMapper.toDto(matchRepository.save(existing));
     }

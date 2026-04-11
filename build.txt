@@ -30,7 +30,7 @@ mvn compile jib:build
 
 -- Run KeyCloak
 
- cd development
+ cd development/keycloak-22.0.1/bin
  cd keycloak-22.0.1
  cd bin
  export KEYCLOAK_ADMIN=admin
@@ -56,3 +56,5 @@ https://cricketlegend.co.za:81
 
 
 
+sudo lsof -i :8081
+kill -9 [PID]
