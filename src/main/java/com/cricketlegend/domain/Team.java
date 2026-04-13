@@ -57,4 +57,11 @@ public class Team {
     @Column(name = "player_id")
     @Builder.Default
     private List<Long> squadPlayerIds = new ArrayList<>();
+
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(name = "team_sponsor",
+            joinColumns = @JoinColumn(name = "team_id"),
+            inverseJoinColumns = @JoinColumn(name = "sponsor_id"))
+    @Builder.Default
+    private List<Sponsor> sponsors = new ArrayList<>();
 }

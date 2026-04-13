@@ -90,6 +90,22 @@ public class PlayerController {
         return ResponseEntity.ok(playerService.update(id, dto));
     }
 
+    @DeleteMapping("/me/profile-picture")
+    @Operation(summary = "Remove the profile picture for the currently authenticated user")
+    public ResponseEntity<Void> removeMyProfilePicture(@AuthenticationPrincipal Jwt jwt) {
+        PlayerDTO me = playerService.findMe(jwt.getClaimAsString("email"));
+        playerService.removeProfilePicture(me.getPlayerId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/profile-picture")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Remove the profile picture from a player")
+    public ResponseEntity<Void> removeProfilePicture(@PathVariable Long id) {
+        playerService.removeProfilePicture(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('admin')")
     @Operation(summary = "Delete a player")

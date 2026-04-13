@@ -6,6 +6,7 @@ import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.TournamentMapper;
 import com.cricketlegend.mapper.TournamentPoolMapper;
 import com.cricketlegend.repository.*;
+import com.cricketlegend.service.FileStorageService;
 import com.cricketlegend.service.TournamentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class TournamentServiceImpl implements TournamentService {
     private final MatchRepository matchRepository;
     private final TournamentMapper tournamentMapper;
     private final TournamentPoolMapper poolMapper;
+    private final FileStorageService fileStorageService;
 
     @Override
     public List<TournamentDTO> findAll() {
@@ -99,6 +101,26 @@ public class TournamentServiceImpl implements TournamentService {
         List<Sponsor> sponsors = new ArrayList<>(sponsorRepository.findAllById(ids));
         tournament.getSponsors().clear();
         tournament.getSponsors().addAll(sponsors);
+    }
+
+    @Override
+    @Transactional
+    public void removeLogo(Long id) {
+        Tournament existing = tournamentRepository.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Tournament", id));
+        fileStorageService.deleteFile(existing.getLogoUrl());
+        existing.setLogoUrl(null);
+        tournamentRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public void removeBanner(Long id) {
+        Tournament existing = tournamentRepository.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Tournament", id));
+        fileStorageService.deleteFile(existing.getBannerUrl());
+        existing.setBannerUrl(null);
+        tournamentRepository.save(existing);
     }
 
     @Override

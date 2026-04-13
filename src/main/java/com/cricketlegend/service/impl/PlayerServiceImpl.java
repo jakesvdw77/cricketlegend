@@ -7,6 +7,7 @@ import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.PlayerMapper;
 import com.cricketlegend.repository.ClubRepository;
 import com.cricketlegend.repository.PlayerRepository;
+import com.cricketlegend.service.FileStorageService;
 import com.cricketlegend.service.PlayerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class PlayerServiceImpl implements PlayerService {
     private final PlayerRepository playerRepository;
     private final ClubRepository clubRepository;
     private final PlayerMapper playerMapper;
+    private final FileStorageService fileStorageService;
 
     @Override
     public List<PlayerDTO> findAll() {
@@ -89,6 +91,16 @@ public class PlayerServiceImpl implements PlayerService {
         existing.setGender(dto.getGender());
         resolveClub(existing, dto.getHomeClubId());
         return playerMapper.toDto(playerRepository.save(existing));
+    }
+
+    @Override
+    @Transactional
+    public void removeProfilePicture(Long id) {
+        Player existing = playerRepository.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Player", id));
+        fileStorageService.deleteFile(existing.getProfilePictureUrl());
+        existing.setProfilePictureUrl(null);
+        playerRepository.save(existing);
     }
 
     @Override

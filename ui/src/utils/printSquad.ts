@@ -1,4 +1,4 @@
-import { Player, Team } from '../types';
+import { Player, Sponsor, Team } from '../types';
 import { playerDescription } from './playerDescription';
 
 export function printSquad(team: Team, squad: Player[]): void {
@@ -13,6 +13,16 @@ export function printSquad(team: Team, squad: Player[]): void {
     team.manager && `<span><strong>Manager:</strong> ${team.manager}</span>`,
     team.homeFieldName && `<span><strong>Home Ground:</strong> ${team.homeFieldName}</span>`,
   ].filter(Boolean).join('');
+
+  const sponsorLogos = (team.sponsors ?? []).filter((s: Sponsor) => s.brandLogoUrl);
+  const sponsorsHtml = sponsorLogos.length > 0
+    ? `<div class="sponsors-section">
+        <div class="sponsors-label">Sponsors</div>
+        <div class="sponsors-logos">
+          ${sponsorLogos.map((s: Sponsor) => `<img src="${s.brandLogoUrl}" alt="${s.name}" />`).join('')}
+        </div>
+      </div>`
+    : '';
 
   const rows = squad.map((p, i) => {
     const roles = playerDescription(p);
@@ -119,6 +129,33 @@ export function printSquad(team: Team, squad: Player[]): void {
     tbody .shirt { color: #111; }
     tbody .roles { color: #111; }
 
+    /* ── Sponsors ────────────────────────────── */
+    .sponsors-section {
+      margin-top: 20px;
+      border-top: 2px solid #1a237e;
+      padding-top: 12px;
+    }
+    .sponsors-label {
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #1a237e;
+      margin-bottom: 8px;
+    }
+    .sponsors-logos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+    }
+    .sponsors-logos img {
+      height: 44px;
+      width: auto;
+      max-width: 120px;
+      object-fit: contain;
+    }
+
     /* ── Footer ──────────────────────────────── */
     .footer {
       margin-top: 24px;
@@ -156,6 +193,8 @@ export function printSquad(team: Team, squad: Player[]): void {
     <tbody>${rows}</tbody>
   </table>
 
+  ${sponsorsHtml}
+
   <div class="footer">Printed ${new Date().toLocaleDateString()}</div>
 </body>
 </html>`;
@@ -165,6 +204,7 @@ export function printSquad(team: Team, squad: Player[]): void {
   win.document.write(html);
   win.document.close();
   win.focus();
-  // Small delay to let the logo image load before printing
-  setTimeout(() => win.print(), team.logoUrl ? 800 : 0);
+  // Small delay to let images (logo + sponsor logos) load before printing
+  const hasImages = !!(team.logoUrl || sponsorLogos.length);
+  setTimeout(() => win.print(), hasImages ? 800 : 0);
 }

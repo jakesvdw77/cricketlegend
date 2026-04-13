@@ -48,6 +48,22 @@ public class TournamentController {
         return ResponseEntity.ok(tournamentService.update(id, dto));
     }
 
+    @DeleteMapping("/{id}/logo")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Remove the logo from a tournament")
+    public ResponseEntity<Void> removeLogo(@PathVariable Long id) {
+        tournamentService.removeLogo(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/banner")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Remove the banner from a tournament")
+    public ResponseEntity<Void> removeBanner(@PathVariable Long id) {
+        tournamentService.removeBanner(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('admin')")
     @Operation(summary = "Delete a tournament")

@@ -10,4 +10,5 @@ public interface ClubService {
     ClubDTO create(ClubDTO dto);
     ClubDTO update(Long id, ClubDTO dto);
     void delete(Long id);
+    void removeLogo(Long id);
 }

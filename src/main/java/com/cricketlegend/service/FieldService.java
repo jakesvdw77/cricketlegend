@@ -10,4 +10,5 @@ public interface FieldService {
     FieldDTO create(FieldDTO dto);
     FieldDTO update(Long id, FieldDTO dto);
     void delete(Long id);
+    void removeLogo(Long id);
 }

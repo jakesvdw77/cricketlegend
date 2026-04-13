@@ -2,10 +2,14 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, Avatar, Divider, Grid, TextField, MenuItem,
   Accordion, AccordionSummary, AccordionDetails, Tooltip, IconButton,
+  Menu, Dialog, DialogTitle, DialogContent, DialogActions, Button, Snackbar,
 } from '@mui/material';
-import { ExpandMore, SportsCricket, Person, Phone, Shield, Print } from '@mui/icons-material';
+import {
+  ExpandMore, SportsCricket, Person, Phone, Shield, Print,
+  MoreVert, WhatsApp, Facebook, ContentCopy,
+} from '@mui/icons-material';
 import { teamApi } from '../../api/teamApi';
-import { playerDescription } from '../../utils/playerDescription';
+import { playerDescription, isBatterOnly } from '../../utils/playerDescription';
 import { printSquad } from '../../utils/printSquad';
 import { tournamentApi } from '../../api/tournamentApi';
 import { clubApi } from '../../api/clubApi';
@@ -87,6 +91,107 @@ function ManagementRow({ icon, label, value }: { icon: React.ReactNode; label: s
   );
 }
 
+// ── Squad text builders ──────────────────────────────────────────────────────
+
+function buildSquadWhatsAppText(team: Team, squad: Player[]): string {
+  const lines: string[] = [];
+  lines.push(`🏏 *${team.teamName} — Squad*`);
+  const meta = [
+    team.associatedClubName && `Club: ${team.associatedClubName}`,
+    team.captainName        && `⭐ Captain: ${team.captainName}`,
+    team.coach              && `Coach: ${team.coach}`,
+    team.manager            && `Manager: ${team.manager}`,
+  ].filter(Boolean);
+  if (meta.length) lines.push(meta.join('  |  '));
+  lines.push('');
+  squad.forEach((p, i) => {
+    const role = p.wicketKeeper ? '🧤' : isBatterOnly(p) ? '🏏' : '🔴';
+    lines.push(`${role} ${i + 1}. ${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`);
+  });
+  lines.push('');
+  lines.push('🏏 = Bat only  |  🔴 = Bowler  |  🧤 = Wicket Keeper');
+  return lines.join('\n');
+}
+
+function buildSquadFacebookText(team: Team, squad: Player[]): string {
+  const paras: string[] = [];
+  paras.push(`🏏 ${team.teamName} — Current Squad`);
+  const meta = [
+    team.associatedClubName && `Club: ${team.associatedClubName}`,
+    team.captainName        && `Captain: ${team.captainName}`,
+    team.coach              && `Coach: ${team.coach}`,
+    team.manager            && `Manager: ${team.manager}`,
+    team.homeFieldName      && `Home Ground: ${team.homeFieldName}`,
+  ].filter(Boolean);
+  if (meta.length) paras.push(meta.join('\n'));
+  const playerLines = squad.map(p => {
+    const desc = playerDescription(p);
+    return `• ${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}${desc ? ` — ${desc}` : ''}`;
+  });
+  paras.push(`Here's our squad (${squad.length} players):\n${playerLines.join('\n')}`);
+  paras.push('We look forward to seeing you all on the field! 🙌');
+  const tags = ['#Cricket', '#CricketLegend'];
+  if (team.teamName)           tags.push(`#${team.teamName.replace(/\s+/g, '')}`);
+  if (team.associatedClubName) tags.push(`#${team.associatedClubName.replace(/\s+/g, '')}`);
+  paras.push(tags.join(' '));
+  return paras.join('\n\n');
+}
+
+// ── Squad share menu per team ────────────────────────────────────────────────
+
+function SquadShareMenu({
+  team, squad,
+  onText,
+}: {
+  team: Team;
+  squad: Player[] | undefined;
+  onText: (text: string) => void;
+}) {
+  const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+
+  const requireSquad = (fn: () => void) => {
+    if (!squad) { alert('Squad not loaded yet — please expand the team first.'); return; }
+    fn();
+  };
+
+  const sortedByName = (s: Player[]) => [...s].sort((a, b) => a.name.localeCompare(b.name));
+
+  return (
+    <>
+      <Tooltip title="Share / Print">
+        <IconButton size="small" onClick={e => { e.stopPropagation(); setAnchor(e.currentTarget); }}>
+          <MoreVert fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Menu
+        anchorEl={anchor}
+        open={Boolean(anchor)}
+        onClose={() => setAnchor(null)}
+        onClick={e => e.stopPropagation()}
+      >
+        <MenuItem onClick={() => {
+          requireSquad(() => { onText(buildSquadWhatsAppText(team, sortedByName(squad!))); });
+          setAnchor(null);
+        }}>
+          <WhatsApp sx={{ mr: 1, fontSize: 18, color: '#25D366' }} /> Copy for WhatsApp
+        </MenuItem>
+        <MenuItem onClick={() => {
+          requireSquad(() => { onText(buildSquadFacebookText(team, sortedByName(squad!))); });
+          setAnchor(null);
+        }}>
+          <Facebook sx={{ mr: 1, fontSize: 18, color: '#1877F2' }} /> Copy for Facebook
+        </MenuItem>
+        <MenuItem onClick={() => {
+          requireSquad(() => { printSquad(team, sortedByName(squad!)); });
+          setAnchor(null);
+        }}>
+          <Print sx={{ mr: 1, fontSize: 18 }} /> Print / Export PDF
+        </MenuItem>
+      </Menu>
+    </>
+  );
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export const TeamsView: React.FC = () => {
@@ -98,6 +203,11 @@ export const TeamsView: React.FC = () => {
   const [tournamentTeamIds, setTournamentTeamIds] = useState<Set<number> | null>(null);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [selectedClubId, setSelectedClubId] = useState<number | ''>('');
+
+  // Share dialog
+  const [shareText, setShareText] = useState('');
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     teamApi.findAll().then(setTeams);
@@ -119,6 +229,18 @@ export const TeamsView: React.FC = () => {
     if (squads[teamId]) return;
     const players = await teamApi.getSquad(teamId);
     setSquads(prev => ({ ...prev, [teamId]: players }));
+  };
+
+  const openShareDialog = (text: string) => {
+    setShareText(text);
+    setShareOpen(true);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareText).then(() => {
+      setCopied(true);
+      setShareOpen(false);
+    });
   };
 
   const filtered = teams.filter(t => {
@@ -169,7 +291,8 @@ export const TeamsView: React.FC = () => {
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {filtered.map(team => {
           const squad = squads[team.teamId!] ?? [];
-          const sorted = [...squad].sort((a, b) => a.surname.localeCompare(b.surname));
+          // Display: sort by surname; share/print: sort by first name (handled in SquadShareMenu)
+          const sortedBySurname = [...squad].sort((a, b) => a.surname.localeCompare(b.surname));
 
           return (
             <Accordion
@@ -186,22 +309,11 @@ export const TeamsView: React.FC = () => {
                       {team.teamName}{team.abbreviation && ` (${team.abbreviation})`}
                     </Typography>
                   </Box>
-                  <Tooltip title="Print / Export PDF">
-                    <IconButton
-                      size="small"
-                      onClick={e => {
-                        e.stopPropagation();
-                        if (!squads[team.teamId!]) {
-                          alert('Squad not loaded yet — please expand the team first.');
-                          return;
-                        }
-                        const s = squads[team.teamId!];
-                        printSquad(team, [...s].sort((a, b) => a.surname.localeCompare(b.surname)));
-                      }}
-                    >
-                      <Print fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  <SquadShareMenu
+                    team={team}
+                    squad={squads[team.teamId!]}
+                    onText={openShareDialog}
+                  />
                 </Box>
               </AccordionSummary>
 
@@ -225,18 +337,18 @@ export const TeamsView: React.FC = () => {
                   Squad — {squad.length} player{squad.length !== 1 ? 's' : ''}
                 </Typography>
                 <Divider sx={{ my: 1 }} />
-                {sorted.length === 0 ? (
+                {sortedBySurname.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                     No players in squad.
                   </Typography>
                 ) : (
                   <Grid container spacing={0}>
-                    {sorted.map((p, idx) => (
+                    {sortedBySurname.map((p, idx) => (
                       <React.Fragment key={p.playerId}>
                         <Grid item xs={12} sm={6}>
                           <PlayerCard p={p} />
                         </Grid>
-                        {idx < sorted.length - 1 && idx % 2 === 1 && (
+                        {idx < sortedBySurname.length - 1 && idx % 2 === 1 && (
                           <Grid item xs={12}><Divider /></Grid>
                         )}
                       </React.Fragment>
@@ -248,6 +360,38 @@ export const TeamsView: React.FC = () => {
           );
         })}
       </Box>
+
+      {/* Share dialog */}
+      <Dialog open={shareOpen} onClose={() => setShareOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Share Squad</DialogTitle>
+        <DialogContent>
+          <TextField
+            multiline fullWidth minRows={14}
+            value={shareText}
+            onChange={e => setShareText(e.target.value)}
+            variant="outlined"
+            sx={{ mt: 1 }}
+            inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShareOpen(false)}>Close</Button>
+          <Button
+            variant="contained"
+            startIcon={<ContentCopy />}
+            onClick={handleCopy}
+          >
+            Copy to Clipboard
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={copied}
+        autoHideDuration={3000}
+        onClose={() => setCopied(false)}
+        message="Copied! Paste into your message 💬"
+      />
     </Box>
   );
 };

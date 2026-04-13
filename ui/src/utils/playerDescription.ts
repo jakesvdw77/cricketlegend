@@ -24,6 +24,11 @@ const ARM_LABELS: Record<string, string> = {
   RIGHT: 'Right Arm',
 };
 
+export function isBatterOnly(p: Player): boolean {
+  const hasBowling = p.bowlingType && p.bowlingType !== 'NONE';
+  return !hasBowling && !p.wicketKeeper;
+}
+
 export function playerDescription(p: Player): string {
   const batting = p.battingStance ? (BATTING_LABELS[p.battingStance] ?? '') : '';
   const bowlingType = p.bowlingType && p.bowlingType !== 'NONE' ? (BOWLING_LABELS[p.bowlingType] ?? '') : '';

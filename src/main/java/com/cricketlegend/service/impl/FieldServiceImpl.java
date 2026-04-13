@@ -8,6 +8,7 @@ import com.cricketlegend.mapper.FieldMapper;
 import com.cricketlegend.repository.ClubRepository;
 import com.cricketlegend.repository.FieldRepository;
 import com.cricketlegend.service.FieldService;
+import com.cricketlegend.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class FieldServiceImpl implements FieldService {
     private final FieldRepository fieldRepository;
     private final ClubRepository clubRepository;
     private final FieldMapper fieldMapper;
+    private final FileStorageService fileStorageService;
 
     @Override
     public List<FieldDTO> findAll() {
@@ -54,6 +56,16 @@ public class FieldServiceImpl implements FieldService {
         existing.setIconUrl(dto.getIconUrl());
         resolveClub(existing, dto.getHomeClubId());
         return fieldMapper.toDto(fieldRepository.save(existing));
+    }
+
+    @Override
+    @Transactional
+    public void removeLogo(Long id) {
+        Field existing = fieldRepository.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Field", id));
+        fileStorageService.deleteFile(existing.getIconUrl());
+        existing.setIconUrl(null);
+        fieldRepository.save(existing);
     }
 
     @Override

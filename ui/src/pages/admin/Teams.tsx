@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Avatar, CircularProgress,
   List, ListItem, ListItemAvatar, ListItemText, Autocomplete, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel, Tooltip,
-  useMediaQuery, useTheme,
+  useMediaQuery, useTheme, Tabs, Tab, Chip,
 } from '@mui/material';
 import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket, ViewColumn, ContentCopy } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';
@@ -15,14 +15,15 @@ import { clubApi } from '../../api/clubApi';
 import { playerApi } from '../../api/playerApi';
 import { fieldApi } from '../../api/fieldApi';
 import { paymentApi } from '../../api/paymentApi';
-import { Team, Club, Player, Field } from '../../types';
+import { sponsorApi } from '../../api/sponsorApi';
+import { Team, Club, Player, Field, Sponsor } from '../../types';
 import { ManagerDTO } from '../../api/managerApi';
 import { useAuth } from '../../hooks/useAuth';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
 
 const empty: Team = { teamName: '' };
 
-type ColKey = 'teamName' | 'club' | 'captain' | 'homeGround' | 'selector' | 'coach' | 'manager';
+type ColKey = 'teamName' | 'club' | 'captain' | 'homeGround' | 'selector' | 'coach' | 'manager' | 'sponsors';
 const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'teamName',   label: 'Team Name' },
   { key: 'club',       label: 'Club' },
@@ -31,8 +32,9 @@ const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'selector',   label: 'Selector' },
   { key: 'coach',      label: 'Coach' },
   { key: 'manager',    label: 'Manager' },
+  { key: 'sponsors',   label: 'Sponsors' },
 ];
-const DEFAULT_VISIBLE = new Set<ColKey>(['teamName', 'club', 'homeGround', 'captain', 'selector', 'coach', 'manager']);
+const DEFAULT_VISIBLE = new Set<ColKey>(['teamName', 'club', 'homeGround', 'captain', 'selector', 'coach', 'manager', 'sponsors']);
 const MOBILE_VISIBLE = new Set<ColKey>(['teamName', 'club', 'captain']);
 
 export const Teams: React.FC = () => {
@@ -62,6 +64,10 @@ export const Teams: React.FC = () => {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [teamManagers, setTeamManagers] = useState<ManagerDTO[]>([]);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [dialogTab, setDialogTab] = useState(0);
+  const [sponsorPopoverAnchor, setSponsorPopoverAnchor] = useState<HTMLElement | null>(null);
+  const [popoverSponsors, setPopoverSponsors] = useState<Sponsor[]>([]);
 
   // Squad management
   const [squadTeam, setSquadTeam] = useState<Team | null>(null);
@@ -73,16 +79,19 @@ export const Teams: React.FC = () => {
     clubApi.findAll().then(setClubs);
     playerApi.findAll().then(setPlayers);
     fieldApi.findAll().then(setFields);
+    sponsorApi.findAll().then(setSponsors);
   }, []);
 
   const openCreate = () => {
     setEditing(empty);
     setTeamManagers([]);
+    setDialogTab(0);
     setOpen(true);
   };
 
   const openEdit = (team: Team) => {
     setEditing(team);
+    setDialogTab(0);
     if (team.teamId) {
       teamApi.getManagers(team.teamId).then(setTeamManagers).catch(() => setTeamManagers([]));
     }
@@ -253,6 +262,7 @@ export const Teams: React.FC = () => {
               {col('selector')   && <TableCell>Selector</TableCell>}
               {col('coach')      && <TableCell>Coach</TableCell>}
               {col('manager')    && <TableCell>Manager</TableCell>}
+              {col('sponsors')   && <TableCell>Sponsors</TableCell>}
               <TableCell />
             </TableRow>
           </TableHead>
@@ -279,13 +289,27 @@ export const Teams: React.FC = () => {
                 {col('selector')   && <TableCell>{r.selector}</TableCell>}
                 {col('coach')      && <TableCell>{r.coach}</TableCell>}
                 {col('manager')    && <TableCell>{r.manager}</TableCell>}
+                {col('sponsors')   && (
+                  <TableCell>
+                    <Chip
+                      label={r.sponsors?.length ?? 0}
+                      size="small"
+                      clickable={!!r.sponsors?.length}
+                      onClick={r.sponsors?.length ? (e) => {
+                        setPopoverSponsors(r.sponsors!);
+                        setSponsorPopoverAnchor(e.currentTarget);
+                      } : undefined}
+                      title={r.sponsors?.length ? 'View sponsors' : 'No sponsors'}
+                    />
+                  </TableCell>
+                )}
                 <TableCell>
                   {canManage(r.teamId!) && (
                     <IconButton size="small" title="Manage Squad" onClick={() => openSquad(r)}><Groups /></IconButton>
                   )}
                   <IconButton size="small" title="Print Squad" onClick={async () => {
                     const squad = await teamApi.getSquad(r.teamId!);
-                    printSquad(r, [...squad].sort((a, b) => a.surname.localeCompare(b.surname)));
+                    printSquad(r, [...squad].sort((a, b) => a.name.localeCompare(b.name)));
                   }}><Print fontSize="small" /></IconButton>
                   {isAdmin && (
                     <IconButton size="small" title="Duplicate" onClick={() => duplicate(r)}><ContentCopy fontSize="small" /></IconButton>
@@ -315,7 +339,14 @@ export const Teams: React.FC = () => {
       {/* Add / Edit dialog */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.teamId ? 'Edit' : 'New'} Team</DialogTitle>
+        <Tabs value={dialogTab} onChange={(_, v) => setDialogTab(v)} sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}>
+          <Tab label="Details" />
+          <Tab label="Sponsors" />
+        </Tabs>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+
+          {/* Tab 0: Details */}
+          {dialogTab === 0 && <>
 
           {/* Logo upload + preview */}
           <Box>
@@ -458,6 +489,25 @@ export const Teams: React.FC = () => {
             </Box>
           </Box>
 
+          </>}
+
+          {/* Tab 1: Sponsors */}
+          {dialogTab === 1 && (
+            <Autocomplete
+              multiple
+              options={sponsors}
+              getOptionLabel={s => s.name}
+              value={editing.sponsors ?? []}
+              onChange={(_, value) => set({ sponsors: value })}
+              isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
+              renderTags={(value, getTagProps) =>
+                value.map((s, idx) => (
+                  <Chip label={s.name} size="small" {...getTagProps({ index: idx })} key={s.sponsorId} />
+                ))
+              }
+              renderInput={params => <TextField {...params} label="Sponsors" placeholder="Add sponsor…" />}
+            />
+          )}
 
         </DialogContent>
         <DialogActions>
@@ -526,12 +576,49 @@ export const Teams: React.FC = () => {
           </List>
         </DialogContent>
         <DialogActions>
-          <Button startIcon={<Print />} onClick={() => printSquad(squadTeam!, squad)}>
+          <Button startIcon={<Print />} onClick={() => printSquad(squadTeam!, [...squad].sort((a, b) => a.name.localeCompare(b.name)))}>
             Print / Export PDF
           </Button>
           <Button onClick={() => setSquadTeam(null)}>Done</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Sponsor detail popover */}
+      <Popover
+        open={!!sponsorPopoverAnchor}
+        anchorEl={sponsorPopoverAnchor}
+        onClose={() => setSponsorPopoverAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      >
+        <Box sx={{ p: 2, maxWidth: 320 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Sponsors</Typography>
+          {popoverSponsors.map((s, i) => (
+            <Box key={s.sponsorId ?? i} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', mb: i < popoverSponsors.length - 1 ? 2 : 0 }}>
+              <Avatar src={s.brandLogoUrl} sx={{ width: 40, height: 40, flexShrink: 0 }}>
+                {s.name.charAt(0)}
+              </Avatar>
+              <Box>
+                <Typography variant="body2" fontWeight="bold">{s.name}</Typography>
+                {s.brandWebsite && (
+                  <Typography variant="caption" component="a" href={s.brandWebsite} target="_blank" rel="noreferrer" sx={{ display: 'block', color: 'primary.main' }}>
+                    {s.brandWebsite}
+                  </Typography>
+                )}
+                {s.contactPerson && (
+                  <Typography variant="caption" sx={{ display: 'block' }}>{s.contactPerson}</Typography>
+                )}
+                {s.contactEmail && (
+                  <Typography variant="caption" sx={{ display: 'block' }}>{s.contactEmail}</Typography>
+                )}
+                {s.contactNumber && (
+                  <Typography variant="caption" sx={{ display: 'block' }}>{s.contactNumber}</Typography>
+                )}
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      </Popover>
 
       {/* Logo viewer */}
       <Dialog open={!!viewLogoUrl} onClose={() => setViewLogoUrl(null)} maxWidth="sm">

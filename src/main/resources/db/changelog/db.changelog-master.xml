@@ -42,5 +42,6 @@
     <include file="db/changelog/v1/035-sponsor-company-fields.sql"/>
     <include file="db/changelog/v1/036-match-toss-result.sql"/>
     <include file="db/changelog/v1/037-media-content-tags.sql"/>
+    <include file="db/changelog/v1/038-team-sponsor.sql"/>
 
 </databaseChangeLog>

@@ -46,6 +46,14 @@ public class ClubController {
         return ResponseEntity.ok(clubService.update(id, dto));
     }
 
+    @DeleteMapping("/{id}/logo")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Remove the logo from a club")
+    public ResponseEntity<Void> removeLogo(@PathVariable Long id) {
+        clubService.removeLogo(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('admin')")
     @Operation(summary = "Delete a club")

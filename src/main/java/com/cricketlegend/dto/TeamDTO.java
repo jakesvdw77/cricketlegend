@@ -26,4 +26,5 @@ public class TeamDTO {
     private String websiteUrl;
     private String facebookUrl;
     private List<MediaContentDTO> mediaContent;
+    private List<SponsorDTO> sponsors;
 }

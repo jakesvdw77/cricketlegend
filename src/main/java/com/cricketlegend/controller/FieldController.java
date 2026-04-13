@@ -46,6 +46,14 @@ public class FieldController {
         return ResponseEntity.ok(fieldService.update(id, dto));
     }
 
+    @DeleteMapping("/{id}/logo")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Remove the logo from a field")
+    public ResponseEntity<Void> removeLogo(@PathVariable Long id) {
+        fieldService.removeLogo(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('admin')")
     @Operation(summary = "Delete a field")

@@ -4,7 +4,9 @@ import BroadcastScorecardPreview from './BroadcastScorecardPreview';
 import { TemplateProps } from './types';
 
 const BroadcastScorecardTemplate: React.FC<TemplateProps> = (props) => {
-  const { match, result, firstTeamName, secondTeamName, firstCard, secondCard, motmName } = props;
+  const { match, result, firstTeamName, secondTeamName, firstCard, secondCard, motmName, teamFilter } = props;
+  const showFirst  = !teamFilter || teamFilter === 'both' || teamFilter === 'first';
+  const showSecond = !teamFilter || teamFilter === 'both' || teamFilter === 'second';
 
   const generateText = (): string => {
     const lines: string[] = [];
@@ -37,8 +39,8 @@ const BroadcastScorecardTemplate: React.FC<TemplateProps> = (props) => {
       lines.push('');
     };
 
-    innings(firstTeamName,  result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  firstCard.batting,  firstCard.bowling);
-    innings(secondTeamName, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, secondCard.batting, secondCard.bowling);
+    if (showFirst)  innings(firstTeamName,  result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  firstCard.batting,  firstCard.bowling);
+    if (showSecond) innings(secondTeamName, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, secondCard.batting, secondCard.bowling);
 
     if (result.matchDrawn)                lines.push('MATCH DRAWN');
     else if (result.matchOutcomeDescription) lines.push(result.matchOutcomeDescription.toUpperCase());

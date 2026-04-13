@@ -5,7 +5,9 @@ import FacebookCardPreview from './FacebookCardPreview';
 import { TemplateProps, plainTextToHtml } from './types';
 
 const FacebookTemplate: React.FC<TemplateProps> = (props) => {
-  const { match, result, tournament, firstTeamName, secondTeamName, firstCard, secondCard, motmName } = props;
+  const { match, result, tournament, firstTeamName, secondTeamName, firstCard, secondCard, motmName, teamFilter } = props;
+  const showFirst  = !teamFilter || teamFilter === 'both' || teamFilter === 'first';
+  const showSecond = !teamFilter || teamFilter === 'both' || teamFilter === 'second';
 
   const [text, setText]           = useState('');
   const [html, setHtml]           = useState('');
@@ -74,7 +76,7 @@ const FacebookTemplate: React.FC<TemplateProps> = (props) => {
     }
 
     // 1st innings
-    if (result.scoreBattingFirst != null) {
+    if (showFirst && result.scoreBattingFirst != null) {
       const score = `${result.scoreBattingFirst}/${result.wicketsLostBattingFirst ?? '?'}`;
       const overs = result.oversBattingFirst ? ` from their ${result.oversBattingFirst} overs` : '';
       let para = `🏏 Batting first, ${firstTeamName} posted a total of ${score}${overs}.`;
@@ -86,7 +88,7 @@ const FacebookTemplate: React.FC<TemplateProps> = (props) => {
     }
 
     // 2nd innings
-    if (result.scoreBattingSecond != null) {
+    if (showSecond && result.scoreBattingSecond != null) {
       const score  = `${result.scoreBattingSecond}/${result.wicketsLostBattingSecond ?? '?'}`;
       const overs  = result.oversBattingSecond ? ` from ${result.oversBattingSecond} overs` : '';
       const target = result.scoreBattingFirst  != null

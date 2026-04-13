@@ -6,7 +6,9 @@ import { TemplateProps } from './types';
 /** Scorecard template — the Card Preview is the primary output.
  *  The plain-text view shows a simple tabular scorecard for copy/paste. */
 const ScorecardTemplate: React.FC<TemplateProps> = (props) => {
-  const { match, result, firstTeamName, secondTeamName, firstCard, secondCard, motmName } = props;
+  const { match, result, firstTeamName, secondTeamName, firstCard, secondCard, motmName, teamFilter } = props;
+  const showFirst  = !teamFilter || teamFilter === 'both' || teamFilter === 'first';
+  const showSecond = !teamFilter || teamFilter === 'both' || teamFilter === 'second';
 
   const generateText = (): string => {
     const lines: string[] = [];
@@ -43,8 +45,8 @@ const ScorecardTemplate: React.FC<TemplateProps> = (props) => {
       lines.push('');
     };
 
-    renderInnings(firstTeamName,  result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  firstCard.batting,  firstCard.bowling);
-    renderInnings(secondTeamName, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, secondCard.batting, secondCard.bowling);
+    if (showFirst)  renderInnings(firstTeamName,  result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  firstCard.batting,  firstCard.bowling);
+    if (showSecond) renderInnings(secondTeamName, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, secondCard.batting, secondCard.bowling);
 
     if (result.matchOutcomeDescription) lines.push(`RESULT: ${result.matchOutcomeDescription}`);
     if (result.matchDrawn)              lines.push('RESULT: Match Drawn');

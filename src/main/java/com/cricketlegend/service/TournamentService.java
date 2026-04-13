@@ -12,6 +12,8 @@ public interface TournamentService {
     TournamentDTO create(TournamentDTO dto);
     TournamentDTO update(Long id, TournamentDTO dto);
     void delete(Long id);
+    void removeLogo(Long id);
+    void removeBanner(Long id);
     TournamentPoolDTO addPool(Long tournamentId, TournamentPoolDTO poolDTO);
     void addTeamToPool(Long poolId, Long teamId);
     void deletePool(Long poolId);

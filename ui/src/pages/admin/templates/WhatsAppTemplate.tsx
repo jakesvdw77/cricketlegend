@@ -4,7 +4,9 @@ import MatchCardPreview from './MatchCardPreview';
 import { TemplateProps, plainTextToHtml } from './types';
 
 const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
-  const { match, result, tournament, firstTeamName, secondTeamName, firstCard, secondCard, motmName } = props;
+  const { match, result, tournament, firstTeamName, secondTeamName, firstCard, secondCard, motmName, teamFilter } = props;
+  const showFirst  = !teamFilter || teamFilter === 'both' || teamFilter === 'first';
+  const showSecond = !teamFilter || teamFilter === 'both' || teamFilter === 'second';
 
   const [text, setText]         = useState('');
   const [html, setHtml]         = useState('');
@@ -111,9 +113,9 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
       }
     };
 
-    inningsBlock(`1ST INNINGS — ${firstTeamName}`, result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  firstCard,  secondCard);
-    add(); add(THIN);
-    inningsBlock(`2ND INNINGS — ${secondTeamName}`, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, secondCard, firstCard);
+    if (showFirst)  inningsBlock(`1ST INNINGS — ${firstTeamName}`, result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  firstCard,  secondCard);
+    if (showFirst && showSecond) { add(); add(THIN); }
+    if (showSecond) inningsBlock(`2ND INNINGS — ${secondTeamName}`, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, secondCard, firstCard);
 
     // Result
     add(); add(DIV); add('🏆  RESULT'); add(DIV);

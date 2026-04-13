@@ -1,4 +1,4 @@
-import { Match, MatchSide, Player } from '../types';
+import { Match, MatchSide, Player, Sponsor } from '../types';
 
 function getRoleText(player: Player, battingPosition: number, isWK: boolean): string {
   const isBowler = player.bowlingType && player.bowlingType !== 'NONE' && !player.partTimeBowler;
@@ -8,7 +8,7 @@ function getRoleText(player: Player, battingPosition: number, isWK: boolean): st
   return showBat ? '🏏' : '';
 }
 
-export function printTeamSheet(match: Match, side: MatchSide, xi: Player[], captain: Player | undefined, twelfth: Player | undefined, teamName: string): void {
+export function printTeamSheet(match: Match, side: MatchSide, xi: Player[], captain: Player | undefined, twelfth: Player | undefined, teamName: string, sponsors?: Sponsor[]): void {
   const rows = xi.map((p, idx) => {
     const battingPosition = idx + 1;
     const isWK = p.playerId === side.wicketKeeperPlayerId;
@@ -25,6 +25,16 @@ export function printTeamSheet(match: Match, side: MatchSide, xi: Player[], capt
 
   const twelfthRow = twelfth
     ? `<tr class="twelfth"><td colspan="4">12th Man: <strong>${twelfth.name} ${twelfth.surname}</strong>${twelfth.shirtNumber ? ` (#${twelfth.shirtNumber})` : ''}</td></tr>`
+    : '';
+
+  const sponsorLogos = (sponsors ?? []).filter(s => s.brandLogoUrl);
+  const sponsorsHtml = sponsorLogos.length > 0
+    ? `<div class="sponsors-section">
+        <div class="sponsors-label">Sponsors</div>
+        <div class="sponsors-logos">
+          ${sponsorLogos.map(s => `<img src="${s.brandLogoUrl}" alt="${s.name}" />`).join('')}
+        </div>
+      </div>`
     : '';
 
   const metaItems = [
@@ -84,6 +94,11 @@ export function printTeamSheet(match: Match, side: MatchSide, xi: Player[], capt
     .captain { color: #e67e22; font-weight: bold; }
     .twelfth td { font-size: 11px; color: #555; font-style: italic; padding: 6px 8px; border-top: 1px solid #ccc; }
 
+    .sponsors-section { margin-top: 20px; border-top: 2px solid #1a237e; padding-top: 12px; }
+    .sponsors-label { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #1a237e; margin-bottom: 8px; }
+    .sponsors-logos { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+    .sponsors-logos img { height: 44px; width: auto; max-width: 120px; object-fit: contain; }
+
     .footer { margin-top: 24px; font-size: 10px; color: #aaa; text-align: right; }
 
     @media print {
@@ -117,6 +132,8 @@ export function printTeamSheet(match: Match, side: MatchSide, xi: Player[], capt
     </tbody>
   </table>
 
+  ${sponsorsHtml}
+
   <div class="footer">Printed ${new Date().toLocaleDateString()}</div>
 </body>
 </html>`;
@@ -126,5 +143,5 @@ export function printTeamSheet(match: Match, side: MatchSide, xi: Player[], capt
   win.document.write(html);
   win.document.close();
   win.focus();
-  setTimeout(() => win.print(), 0);
+  setTimeout(() => win.print(), sponsorLogos.length ? 800 : 0);
 }

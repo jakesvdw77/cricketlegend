@@ -1,5 +1,7 @@
 import { Match, MatchResult, Tournament, TeamScorecard } from '../../../types';
 
+export type TeamFilter = 'both' | 'first' | 'second';
+
 export interface TemplateProps {
   match: Match;
   result: MatchResult;
@@ -9,6 +11,7 @@ export interface TemplateProps {
   firstCard: TeamScorecard;
   secondCard: TeamScorecard;
   motmName: string | null;
+  teamFilter?: TeamFilter;
 }
 
 export const plainTextToHtml = (text: string): string =>

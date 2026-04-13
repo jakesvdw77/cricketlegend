@@ -13,4 +13,5 @@ public interface PlayerService {
     PlayerDTO create(PlayerDTO dto);
     PlayerDTO update(Long id, PlayerDTO dto);
     void delete(Long id);
+    void removeProfilePicture(Long id);
 }

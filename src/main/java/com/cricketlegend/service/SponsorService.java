@@ -10,4 +10,5 @@ public interface SponsorService {
     SponsorDTO create(SponsorDTO dto);
     SponsorDTO update(Long id, SponsorDTO dto);
     void delete(Long id);
+    void removeLogo(Long id);
 }

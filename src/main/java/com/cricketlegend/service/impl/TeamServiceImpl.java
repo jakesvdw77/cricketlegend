@@ -1,7 +1,9 @@
 package com.cricketlegend.service.impl;
 
+import com.cricketlegend.domain.Sponsor;
 import com.cricketlegend.domain.Team;
 import com.cricketlegend.dto.PlayerDTO;
+import com.cricketlegend.dto.SponsorDTO;
 import com.cricketlegend.dto.TeamDTO;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.PlayerMapper;
@@ -9,13 +11,17 @@ import com.cricketlegend.mapper.TeamMapper;
 import com.cricketlegend.repository.ClubRepository;
 import com.cricketlegend.repository.FieldRepository;
 import com.cricketlegend.repository.PlayerRepository;
+import com.cricketlegend.repository.SponsorRepository;
 import com.cricketlegend.repository.TeamRepository;
 import com.cricketlegend.service.TeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +32,7 @@ public class TeamServiceImpl implements TeamService {
     private final ClubRepository clubRepository;
     private final PlayerRepository playerRepository;
     private final FieldRepository fieldRepository;
+    private final SponsorRepository sponsorRepository;
     private final TeamMapper teamMapper;
     private final PlayerMapper playerMapper;
 
@@ -46,6 +53,7 @@ public class TeamServiceImpl implements TeamService {
     public TeamDTO create(TeamDTO dto) {
         Team team = teamMapper.toEntity(dto);
         resolveAssociations(team, dto);
+        resolveSponsors(team, dto);
         return teamMapper.toDto(teamRepository.save(team));
     }
 
@@ -67,6 +75,7 @@ public class TeamServiceImpl implements TeamService {
         existing.setWebsiteUrl(dto.getWebsiteUrl());
         existing.setFacebookUrl(dto.getFacebookUrl());
         resolveAssociations(existing, dto);
+        resolveSponsors(existing, dto);
         return teamMapper.toDto(teamRepository.save(existing));
     }
 
@@ -86,6 +95,7 @@ public class TeamServiceImpl implements TeamService {
                         .map(playerMapper::toDto)
                         .orElse(null))
                 .filter(p -> p != null)
+                .sorted(Comparator.comparing(PlayerDTO::getName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
 
@@ -108,6 +118,20 @@ public class TeamServiceImpl implements TeamService {
                 .orElseThrow(() -> NotFoundException.of("Team", teamId));
         team.getSquadPlayerIds().remove(playerId);
         teamRepository.save(team);
+    }
+
+    private void resolveSponsors(Team team, TeamDTO dto) {
+        if (dto.getSponsors() == null) {
+            team.getSponsors().clear();
+            return;
+        }
+        List<Long> ids = dto.getSponsors().stream()
+                .map(SponsorDTO::getSponsorId)
+                .filter(Objects::nonNull)
+                .toList();
+        List<Sponsor> sponsors = new ArrayList<>(sponsorRepository.findAllById(ids));
+        team.getSponsors().clear();
+        team.getSponsors().addAll(sponsors);
     }
 
     private void resolveAssociations(Team team, TeamDTO dto) {

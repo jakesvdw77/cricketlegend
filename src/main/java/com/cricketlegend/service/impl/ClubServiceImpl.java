@@ -10,6 +10,7 @@ import com.cricketlegend.repository.FieldRepository;
 import com.cricketlegend.repository.PlayerRepository;
 import com.cricketlegend.repository.TeamRepository;
 import com.cricketlegend.service.ClubService;
+import com.cricketlegend.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class ClubServiceImpl implements ClubService {
     private final PlayerRepository playerRepository;
     private final FieldRepository fieldRepository;
     private final TeamRepository teamRepository;
+    private final FileStorageService fileStorageService;
 
     @Override
     public List<ClubDTO> findAll() {
@@ -59,6 +61,16 @@ public class ClubServiceImpl implements ClubService {
         existing.setEmail(dto.getEmail());
         existing.setContactNumber(dto.getContactNumber());
         return clubMapper.toDto(clubRepository.save(existing));
+    }
+
+    @Override
+    @Transactional
+    public void removeLogo(Long id) {
+        Club existing = clubRepository.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Club", id));
+        fileStorageService.deleteFile(existing.getLogoUrl());
+        existing.setLogoUrl(null);
+        clubRepository.save(existing);
     }
 
     @Override

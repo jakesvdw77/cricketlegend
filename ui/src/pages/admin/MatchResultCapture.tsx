@@ -17,7 +17,7 @@ import WhatsAppTemplate from './templates/WhatsAppTemplate';
 import FacebookTemplate from './templates/FacebookTemplate';
 import ScorecardTemplate from './templates/ScorecardTemplate';
 import BroadcastScorecardTemplate from './templates/BroadcastScorecardTemplate';
-import { TemplateProps } from './templates/types';
+import { TemplateProps, TeamFilter } from './templates/types';
 
 const empty: MatchResult = {
   matchCompleted: false,
@@ -48,6 +48,7 @@ export const MatchResultCapture: React.FC = () => {
   const [error, setError]         = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('whatsapp');
+  const [teamFilter, setTeamFilter] = useState<TeamFilter>('both');
 
   useEffect(() => {
     if (!matchId) return;
@@ -140,6 +141,7 @@ export const MatchResultCapture: React.FC = () => {
     match, result, tournament,
     firstTeamName, secondTeamName,
     firstCard, secondCard, motmName,
+    teamFilter,
   };
 
   const num = (val: number | undefined) => val ?? '';
@@ -353,19 +355,33 @@ export const MatchResultCapture: React.FC = () => {
       {/* ── Tab 2: Summary ── */}
       {activeTab === 2 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* Template selector */}
-          <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1.5, alignSelf: 'flex-start' }}>
-            <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>Template:</Typography>
-            <TextField
-              select size="small" value={selectedTemplate}
-              onChange={e => setSelectedTemplate(e.target.value)}
-              sx={{ minWidth: 200 }}
-            >
-              <MenuItem value="whatsapp">📱 WhatsApp Template</MenuItem>
-              <MenuItem value="facebook">📘 Facebook Template</MenuItem>
-              <MenuItem value="scorecard">📺 Scorecard Template</MenuItem>
-              <MenuItem value="broadcast">📡 Broadcast Scorecard</MenuItem>
-            </TextField>
+          {/* Template + team filter selectors */}
+          <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>Template:</Typography>
+              <TextField
+                select size="small" value={selectedTemplate}
+                onChange={e => setSelectedTemplate(e.target.value)}
+                sx={{ minWidth: 200 }}
+              >
+                <MenuItem value="whatsapp">📱 WhatsApp Template</MenuItem>
+                <MenuItem value="facebook">📘 Facebook Template</MenuItem>
+                <MenuItem value="scorecard">📺 Scorecard Template</MenuItem>
+                <MenuItem value="broadcast">📡 Broadcast Scorecard</MenuItem>
+              </TextField>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>View:</Typography>
+              <TextField
+                select size="small" value={teamFilter}
+                onChange={e => setTeamFilter(e.target.value as TeamFilter)}
+                sx={{ minWidth: 180 }}
+              >
+                <MenuItem value="both">Both Teams</MenuItem>
+                <MenuItem value="first">{firstTeamName}</MenuItem>
+                <MenuItem value="second">{secondTeamName}</MenuItem>
+              </TextField>
+            </Box>
           </Paper>
 
           {/* Active template */}

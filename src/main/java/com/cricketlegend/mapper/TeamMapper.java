@@ -5,7 +5,7 @@ import com.cricketlegend.dto.TeamDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-@Mapper(uses = {MediaContentMapper.class})
+@Mapper(uses = {MediaContentMapper.class, SponsorMapper.class})
 public interface TeamMapper {
     @Mapping(source = "associatedClub.clubId", target = "associatedClubId")
     @Mapping(source = "associatedClub.name", target = "associatedClubName")
@@ -18,5 +18,6 @@ public interface TeamMapper {
     @Mapping(target = "associatedClub", ignore = true)
     @Mapping(target = "captain", ignore = true)
     @Mapping(target = "homeField", ignore = true)
+    @Mapping(target = "sponsors", ignore = true)
     Team toEntity(TeamDTO dto);
 }

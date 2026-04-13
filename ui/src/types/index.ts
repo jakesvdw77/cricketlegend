@@ -135,6 +135,7 @@ export interface Team {
   websiteUrl?: string;
   facebookUrl?: string;
   mediaContent?: MediaContent[];
+  sponsors?: Sponsor[];
 }
 
 export interface TournamentTeam {

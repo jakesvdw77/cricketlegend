@@ -4,6 +4,7 @@ import com.cricketlegend.dto.SponsorDTO;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.SponsorMapper;
 import com.cricketlegend.repository.SponsorRepository;
+import com.cricketlegend.service.FileStorageService;
 import com.cricketlegend.service.SponsorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ public class SponsorServiceImpl implements SponsorService {
 
     private final SponsorRepository sponsorRepository;
     private final SponsorMapper sponsorMapper;
+    private final FileStorageService fileStorageService;
 
     @Override
     public List<SponsorDTO> findAll() {
@@ -45,9 +47,20 @@ public class SponsorServiceImpl implements SponsorService {
         existing.setName(dto.getName());
         existing.setBrandLogoUrl(dto.getBrandLogoUrl());
         existing.setBrandWebsite(dto.getBrandWebsite());
+        existing.setContactPerson(dto.getContactPerson());
         existing.setContactNumber(dto.getContactNumber());
         existing.setContactEmail(dto.getContactEmail());
         return sponsorMapper.toDto(sponsorRepository.save(existing));
+    }
+
+    @Override
+    @Transactional
+    public void removeLogo(Long id) {
+        var existing = sponsorRepository.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Sponsor", id));
+        fileStorageService.deleteFile(existing.getBrandLogoUrl());
+        existing.setBrandLogoUrl(null);
+        sponsorRepository.save(existing);
     }
 
     @Override
