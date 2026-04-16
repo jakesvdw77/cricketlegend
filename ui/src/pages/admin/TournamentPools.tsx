@@ -105,26 +105,6 @@ export const TournamentPools: React.FC = () => {
                           )}
                         </Box>
 
-                        {(team.email || team.contactNumber) && (
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
-                            {team.email && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Email sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {team.email}
-                                </Typography>
-                              </Box>
-                            )}
-                            {team.contactNumber && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Phone sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                <Typography variant="caption" color="text.secondary">
-                                  {team.contactNumber}
-                                </Typography>
-                              </Box>
-                            )}
-                          </Box>
-                        )}
                       </CardContent>
                     </Card>
                   </Grid>

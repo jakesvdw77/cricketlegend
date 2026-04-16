@@ -9,7 +9,9 @@ import {
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { sponsorApi } from '../api/sponsorApi';
-import { Match, MatchResultSummary, Sponsor } from '../types';
+import { mediaApi } from '../api/mediaApi';
+import { Match, MatchResultSummary, Sponsor, MediaContent } from '../types';
+import { MediaCarousel } from '../components/media/MediaCarousel';
 import keycloak from '../keycloak';
 
 const STAGE_LABEL: Record<string, string> = { POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
@@ -162,6 +164,7 @@ export const LandingPage: React.FC = () => {
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [recentResults, setRecentResults] = useState<MatchResultSummary[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [allMedia, setAllMedia] = useState<MediaContent[]>([]);
   const [sponsorIndex, setSponsorIndex] = useState(0);
   const [sponsorVisible, setSponsorVisible] = useState(true);
   const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -171,6 +174,7 @@ export const LandingPage: React.FC = () => {
     matchApi.findLive().then(setLiveMatches).catch(() => {});
     matchApi.findRecentResults(6).then(setRecentResults).catch(() => {});
     sponsorApi.findAll().then(setSponsors).catch(() => {});
+    mediaApi.search({}).then(setAllMedia).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -320,24 +324,22 @@ export const LandingPage: React.FC = () => {
       </Box>
 
       {/* Media Gallery */}
-      <Box sx={{ py: 8, bgcolor: 'background.paper' }}>
-        <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-            <PhotoLibrary color="primary" />
-            <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
-              Media Gallery
+      {allMedia.length > 0 && (
+        <Box sx={{ py: 8, bgcolor: 'background.paper' }}>
+          <Container maxWidth="lg">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+              <PhotoLibrary color="primary" />
+              <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
+                Media Gallery
+              </Typography>
+            </Box>
+            <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
+              Photos and highlights from our matches and tournaments.
             </Typography>
-          </Box>
-          <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-            Photos and highlights from our matches and tournaments.
-          </Typography>
-          <Box sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: 3, py: 8, textAlign: 'center', color: 'text.disabled' }}>
-            <PhotoLibrary sx={{ fontSize: 64, mb: 2 }} />
-            <Typography variant="h6">No photos yet</Typography>
-            <Typography variant="body2">Match and tournament photos will appear here.</Typography>
-          </Box>
-        </Container>
-      </Box>
+            <MediaCarousel items={allMedia} height={480} />
+          </Container>
+        </Box>
+      )}
 
       {/* Feature highlights */}
       <Box sx={{ bgcolor: 'background.paper' }}>

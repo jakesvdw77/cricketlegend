@@ -6,7 +6,7 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete,
   Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
-  Tabs, Tab, useMediaQuery, useTheme,
+  Tabs, Tab, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
 import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';

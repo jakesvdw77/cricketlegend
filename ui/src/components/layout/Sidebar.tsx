@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft, SportsCricket,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, FiberManualRecord,
+    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -73,12 +73,12 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         <ListItemText primary="Tournaments"/>
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/live')}>
-                        <ListItemIcon><FiberManualRecord sx={{ color: 'error.main' }}/></ListItemIcon>
+                        <ListItemIcon><Sensors /></ListItemIcon>
                         <ListItemText primary="Live Matches"/>
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/previous')}>
                         <ListItemIcon><History/></ListItemIcon>
-                        <ListItemText primary="Completed Matches"/>
+                        <ListItemText primary="Results"/>
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/scorecards')}>
                         <ListItemIcon><Assignment/></ListItemIcon>

@@ -82,16 +82,6 @@ export const TournamentView: React.FC = () => {
                   </InfoRow>
                 )}
 
-                {/* Fees */}
-                {(t.entryFee != null || t.registrationFee != null || t.matchFee != null) && (
-                  <InfoRow icon={<AttachMoney fontSize="small" color="action" />}>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {t.entryFee != null && <FeeChip label="Entry" amount={t.entryFee} />}
-                      {t.registrationFee != null && <FeeChip label="Registration" amount={t.registrationFee} />}
-                      {t.matchFee != null && <FeeChip label="Match" amount={t.matchFee} />}
-                    </Box>
-                  </InfoRow>
-                )}
 
                 {/* Winner */}
                 {t.winningTeamName && (

@@ -68,13 +68,8 @@ export const MediaCarousel: React.FC<Props> = ({
 
   return (
     <Box>
-      {title && (
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-          {title}
-        </Typography>
-      )}
       <Box
-        sx={{ position: 'relative', height, borderRadius: 2, overflow: 'hidden', bgcolor: 'transparent' }}
+        sx={{ position: 'relative', height, borderRadius: 2, overflow: 'hidden', bgcolor: '#0e1f0e' }}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
