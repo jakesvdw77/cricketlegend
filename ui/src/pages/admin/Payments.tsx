@@ -5,17 +5,21 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Chip, Divider,
   Autocomplete, Select, FormControl, InputLabel, Snackbar,
   Card, CardContent, ToggleButton, ToggleButtonGroup, Tooltip,
+  FormControlLabel, Checkbox,
 } from '@mui/material';
 import {
-  Add, Edit, Delete, Print, FilterAlt, AttachFile,
-  Person, Business, EmojiEvents,
+  Add, Edit, Delete, PictureAsPdf, FilterAlt, AttachFile,
+  Person, Business, EmojiEvents, CheckCircle, Cancel,
 } from '@mui/icons-material';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { paymentApi } from '../../api/paymentApi';
 import { playerApi } from '../../api/playerApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { clubApi } from '../../api/clubApi';
-import { Payment, PaymentType, PaymentCategory, Player, Sponsor, Tournament, Club } from '../../types';
+import { Payment, PaymentType, PaymentCategory, PaymentStatus, Player, Sponsor, Tournament, Club } from '../../types';
+import { useAuth } from '../../hooks/useAuth';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -49,15 +53,24 @@ const fmt = (v: number) =>
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
+const STATUS_LABELS: Record<PaymentStatus, string> = {
+  PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected',
+};
+const STATUS_COLORS: Record<PaymentStatus, 'warning' | 'success' | 'error'> = {
+  PENDING: 'warning', APPROVED: 'success', REJECTED: 'error',
+};
+
 const empty: Payment = {
   paymentType: 'PLAYER',
   paymentDate: new Date().toISOString().split('T')[0],
   amount: 0,
+  status: 'PENDING',
 };
 
 // ── component ─────────────────────────────────────────────────────────────
 
 export const Payments: React.FC = () => {
+  const { isAdmin } = useAuth();
   const [rows, setRows] = useState<Payment[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -67,6 +80,7 @@ export const Payments: React.FC = () => {
 
   // filters
   const [filterType, setFilterType] = useState<PaymentType | ''>('');
+  const [filterStatus, setFilterStatus] = useState<PaymentStatus | ''>('');
   const [filterPlayer, setFilterPlayer] = useState<Player | null>(null);
   const [filterSponsor, setFilterSponsor] = useState<Sponsor | null>(null);
   const [filterTournament, setFilterTournament] = useState<Tournament | null>(null);
@@ -87,6 +101,7 @@ export const Payments: React.FC = () => {
       sponsorId: filterSponsor?.sponsorId,
       tournamentId: filterTournament?.tournamentId,
       paymentType: filterType || undefined,
+      status: filterStatus || undefined,
       year: filterYear || undefined,
       month: filterMonth || undefined,
     }).then(setRows);
@@ -98,7 +113,19 @@ export const Payments: React.FC = () => {
     tournamentApi.findAll().then(setTournaments);
   }, []);
 
-  useEffect(() => { load(); }, [filterType, filterPlayer, filterSponsor, filterTournament, filterYear, filterMonth]);
+  useEffect(() => { load(); }, [filterType, filterStatus, filterPlayer, filterSponsor, filterTournament, filterYear, filterMonth]);
+
+  const setStatus = (id: number, status: PaymentStatus) =>
+    setRows(prev => prev.map(r => r.paymentId === id ? { ...r, status } : r));
+
+  const approve = async (r: Payment) => {
+    await paymentApi.approve(r.paymentId!, r);
+    setStatus(r.paymentId!, 'APPROVED');
+  };
+  const reject = async (r: Payment) => {
+    await paymentApi.reject(r.paymentId!, r);
+    setStatus(r.paymentId!, 'REJECTED');
+  };
 
   const set = (patch: Partial<Payment>) => setEditing(e => ({ ...e, ...patch }));
 
@@ -140,7 +167,10 @@ export const Payments: React.FC = () => {
     setOpen(true);
   };
 
-  const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+  const VAT_RATE = 0.15;
+  const subtotal = rows.reduce((s, r) => s + Number(r.amount), 0);
+  const vatTotal = rows.reduce((s, r) => s + (r.taxable ? Number(r.amount) * VAT_RATE : 0), 0);
+  const grandTotal = subtotal + vatTotal;
 
   // ── filter helpers
   const selectedPlayerObj = players.find(p => p.playerId === editing.playerId) ?? null;
@@ -156,16 +186,106 @@ export const Payments: React.FC = () => {
 
   const playerCategories: PaymentCategory[] = ['TOURNAMENT_FEE', 'ANNUAL_SUBSCRIPTION'];
 
+  const generatePdf = () => {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const now = new Date().toLocaleString('en-ZA');
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    doc.setFillColor(26, 82, 118);
+    doc.rect(0, 0, pageW, 22, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Cricket Legend', 14, 10);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Payments Report', 14, 17);
+    doc.setFontSize(9);
+    doc.text(`Generated: ${now}`, pageW - 14, 17, { align: 'right' });
+
+    // ── Summary boxes ────────────────────────────────────────────────────────
+    doc.setTextColor(0, 0, 0);
+    const summaryY = 28;
+    const boxW = 60;
+    const gap = 8;
+    const boxes = [
+      { label: 'Subtotal', value: fmt(subtotal) },
+      { label: 'VAT (15%)', value: fmt(vatTotal) },
+      { label: 'Grand Total (incl. VAT)', value: fmt(grandTotal) },
+      { label: 'Number of Payments', value: String(rows.length) },
+    ];
+    boxes.forEach((b, i) => {
+      const x = 14 + i * (boxW + gap);
+      doc.setDrawColor(200, 200, 200);
+      doc.setFillColor(245, 248, 250);
+      doc.roundedRect(x, summaryY, boxW, 18, 2, 2, 'FD');
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(b.label, x + 4, summaryY + 6);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(i === 2 ? 40 : 30, i === 2 ? 130 : 30, i === 2 ? 99 : 30);
+      doc.text(b.value, x + 4, summaryY + 14);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+    });
+
+    // ── Table ────────────────────────────────────────────────────────────────
+    const tableRows = rows.map(r => [
+      r.paymentDate,
+      TYPE_LABELS[r.paymentType],
+      r.playerName ?? r.sponsorName ?? '—',
+      r.paymentCategory ? CATEGORY_LABELS[r.paymentCategory] : '—',
+      r.tournamentName ?? '—',
+      r.description ?? '—',
+      fmt(Number(r.amount)),
+      r.taxable ? fmt(Number(r.amount) * VAT_RATE) : '—',
+      fmt(Number(r.amount) + (r.taxable ? Number(r.amount) * VAT_RATE : 0)),
+    ]);
+
+    autoTable(doc, {
+      startY: summaryY + 24,
+      head: [['Date', 'Type', 'Player / Sponsor', 'Category', 'Tournament', 'Description', 'Amount', 'VAT (15%)', 'Total']],
+      body: tableRows,
+      foot: [[
+        '', '', '', '', '', 'Subtotal', fmt(subtotal), '', '',
+      ], [
+        '', '', '', '', '', 'VAT (15%)', '', fmt(vatTotal), '',
+      ], [
+        '', '', '', '', '', 'Grand Total', '', '', fmt(grandTotal),
+      ]],
+      headStyles: { fillColor: [26, 82, 118], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      footStyles: { fillColor: [240, 244, 248], textColor: [50, 50, 50], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: {
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { halign: 'right', fontStyle: 'bold' },
+      },
+      styles: { overflow: 'linebreak', cellPadding: 2 },
+      didDrawPage: (data) => {
+        const pg = doc.getCurrentPageInfo().pageNumber;
+        const total = (doc.internal as any).pages?.length - 1 || pg;
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Page ${pg} of ${total}`, pageW - 14, doc.internal.pageSize.getHeight() - 6, { align: 'right' });
+        doc.text('Cricket Legend — Confidential', 14, doc.internal.pageSize.getHeight() - 6);
+      },
+    });
+
+    doc.save(`payments-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   return (
     <Box>
       {/* ── header ──────────────────────────────────────────────────────── */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h5">Payments</Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button variant="outlined" startIcon={<Print />}
-            onClick={() => window.print()}
-            sx={{ '@media print': { display: 'none' } }}>
-            Print
+          <Button variant="outlined" startIcon={<PictureAsPdf />} onClick={generatePdf}>
+            Download PDF
           </Button>
           <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
             Add Payment
@@ -244,22 +364,47 @@ export const Payments: React.FC = () => {
             </Select>
           </FormControl>
 
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <InputLabel>Status</InputLabel>
+            <Select label="Status" value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value as PaymentStatus | '')}>
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="PENDING">Pending</MenuItem>
+              <MenuItem value="APPROVED">Approved</MenuItem>
+              <MenuItem value="REJECTED">Rejected</MenuItem>
+            </Select>
+          </FormControl>
+
           <Button size="small" onClick={() => {
-            setFilterType(''); setFilterPlayer(null); setFilterSponsor(null);
+            setFilterType(''); setFilterStatus(''); setFilterPlayer(null); setFilterSponsor(null);
             setFilterTournament(null); setFilterYear(''); setFilterMonth('');
           }}>Clear</Button>
         </Box>
       </Paper>
 
       {/* ── summary ─────────────────────────────────────────────────────── */}
+
+      {/* ── summary ─────────────────────────────────────────────────────── */}
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-        <Card variant="outlined" sx={{ flex: 1, minWidth: 200 }}>
+        <Card variant="outlined" sx={{ flex: 1, minWidth: 160 }}>
           <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
-            <Typography variant="caption" color="text.secondary">Total Amount</Typography>
-            <Typography variant="h5" color="primary" fontWeight="bold">{fmt(total)}</Typography>
+            <Typography variant="caption" color="text.secondary">Subtotal</Typography>
+            <Typography variant="h5" color="primary" fontWeight="bold">{fmt(subtotal)}</Typography>
           </CardContent>
         </Card>
         <Card variant="outlined" sx={{ flex: 1, minWidth: 160 }}>
+          <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
+            <Typography variant="caption" color="text.secondary">VAT (15%)</Typography>
+            <Typography variant="h5" color="text.primary" fontWeight="bold">{fmt(vatTotal)}</Typography>
+          </CardContent>
+        </Card>
+        <Card variant="outlined" sx={{ flex: 1, minWidth: 160 }}>
+          <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
+            <Typography variant="caption" color="text.secondary">Grand Total (incl. VAT)</Typography>
+            <Typography variant="h5" color="secondary" fontWeight="bold">{fmt(grandTotal)}</Typography>
+          </CardContent>
+        </Card>
+        <Card variant="outlined" sx={{ flex: 1, minWidth: 120 }}>
           <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
             <Typography variant="caption" color="text.secondary">Payments</Typography>
             <Typography variant="h5" color="text.primary" fontWeight="bold">{rows.length}</Typography>
@@ -268,25 +413,31 @@ export const Payments: React.FC = () => {
       </Box>
 
       {/* ── table ───────────────────────────────────────────────────────── */}
-      <TableContainer component={Paper} id="print-area" sx={{ overflowX: 'auto' }}>
+      <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' } }}>
           <TableHead>
             <TableRow>
               <TableCell>Date</TableCell>
+              <TableCell>Status</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>Player / Sponsor</TableCell>
               <TableCell>Category</TableCell>
               <TableCell>Tournament</TableCell>
               <TableCell>Description</TableCell>
               <TableCell align="right">Amount</TableCell>
-              <TableCell sx={{ '@media print': { display: 'none' } }}>Proof</TableCell>
-              <TableCell sx={{ '@media print': { display: 'none' } }} />
+              <TableCell align="right">VAT (15%)</TableCell>
+              <TableCell align="right">Total</TableCell>
+              <TableCell>Proof</TableCell>
+              <TableCell />
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.map(r => (
               <TableRow key={r.paymentId}>
                 <TableCell>{r.paymentDate}</TableCell>
+                <TableCell>
+                  <Chip label={STATUS_LABELS[r.status ?? 'PENDING']} size="small" color={STATUS_COLORS[r.status ?? 'PENDING']} />
+                </TableCell>
                 <TableCell>
                   <Chip label={TYPE_LABELS[r.paymentType]} size="small" color={TYPE_COLORS[r.paymentType]} />
                 </TableCell>
@@ -303,7 +454,9 @@ export const Payments: React.FC = () => {
                   </Tooltip>
                 </TableCell>
                 <TableCell align="right"><strong>{fmt(Number(r.amount))}</strong></TableCell>
-                <TableCell sx={{ '@media print': { display: 'none' } }}>
+                <TableCell align="right">{r.taxable ? fmt(Number(r.amount) * VAT_RATE) : '—'}</TableCell>
+                <TableCell align="right"><strong>{fmt(Number(r.amount) + (r.taxable ? Number(r.amount) * VAT_RATE : 0))}</strong></TableCell>
+                <TableCell>
                   {r.proofOfPaymentUrl ? (
                     <Button size="small" variant="text" startIcon={<AttachFile />}
                       onClick={() => paymentApi.openProof(r.proofOfPaymentUrl!).catch(() => setSnack('Could not load proof of payment.'))}>
@@ -311,7 +464,17 @@ export const Payments: React.FC = () => {
                     </Button>
                   ) : '—'}
                 </TableCell>
-                <TableCell sx={{ '@media print': { display: 'none' } }}>
+                <TableCell>
+                  {isAdmin && (r.status === 'PENDING' || r.status == null) && (
+                    <>
+                      <Tooltip title="Approve">
+                        <IconButton size="small" color="success" onClick={() => approve(r)}><CheckCircle /></IconButton>
+                      </Tooltip>
+                      <Tooltip title="Reject">
+                        <IconButton size="small" color="error" onClick={() => reject(r)}><Cancel /></IconButton>
+                      </Tooltip>
+                    </>
+                  )}
                   <IconButton size="small" onClick={() => openEdit(r)}><Edit /></IconButton>
                   <IconButton size="small" color="error" onClick={() => remove(r.paymentId!)}><Delete /></IconButton>
                 </TableCell>
@@ -319,18 +482,32 @@ export const Payments: React.FC = () => {
             ))}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} align="center" sx={{ py: 3, color: 'text.secondary', fontStyle: 'italic' }}>
+                <TableCell colSpan={12} align="center" sx={{ py: 3, color: 'text.secondary', fontStyle: 'italic' }}>
                   No payments found.
                 </TableCell>
               </TableRow>
             )}
-            {/* total row */}
+            {/* totals rows */}
             {rows.length > 0 && (
-              <TableRow sx={{ '& td': { fontWeight: 'bold', borderTop: '2px solid' } }}>
-                <TableCell colSpan={6} align="right">Total</TableCell>
-                <TableCell align="right">{fmt(total)}</TableCell>
-                <TableCell colSpan={2} sx={{ '@media print': { display: 'none' } }} />
-              </TableRow>
+              <>
+                <TableRow sx={{ '& td': { borderTop: '2px solid' } }}>
+                  <TableCell colSpan={7} align="right">Subtotal</TableCell>
+                  <TableCell align="right"><strong>{fmt(subtotal)}</strong></TableCell>
+                  <TableCell /><TableCell /><TableCell colSpan={2} />
+                </TableRow>
+                <TableRow>
+                  <TableCell colSpan={7} align="right">VAT (15%)</TableCell>
+                  <TableCell />
+                  <TableCell align="right"><strong>{fmt(vatTotal)}</strong></TableCell>
+                  <TableCell /><TableCell colSpan={2} />
+                </TableRow>
+                <TableRow sx={{ '& td': { fontWeight: 'bold', bgcolor: 'action.hover' } }}>
+                  <TableCell colSpan={7} align="right">Grand Total (incl. VAT)</TableCell>
+                  <TableCell /><TableCell />
+                  <TableCell align="right">{fmt(grandTotal)}</TableCell>
+                  <TableCell colSpan={2} />
+                </TableRow>
+              </>
             )}
           </TableBody>
         </Table>
@@ -443,6 +620,24 @@ export const Payments: React.FC = () => {
               fullWidth required />
           </Box>
 
+          {/* VAT */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={!!editing.taxable}
+                  onChange={e => set({ taxable: e.target.checked })}
+                />
+              }
+              label="Subject to VAT (15%)"
+            />
+            {editing.taxable && (
+              <Typography variant="body2" color="text.secondary">
+                VAT: {fmt(Number(editing.amount) * VAT_RATE)} &nbsp;|&nbsp; Total incl. VAT: {fmt(Number(editing.amount) * 1.15)}
+              </Typography>
+            )}
+          </Box>
+
           {/* Description */}
           <TextField
             label={showAdHocDescription ? 'Description (required)' : 'Notes / Description'}
@@ -494,13 +689,6 @@ export const Payments: React.FC = () => {
 
       <Snackbar open={!!snack} autoHideDuration={4000} onClose={() => setSnack('')} message={snack} />
 
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #print-area, #print-area * { visibility: visible; }
-          #print-area { position: absolute; top: 0; left: 0; width: 100%; }
-        }
-      `}</style>
     </Box>
   );
 };

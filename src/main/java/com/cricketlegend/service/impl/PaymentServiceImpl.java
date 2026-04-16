@@ -1,6 +1,9 @@
 package com.cricketlegend.service.impl;
 
 import com.cricketlegend.domain.Payment;
+import com.cricketlegend.domain.Player;
+import com.cricketlegend.domain.enums.PaymentCategory;
+import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import com.cricketlegend.dto.PaymentDTO;
 import com.cricketlegend.exception.NotFoundException;
@@ -31,7 +34,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public List<PaymentDTO> findWithFilters(Long playerId, Long sponsorId, Long tournamentId,
-                                            PaymentType paymentType, Integer year, Integer month) {
+                                            PaymentType paymentType, PaymentStatus status, Integer year, Integer month) {
         LocalDate startDate = null;
         LocalDate endDate = null;
         if (year != null && month != null) {
@@ -55,6 +58,8 @@ public class PaymentServiceImpl implements PaymentService {
             stream = stream.filter(p -> p.getTournament() != null && tournamentId.equals(p.getTournament().getTournamentId()));
         if (paymentType != null)
             stream = stream.filter(p -> paymentType == p.getPaymentType());
+        if (status != null)
+            stream = stream.filter(p -> status == p.getStatus());
         if (sd != null)
             stream = stream.filter(p -> !p.getPaymentDate().isBefore(sd));
         if (ed != null)
@@ -89,6 +94,8 @@ public class PaymentServiceImpl implements PaymentService {
         existing.setAmount(dto.getAmount());
         existing.setDescription(dto.getDescription());
         existing.setProofOfPaymentUrl(dto.getProofOfPaymentUrl());
+        if (dto.getStatus() != null) existing.setStatus(dto.getStatus());
+        existing.setTaxable(dto.isTaxable());
         resolveRelations(existing, dto);
         return paymentMapper.toDto(paymentRepository.save(existing));
     }
@@ -98,6 +105,37 @@ public class PaymentServiceImpl implements PaymentService {
     public void delete(Long id) {
         if (!paymentRepository.existsById(id)) throw NotFoundException.of("Payment", id);
         paymentRepository.deleteById(id);
+    }
+
+    @Override
+    public List<PaymentDTO> findMine(String email) {
+        return playerRepository.findByEmailIgnoreCase(email)
+                .map(player -> paymentRepository.findAllWithRelations().stream()
+                        .filter(p -> p.getPlayer() != null && p.getPlayer().getPlayerId().equals(player.getPlayerId()))
+                        .map(paymentMapper::toDto)
+                        .toList())
+                .orElse(List.of());
+    }
+
+    @Override
+    @Transactional
+    public PaymentDTO submitProof(String email, PaymentDTO dto) {
+        Player player = playerRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new NotFoundException("No player account found for the logged-in user."));
+        Payment payment = new Payment();
+        payment.setPlayer(player);
+        payment.setPaymentType(PaymentType.PLAYER);
+        payment.setPaymentCategory(PaymentCategory.TOURNAMENT_FEE);
+        payment.setPaymentDate(LocalDate.now());
+        payment.setStatus(PaymentStatus.PENDING);
+        payment.setAmount(dto.getAmount());
+        payment.setDescription(dto.getDescription());
+        payment.setProofOfPaymentUrl(dto.getProofOfPaymentUrl());
+        if (dto.getTournamentId() != null) {
+            payment.setTournament(tournamentRepository.findById(dto.getTournamentId())
+                    .orElseThrow(() -> NotFoundException.of("Tournament", dto.getTournamentId())));
+        }
+        return paymentMapper.toDto(paymentRepository.save(payment));
     }
 
     private void resolveRelations(Payment payment, PaymentDTO dto) {

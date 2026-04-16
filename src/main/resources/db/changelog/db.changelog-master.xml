@@ -45,5 +45,7 @@
     <include file="db/changelog/v1/038-team-sponsor.sql"/>
     <include file="db/changelog/v1/039-sponsor-print-logo.sql"/>
     <include file="db/changelog/v1/040-notification-message.sql"/>
+    <include file="db/changelog/v1/041-payment-status.sql"/>
+    <include file="db/changelog/v1/042-payment-taxable.sql"/>
 
 </databaseChangeLog>

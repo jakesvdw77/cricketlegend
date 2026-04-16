@@ -1,6 +1,7 @@
 package com.cricketlegend.domain;
 
 import com.cricketlegend.domain.enums.PaymentCategory;
+import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -42,6 +43,13 @@ public class Payment {
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentStatus status = PaymentStatus.PENDING;
+
+    @Column(nullable = false)
+    private boolean taxable = false;
 
     @Column(columnDefinition = "TEXT")
     private String description;

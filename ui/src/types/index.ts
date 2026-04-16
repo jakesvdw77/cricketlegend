@@ -15,6 +15,7 @@ export type TossDecision = 'BAT' | 'BOWL';
 
 export type PaymentType = 'PLAYER' | 'SPONSOR' | 'AD_HOC';
 export type PaymentCategory = 'TOURNAMENT_FEE' | 'ANNUAL_SUBSCRIPTION' | 'SPONSORSHIP' | 'AD_HOC';
+export type PaymentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface Payment {
   paymentId?: number;
@@ -28,6 +29,8 @@ export interface Payment {
   tournamentName?: string;
   paymentDate: string;
   amount: number;
+  taxable?: boolean;
+  status?: PaymentStatus;
   description?: string;
   proofOfPaymentUrl?: string;
   createdAt?: string;

@@ -1,6 +1,7 @@
 package com.cricketlegend.dto;
 
 import com.cricketlegend.domain.enums.PaymentCategory;
+import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import lombok.*;
 
@@ -21,6 +22,8 @@ public class PaymentDTO {
     private String tournamentName;
     private LocalDate paymentDate;
     private BigDecimal amount;
+    private PaymentStatus status;
+    private boolean taxable;
     private String description;
     private String proofOfPaymentUrl;
     private LocalDateTime createdAt;

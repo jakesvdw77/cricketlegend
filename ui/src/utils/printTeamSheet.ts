@@ -27,12 +27,12 @@ export function printTeamSheet(match: Match, side: MatchSide, xi: Player[], capt
     ? `<tr class="twelfth"><td colspan="4">12th Man: <strong>${twelfth.name} ${twelfth.surname}</strong>${twelfth.shirtNumber ? ` (#${twelfth.shirtNumber})` : ''}</td></tr>`
     : '';
 
-  const sponsorLogos = (sponsors ?? []).filter(s => s.brandLogoUrl);
+  const sponsorLogos = (sponsors ?? []).filter(s => s.printLogoUrl || s.brandLogoUrl);
   const sponsorsHtml = sponsorLogos.length > 0
     ? `<div class="sponsors-section">
         <div class="sponsors-label">Sponsors</div>
         <div class="sponsors-logos">
-          ${sponsorLogos.map(s => `<img src="${s.brandLogoUrl}" alt="${s.name}" />`).join('')}
+          ${sponsorLogos.map(s => `<img src="${s.printLogoUrl || s.brandLogoUrl}" alt="${s.name}" />`).join('')}
         </div>
       </div>`
     : '';

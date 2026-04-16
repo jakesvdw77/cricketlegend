@@ -14,12 +14,12 @@ export function printSquad(team: Team, squad: Player[]): void {
     team.homeFieldName && `<span><strong>Home Ground:</strong> ${team.homeFieldName}</span>`,
   ].filter(Boolean).join('');
 
-  const sponsorLogos = (team.sponsors ?? []).filter((s: Sponsor) => s.brandLogoUrl);
+  const sponsorLogos = (team.sponsors ?? []).filter((s: Sponsor) => s.printLogoUrl || s.brandLogoUrl);
   const sponsorsHtml = sponsorLogos.length > 0
     ? `<div class="sponsors-section">
         <div class="sponsors-label">Sponsors</div>
         <div class="sponsors-logos">
-          ${sponsorLogos.map((s: Sponsor) => `<img src="${s.brandLogoUrl}" alt="${s.name}" />`).join('')}
+          ${sponsorLogos.map((s: Sponsor) => `<img src="${s.printLogoUrl || s.brandLogoUrl}" alt="${s.name}" />`).join('')}
         </div>
       </div>`
     : '';

@@ -1,5 +1,6 @@
 package com.cricketlegend.controller;
 
+import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import com.cricketlegend.dto.PaymentDTO;
 import com.cricketlegend.service.PaymentService;
@@ -9,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,9 +31,10 @@ public class PaymentController {
             @RequestParam(required = false) Long sponsorId,
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) PaymentType paymentType,
+            @RequestParam(required = false) PaymentStatus status,
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month) {
-        return ResponseEntity.ok(paymentService.findWithFilters(playerId, sponsorId, tournamentId, paymentType, year, month));
+        return ResponseEntity.ok(paymentService.findWithFilters(playerId, sponsorId, tournamentId, paymentType, status, year, month));
     }
 
     @GetMapping("/{id}")
@@ -59,5 +63,19 @@ public class PaymentController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         paymentService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/mine")
+    @Operation(summary = "Get payments for the currently logged-in player")
+    public ResponseEntity<List<PaymentDTO>> findMine(@AuthenticationPrincipal Jwt jwt) {
+        String email = jwt.getClaimAsString("email");
+        return ResponseEntity.ok(paymentService.findMine(email));
+    }
+
+    @PostMapping("/submit")
+    @Operation(summary = "Submit a proof of payment (player-initiated)")
+    public ResponseEntity<PaymentDTO> submitProof(@AuthenticationPrincipal Jwt jwt, @RequestBody PaymentDTO dto) {
+        String email = jwt.getClaimAsString("email");
+        return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.submitProof(email, dto));
     }
 }

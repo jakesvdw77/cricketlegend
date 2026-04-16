@@ -25,7 +25,6 @@ public class FileController {
     private final FileStorageService fileStorageService;
 
     @PostMapping("/upload")
-    @PreAuthorize("hasRole('admin')")
     @Operation(summary = "Upload a file (e.g. proof of payment)")
     public ResponseEntity<Map<String, String>> upload(@RequestParam("file") MultipartFile file) {
         String url = fileStorageService.store(file);

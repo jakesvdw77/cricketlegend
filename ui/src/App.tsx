@@ -31,6 +31,7 @@ import { TournamentResults } from './pages/view/TournamentResults';
 import { TournamentSponsors } from './pages/view/TournamentSponsors';
 
 import { MyProfile } from './pages/MyProfile';
+import { MyPayments } from './pages/MyPayments';
 
 // View pages
 import { PreviousMatches } from './pages/view/PreviousMatches';
@@ -74,6 +75,7 @@ function ThemedApp() {
           <Route element={<ProtectedLayout />}>
             <Route path="matches/upcoming" element={<UpcomingMatches />} />
             <Route path="profile" element={<MyProfile />} />
+            <Route path="my-payments" element={<MyPayments />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />
