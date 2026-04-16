@@ -37,6 +37,7 @@ export interface Sponsor {
   sponsorId?: number;
   name: string;
   brandLogoUrl?: string;
+  printLogoUrl?: string;
   brandWebsite?: string;
   contactPerson?: string;
   contactNumber?: string;
@@ -359,7 +360,7 @@ export interface MatchPoll {
 
 export interface PlayerNotification {
   notificationId: number;
-  type: 'POLL_AVAILABLE' | 'TEAM_ANNOUNCED';
+  type: 'POLL_AVAILABLE' | 'TEAM_ANNOUNCED' | 'MANAGER_MESSAGE';
   matchId?: number;
   teamId?: number;
   matchDate?: string;
@@ -367,6 +368,8 @@ export interface PlayerNotification {
   oppositionTeamName?: string;
   read: boolean;
   createdAt?: string;
+  subject?: string;
+  message?: string;
 }
 
 export interface MatchSide {

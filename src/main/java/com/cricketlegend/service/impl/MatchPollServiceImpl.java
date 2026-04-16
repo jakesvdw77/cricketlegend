@@ -8,6 +8,7 @@ import com.cricketlegend.dto.PlayerAvailabilityDTO;
 import com.cricketlegend.dto.PlayerNotificationDTO;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.repository.*;
+import com.cricketlegend.service.ManagerTeamService;
 import com.cricketlegend.service.MatchPollService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,6 +32,7 @@ public class MatchPollServiceImpl implements MatchPollService {
     private final MatchAvailabilityPollRepository pollRepository;
     private final PlayerAvailabilityRepository availabilityRepository;
     private final PlayerNotificationRepository notificationRepository;
+    private final ManagerTeamService managerTeamService;
 
     @Override
     public MatchPollDTO togglePoll(Long matchId, Long teamId, boolean open) {
@@ -150,6 +153,26 @@ public class MatchPollServiceImpl implements MatchPollService {
         notificationRepository.save(notification);
     }
 
+    @Override
+    public void sendManagerNotification(String subject, String message, String managerEmail) {
+        Set<Long> playerIds = managerTeamService.getSquadPlayerIdsForManager(managerEmail);
+        if (playerIds.isEmpty()) return;
+
+        List<Player> players = playerRepository.findAllById(playerIds);
+        List<PlayerNotification> notifications = players.stream()
+                .map(p -> PlayerNotification.builder()
+                        .player(p)
+                        .type(NotificationType.MANAGER_MESSAGE)
+                        .subject(subject)
+                        .message(message)
+                        .read(false)
+                        .createdAt(LocalDateTime.now())
+                        .build())
+                .toList();
+
+        notificationRepository.saveAll(notifications);
+    }
+
     private void sendPollNotifications(MatchAvailabilityPoll poll, Match match, Team team) {
         List<Long> squadIds = team.getSquadPlayerIds();
         if (squadIds == null || squadIds.isEmpty()) return;
@@ -220,6 +243,8 @@ public class MatchPollServiceImpl implements MatchPollService {
                 .oppositionTeamName(match != null && match.getOppositionTeam() != null ? match.getOppositionTeam().getTeamName() : null)
                 .read(n.isRead())
                 .createdAt(n.getCreatedAt())
+                .subject(n.getSubject())
+                .message(n.getMessage())
                 .build();
     }
 }

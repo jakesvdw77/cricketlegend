@@ -5,7 +5,8 @@ import {
   Accordion, AccordionSummary, AccordionDetails,
   Badge, Popover, List, ListItem, ListItemText, Divider,
 } from '@mui/material';
-import { Menu as MenuIcon, SportsCricket, Person, HelpOutline, ExpandMore, Notifications } from '@mui/icons-material';
+import { Menu as MenuIcon, SportsCricket, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode } from '@mui/icons-material';
+import { useColorMode } from '../../context/ColorModeContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
@@ -61,6 +62,7 @@ interface Props {
 
 export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
   const { username, firstName, lastName, email, isAdmin, logout } = useAuth();
+  const { mode, toggleMode } = useColorMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
@@ -91,7 +93,9 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
         setUnreadCount(prev => Math.max(0, prev - 1));
       }).catch(() => {});
     }
-    if (n.type === 'TEAM_ANNOUNCED' && n.matchId) {
+    if (n.type === 'MANAGER_MESSAGE') {
+      // message content shown inline, no navigation needed
+    } else if (n.type === 'TEAM_ANNOUNCED' && n.matchId) {
       navigate(`/matches/${n.matchId}/teamsheet`);
     } else if (n.matchId && n.teamId) {
       navigate(`/poll/${n.matchId}/${n.teamId}`);
@@ -100,6 +104,7 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
   };
 
   const notifLabel = (n: PlayerNotification) => {
+    if (n.type === 'MANAGER_MESSAGE') return n.subject ?? 'Message from manager';
     const match = `${n.homeTeamName ?? ''} vs ${n.oppositionTeamName ?? ''}`;
     if (n.type === 'TEAM_ANNOUNCED') return `You've made the team! ${match}`;
     return `Availability poll open: ${match}`;
@@ -118,6 +123,11 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
         {isAdmin && (
           <Chip label="Admin" color="warning" size="small" sx={{ mr: 2, color: 'white' }} />
         )}
+        <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+          <IconButton color="inherit" onClick={toggleMode} sx={{ mr: 0.5 }}>
+            {mode === 'dark' ? <LightMode /> : <DarkMode />}
+          </IconButton>
+        </Tooltip>
         <Tooltip title="Notifications">
           <IconButton color="inherit" onClick={openNotifications} sx={{ mr: 0.5 }}>
             <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="error">
@@ -174,14 +184,24 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
                   <ListItem
                     component="div"
                     onClick={() => handleNotifClick(n)}
-                    sx={{ bgcolor: n.read ? 'transparent' : 'action.hover', cursor: 'pointer' }}
+                    sx={{ bgcolor: n.read ? 'transparent' : 'action.hover', cursor: 'pointer', flexDirection: 'column', alignItems: 'flex-start' }}
                   >
                     <ListItemText
                       primary={notifLabel(n)}
-                      secondary={n.matchDate ?? ''}
+                      secondary={n.type === 'MANAGER_MESSAGE' ? undefined : (n.matchDate ?? '')}
                       primaryTypographyProps={{ variant: 'body2', fontWeight: n.read ? 'normal' : 'bold' }}
                       secondaryTypographyProps={{ variant: 'caption' }}
                     />
+                    {n.type === 'MANAGER_MESSAGE' && n.message && (
+                      <Box
+                        sx={{
+                          mt: 0.5, fontSize: '0.75rem', color: 'text.secondary',
+                          maxHeight: 80, overflow: 'hidden',
+                          '& p': { m: 0 }, '& ul, & ol': { pl: 2, m: 0 },
+                        }}
+                        dangerouslySetInnerHTML={{ __html: n.message }}
+                      />
+                    )}
                   </ListItem>
                   <Divider component="li" />
                 </React.Fragment>

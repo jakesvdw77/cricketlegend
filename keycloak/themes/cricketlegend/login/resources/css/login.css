@@ -1,21 +1,28 @@
-/* Cricket Legend Theme — matches landing page palette */
+/* Cricket Legend Theme — dark theme (matches app dark mode) */
 
-/* ── Background: landing page hero gradient ─────────────────────────────── */
+/* ── Variables ───────────────────────────────────────────────────────────── */
+:root {
+    --cl-bg-default:  #0e1f0e;
+    --cl-bg-paper:    #162d16;
+    --cl-bg-card:     #1a2e1a;
+    --cl-primary:     #4fa83a;
+    --cl-secondary:   #28b463;
+    --cl-text:        #e4f4df;
+    --cl-text-muted:  #98c490;
+    --cl-border:      rgba(100,180,90,0.2);
+    --cl-input-bg:    rgba(255,255,255,0.06);
+    --cl-input-focus: rgba(79,168,58,0.25);
+}
+
+/* ── Background ──────────────────────────────────────────────────────────── */
 body {
-    background: linear-gradient(135deg, #1a5276 0%, #1a5276 60%, #28b463 100%) fixed;
+    background: linear-gradient(135deg, var(--cl-bg-default) 0%, #1a3a1a 100%) fixed;
     background-attachment: fixed;
     margin: 0;
     padding: 0;
     min-height: 100vh;
-}
-
-/* Subtle texture overlay */
-body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.25);
-    z-index: 0;
+    color: var(--cl-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .login-pf-page {
@@ -23,7 +30,7 @@ body::before {
     z-index: 1;
 }
 
-/* ── Header ─────────────────────────────────────────────────────────────── */
+/* ── Header / title ──────────────────────────────────────────────────────── */
 #kc-header {
     display: flex;
     justify-content: center;
@@ -33,65 +40,71 @@ body::before {
 
 #kc-header-wrapper {
     color: #ffffff;
-    font-size: 1.6rem;
+    font-size: 1.8rem;
     font-weight: 700;
     letter-spacing: 1px;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-/* ── Center card ─────────────────────────────────────────────────────────── */
-.login-pf-page .login-pf-sidebar,
-#kc-content {
-    margin-left: auto;
-    margin-right: auto;
+    -webkit-text-stroke: 1px var(--cl-primary);
+    text-shadow:
+        -1px -1px 0 rgba(255,255,255,0.15),
+         1px -1px 0 rgba(255,255,255,0.15),
+        -1px  1px 0 rgba(255,255,255,0.15),
+         1px  1px 0 rgba(255,255,255,0.15),
+         0    0   6px rgba(79,168,58,0.25);
 }
 
 /* ── Login card ──────────────────────────────────────────────────────────── */
 .login-pf-page .card-pf {
-    background: rgba(10, 30, 60, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--cl-bg-paper);
+    border: 1px solid var(--cl-border);
     border-radius: 12px;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
     padding: 36px 32px;
-    max-width: 360px;
+    max-width: 380px;
     width: 100%;
     margin: 0 auto;
-    backdrop-filter: blur(6px);
 }
 
-/* ── Form labels ─────────────────────────────────────────────────────────── */
+/* ── Form title ──────────────────────────────────────────────────────────── */
+#kc-page-title,
+.login-pf-page h1,
+.login-pf-page h2,
+.login-pf-page h3 {
+    color: var(--cl-text);
+}
+
+/* ── Labels ──────────────────────────────────────────────────────────────── */
 .login-pf-page label {
-    color: #cce3f5;
+    color: var(--cl-text-muted);
     font-weight: 500;
 }
 
 /* ── Inputs ──────────────────────────────────────────────────────────────── */
 .login-pf-page .form-control {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: var(--cl-input-bg);
+    border: 1px solid var(--cl-border);
     border-radius: 6px;
-    color: #ffffff;
+    color: var(--cl-text);
     height: 44px;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .login-pf-page .form-control::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(228,244,223,0.35);
 }
 
 .login-pf-page .form-control:focus {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: #28b463;
-    box-shadow: 0 0 0 3px rgba(40, 180, 99, 0.3);
-    color: #ffffff;
+    background: rgba(255,255,255,0.09);
+    border-color: var(--cl-primary);
+    box-shadow: 0 0 0 3px var(--cl-input-focus);
+    color: var(--cl-text);
     outline: none;
 }
 
 /* ── Sign In button ──────────────────────────────────────────────────────── */
 .login-pf-page #kc-login,
 .login-pf-page .btn-primary {
-    background: #28b463 !important;
-    background-image: linear-gradient(180deg, #2ecc71, #28b463) !important;
+    background: var(--cl-primary) !important;
+    background-image: linear-gradient(180deg, #5ec244, var(--cl-primary)) !important;
     border: none !important;
     border-radius: 6px !important;
     color: #ffffff !important;
@@ -105,44 +118,49 @@ body::before {
 
 .login-pf-page #kc-login:hover,
 .login-pf-page .btn-primary:hover {
-    background: #1e8449 !important;
-    background-image: linear-gradient(180deg, #28b463, #1e8449) !important;
+    background: #3a8a2b !important;
+    background-image: linear-gradient(180deg, var(--cl-primary), #3a8a2b) !important;
 }
 
 /* ── Links ───────────────────────────────────────────────────────────────── */
 .login-pf-page a {
-    color: #5dde8e !important;
+    color: var(--cl-secondary) !important;
 }
 
 .login-pf-page a:hover {
-    color: #82e9aa !important;
+    color: #5dde8e !important;
     text-decoration: underline !important;
 }
 
-/* ── Remember me ─────────────────────────────────────────────────────────── */
+/* ── Remember me / checkbox ──────────────────────────────────────────────── */
 #rememberMe + label,
 .login-pf-page .checkbox label {
-    color: #b0cfe0;
+    color: var(--cl-text-muted);
+}
+
+/* ── Dividers ────────────────────────────────────────────────────────────── */
+.login-pf-page hr {
+    border-color: var(--cl-border);
 }
 
 /* ── Alert / error messages ──────────────────────────────────────────────── */
 .login-pf-page .alert-error {
-    background: rgba(183, 28, 28, 0.55);
+    background: rgba(183,28,28,0.4);
     border: 1px solid #e53935;
     border-radius: 6px;
     color: #ffcdd2;
 }
 
 .login-pf-page .alert-warning {
-    background: rgba(230, 81, 0, 0.45);
+    background: rgba(230,81,0,0.35);
     border: 1px solid #ff6d00;
     border-radius: 6px;
     color: #ffe0b2;
 }
 
 .login-pf-page .alert-success {
-    background: rgba(27, 94, 32, 0.5);
-    border: 1px solid #28b463;
+    background: rgba(27,94,32,0.45);
+    border: 1px solid var(--cl-primary);
     border-radius: 6px;
     color: #c8e6c9;
 }
@@ -150,9 +168,12 @@ body::before {
 /* ── Social / identity provider buttons ─────────────────────────────────── */
 .login-pf-page .zocial {
     border-radius: 6px;
+    background: var(--cl-bg-card) !important;
+    border: 1px solid var(--cl-border) !important;
+    color: var(--cl-text) !important;
 }
 
-/* ── Dividers ────────────────────────────────────────────────────────────── */
-.login-pf-page hr {
-    border-color: rgba(255, 255, 255, 0.15);
+.login-pf-page .zocial:hover {
+    background: rgba(79,168,58,0.12) !important;
+    border-color: var(--cl-primary) !important;
 }

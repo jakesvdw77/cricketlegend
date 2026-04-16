@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, TextField, Avatar, CircularProgress, Snackbar, TableSortLabel,
   TablePagination, Popover, FormGroup, FormControlLabel, Checkbox, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
-import { Add, Edit, Delete, OpenInNew, CloudUpload, ViewColumn } from '@mui/icons-material';
+import { Add, Edit, Delete, OpenInNew, CloudUpload, ViewColumn, HighlightOff } from '@mui/icons-material';
 import { clubApi } from '../../api/clubApi';
 import { paymentApi } from '../../api/paymentApi';
 import { Club } from '../../types';
@@ -241,16 +241,24 @@ export const Clubs: React.FC = () => {
                 {editing.name.charAt(0)}
               </Avatar>
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={uploading}
-                  sx={{ alignSelf: 'flex-start' }}
-                >
-                  {uploading ? 'Uploading…' : 'Upload Logo'}
-                </Button>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? 'Uploading…' : 'Upload Logo'}
+                  </Button>
+                  {editing.logoUrl && (
+                    <Tooltip title="Remove logo">
+                      <IconButton size="small" color="error" onClick={() => set({ logoUrl: undefined })}>
+                        <HighlightOff fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
               </Box>
             </Box>
           </Box>

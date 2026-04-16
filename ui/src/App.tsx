@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ColorModeProvider, useColorMode } from './context/ColorModeContext';
+import { lightTheme, darkTheme } from './theme';
 import { AppLayout } from './components/layout/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import keycloak from './keycloak';
@@ -22,6 +24,7 @@ import { MatchAvailabilityManager } from './pages/admin/MatchAvailabilityManager
 import { ManagerTeams } from './pages/admin/ManagerTeams';
 import { Managers } from './pages/admin/Managers';
 import { MediaLibrary } from './pages/admin/MediaLibrary';
+import { SendNotification } from './pages/admin/SendNotification';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
@@ -31,6 +34,7 @@ import { MyProfile } from './pages/MyProfile';
 
 // View pages
 import { PreviousMatches } from './pages/view/PreviousMatches';
+import { LiveMatches } from './pages/view/LiveMatches';
 import { Scorecards } from './pages/view/Scorecards';
 import { PlayerStatistics } from './pages/view/PlayerStatistics';
 import { UpcomingMatches } from './pages/view/UpcomingMatches';
@@ -38,13 +42,6 @@ import { MatchTeamSheet } from './pages/view/MatchTeamSheet';
 import { MatchAvailabilityPoll } from './pages/view/MatchAvailabilityPoll';
 import { MyAvailability } from './pages/view/MyAvailability';
 import { TeamsView } from './pages/view/TeamsView';
-
-const theme = createTheme({
-  palette: {
-    primary: { main: '#1a5276' },
-    secondary: { main: '#28b463' },
-  },
-});
 
 const LandingRoute: React.FC = () => {
   if (keycloak.authenticated) return <Navigate to="/matches/upcoming" replace />;
@@ -66,9 +63,10 @@ const ManagerRoute: React.FC<{ element: React.ReactElement }> = ({ element }) =>
   return (isAdmin || isManager) ? element : <Navigate to="/matches/upcoming" replace />;
 };
 
-export default function App() {
+function ThemedApp() {
+  const { mode } = useColorMode();
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={mode === 'dark' ? darkTheme : lightTheme}>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
@@ -84,6 +82,7 @@ export default function App() {
             <Route path="admin/tournaments" element={<ManagerRoute element={<Tournaments />} />} />
             <Route path="admin/matches" element={<ManagerRoute element={<Matches />} />} />
             <Route path="admin/media" element={<ManagerRoute element={<MediaLibrary />} />} />
+            <Route path="admin/send-notification" element={<ManagerRoute element={<SendNotification />} />} />
             <Route path="admin/matches/:matchId/teamsheet" element={<ManagerRoute element={<Teamsheet />} />} />
             <Route path="admin/matches/:matchId/result" element={<ManagerRoute element={<MatchResultCapture />} />} />
             <Route path="admin/matches/:matchId/availability" element={<ManagerRoute element={<MatchAvailabilityManager />} />} />
@@ -95,6 +94,7 @@ export default function App() {
             <Route path="admin/tournaments/:tournamentId/pools" element={<ManagerRoute element={<TournamentPools />} />} />
 
             {/* View routes (all authenticated users) */}
+            <Route path="matches/live" element={<LiveMatches />} />
             <Route path="matches/previous" element={<PreviousMatches />} />
             <Route path="matches/scorecards" element={<Scorecards />} />
             <Route path="player/statistics" element={<PlayerStatistics />} />
@@ -111,5 +111,13 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ColorModeProvider>
+      <ThemedApp />
+    </ColorModeProvider>
   );
 }

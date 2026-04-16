@@ -1,33 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Box, Typography, Button, AppBar, Toolbar, Avatar, Card, CardContent,
-  Chip, Divider, Grid, Container, Paper, Fade,
+  Chip, Divider, Grid, Container, Paper, Fade, Collapse, IconButton, useTheme,
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, LocationOn, AccessTime, Login, SportsCricket,
-  PhotoLibrary, FiberManualRecord, Handshake, Language,
+  PhotoLibrary, FiberManualRecord, Handshake, Language, ExpandMore, CheckCircle,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { sponsorApi } from '../api/sponsorApi';
-import { Match, Sponsor } from '../types';
+import { Match, MatchResultSummary, Sponsor } from '../types';
 import keycloak from '../keycloak';
 
 const STAGE_LABEL: Record<string, string> = { POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
 
-const today = () => new Date().toISOString().slice(0, 10);
-const tenDaysAgo = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 10);
-  return d.toISOString().slice(0, 10);
-};
-
-const isToday = (date?: string) => !!date && date === today();
-const isRecent = (date?: string) => !!date && date >= tenDaysAgo() && date < today();
-
 // ── Shared match card ────────────────────────────────────────────────────────
 
 const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
-  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, position: 'relative', overflow: 'visible' }}>
+  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper' }}>
     {live && (
       <Box sx={{
         position: 'absolute', top: -10, right: 12,
@@ -102,11 +92,75 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
   </Card>
 );
 
+// ── Result card ──────────────────────────────────────────────────────────────
+
+const ResultCard: React.FC<{ r: MatchResultSummary }> = ({ r }) => {
+  const scoreLine = (score?: number, wickets?: number, overs?: string) =>
+    score != null ? `${score}/${wickets ?? 0}${overs ? ` (${overs})` : ''}` : null;
+
+  const firstScore  = scoreLine(r.scoreBattingFirst,  r.wicketsLostBattingFirst,  r.oversBattingFirst);
+  const secondScore = scoreLine(r.scoreBattingSecond, r.wicketsLostBattingSecond, r.oversBattingSecond);
+
+  return (
+    <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, bgcolor: 'background.paper' }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+          <Typography variant="caption" color="text.secondary">{r.matchDate?.toString()}</Typography>
+          {r.matchDrawn
+            ? <Chip label="Draw" size="small" variant="outlined" />
+            : r.winningTeamName && (
+              <Chip icon={<CheckCircle sx={{ fontSize: '14px !important' }} />} label={r.winningTeamName} size="small" color="success" variant="outlined" />
+            )}
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
+          <Typography variant="subtitle1" fontWeight="bold" textAlign="right" sx={{ flex: 1 }}>
+            {r.homeTeamName}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ px: 0.5 }}>vs</Typography>
+          <Typography variant="subtitle1" fontWeight="bold" textAlign="left" sx={{ flex: 1 }}>
+            {r.oppositionTeamName}
+          </Typography>
+        </Box>
+
+        {(firstScore || secondScore) && (
+          <>
+            <Divider sx={{ mb: 1 }} />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+              {firstScore && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">{r.sideBattingFirstName}</Typography>
+                  <Typography variant="body2" fontWeight="bold">{firstScore}</Typography>
+                </Box>
+              )}
+              {secondScore && r.sideBattingFirstName && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {r.homeTeamName === r.sideBattingFirstName ? r.oppositionTeamName : r.homeTeamName}
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">{secondScore}</Typography>
+                </Box>
+              )}
+            </Box>
+          </>
+        )}
+
+        {r.matchOutcomeDescription && (
+          <Typography variant="caption" color="text.secondary" display="block" mt={1} sx={{ fontStyle: 'italic' }}>
+            {r.matchOutcomeDescription}
+          </Typography>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export const LandingPage: React.FC = () => {
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
-  const [previousMatches, setPreviousMatches] = useState<Match[]>([]);
+  const [liveMatches, setLiveMatches] = useState<Match[]>([]);
+  const [recentResults, setRecentResults] = useState<MatchResultSummary[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [sponsorIndex, setSponsorIndex] = useState(0);
   const [sponsorVisible, setSponsorVisible] = useState(true);
@@ -114,7 +168,8 @@ export const LandingPage: React.FC = () => {
 
   useEffect(() => {
     matchApi.findUpcoming().then(setUpcomingMatches).catch(() => {});
-    matchApi.findPrevious().then(setPreviousMatches).catch(() => {});
+    matchApi.findLive().then(setLiveMatches).catch(() => {});
+    matchApi.findRecentResults(6).then(setRecentResults).catch(() => {});
     sponsorApi.findAll().then(setSponsors).catch(() => {});
   }, []);
 
@@ -130,16 +185,24 @@ export const LandingPage: React.FC = () => {
     return () => { if (rotateRef.current) clearInterval(rotateRef.current); };
   }, [sponsors.length]);
 
-  const handleLogin = () => keycloak.login();
+  const [infoOpen, setInfoOpen] = useState(false);
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const outlineSx = isDark
+    ? {
+        color: '#dce8dc',
+        WebkitTextStroke: '1px #4fa83a',
+        textShadow: '0 0 6px rgba(79,168,58,0.25)',
+      }
+    : {};
 
-  const liveAndRecent = previousMatches.filter(m => isToday(m.matchDate) || isRecent(m.matchDate));
-  const liveMatches = liveAndRecent.filter(m => isToday(m.matchDate));
+  const handleLogin = () => keycloak.login();
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
 
       {/* Navbar */}
-      <AppBar position="sticky" sx={{ bgcolor: '#1a5276' }} elevation={2}>
+      <AppBar position="sticky" elevation={2}>
         <Toolbar sx={{ gap: 1 }}>
           <SportsCricket sx={{ mr: 1 }} />
           <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>
@@ -149,7 +212,7 @@ export const LandingPage: React.FC = () => {
             variant="outlined"
             startIcon={<Login />}
             onClick={handleLogin}
-            sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.6)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
+            sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.6)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
           >
             Login
           </Button>
@@ -158,82 +221,72 @@ export const LandingPage: React.FC = () => {
 
       {/* Hero */}
       <Box sx={{
-        background: 'linear-gradient(135deg, #1a5276 0%, #1a5276 60%, #28b463 100%)',
+        background: isDark
+          ? 'linear-gradient(135deg, #0e1f0e 0%, #1a3a1a 100%)'
+          : `linear-gradient(135deg, #1a5276 0%, #1a5276 60%, #28b463 100%)`,
         color: 'white',
-        py: { xs: 8, md: 12 },
+        py: { xs: 3, md: 4 },
         textAlign: 'center',
       }}>
         <Container maxWidth="md">
-          <SportsCricket sx={{ fontSize: 72, mb: 2, opacity: 0.9 }} />
-          <Typography variant="h2" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '2.2rem', md: '3.5rem' } }}>
-            Cricket Legend
-          </Typography>
-          <Typography variant="h6" sx={{ opacity: 0.85, mb: 4, fontWeight: 400 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
+            <SportsCricket sx={{ fontSize: 36, opacity: 0.9 }} />
+            <Typography variant="h4" fontWeight="bold" sx={{ fontSize: { xs: '1.6rem', md: '2rem' }, ...outlineSx }}>
+              Cricket Legend
+            </Typography>
+          </Box>
+          <Typography variant="body1" sx={{ opacity: 0.8, mt: 0.5 }}>
             Your complete cricket management platform — fixtures, results, standings and more.
           </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={<Login />}
-            onClick={handleLogin}
-            sx={{ bgcolor: '#28b463', '&:hover': { bgcolor: '#1e8449' }, px: 4, py: 1.5, fontSize: '1rem', borderRadius: 2 }}
-          >
-            Sign In to the App
-          </Button>
         </Container>
       </Box>
 
-      {/* Feature highlights */}
-      <Box sx={{ py: 8, bgcolor: 'grey.50' }}>
-        <Container maxWidth="lg">
-          <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom color="primary">
-            Everything you need for cricket
-          </Typography>
-          <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 6, maxWidth: 600, mx: 'auto' }}>
-            Manage tournaments, track results, view standings, and stay up to date with upcoming fixtures all in one place.
-          </Typography>
-          <Grid container spacing={3} justifyContent="center">
-            {[
-              { icon: <EmojiEvents sx={{ fontSize: 40, color: '#28b463' }} />, title: 'Tournaments', desc: 'Create and manage tournaments with pools, standings and results.' },
-              { icon: <CalendarMonth sx={{ fontSize: 40, color: '#1a5276' }} />, title: 'Fixtures', desc: 'Schedule matches, assign grounds and umpires, and track upcoming games.' },
-              { icon: <SportsCricket sx={{ fontSize: 40, color: '#28b463' }} />, title: 'Scorecards', desc: 'Full match results, scorecards and player statistics in one place.' },
-            ].map(f => (
-              <Grid item xs={12} sm={6} md={4} key={f.title}>
-                <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', height: '100%', borderRadius: 2 }}>
-                  {f.icon}
-                  <Typography variant="h6" fontWeight="bold" mt={1}>{f.title}</Typography>
-                  <Typography variant="body2" color="text.secondary" mt={0.5}>{f.desc}</Typography>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-        </Container>
-      </Box>
-
-      {/* Live & Recent Matches */}
-      {liveAndRecent.length > 0 && (
+      {/* Live Matches */}
+      {liveMatches.length > 0 && (
         <Box sx={{ py: 8 }}>
           <Container maxWidth="lg">
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
-              {liveMatches.length > 0 && (
-                <Chip
-                  icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
-                  label="LIVE"
-                  size="small"
-                  sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
-                />
-              )}
-              <Typography variant="h4" fontWeight="bold" color="primary">
-                Live &amp; Recent Matches
+              <Chip
+                icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
+                label="LIVE"
+                size="small"
+                sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
+              />
+              <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
+                Live Matches
               </Typography>
             </Box>
             <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-              Matches played today or in the last 10 days.
+              Matches happening today.
             </Typography>
             <Grid container spacing={2}>
-              {liveAndRecent.map(m => (
+              {liveMatches.map(m => (
                 <Grid item xs={12} sm={6} md={4} key={m.matchId}>
-                  <MatchCard m={m} live={isToday(m.matchDate)} />
+                  <MatchCard m={m} live />
+                </Grid>
+              ))}
+            </Grid>
+          </Container>
+        </Box>
+      )}
+
+      {/* Recent Results */}
+      {recentResults.length > 0 && (
+        <Box sx={{ py: 8, bgcolor: 'background.default' }}>
+          <Container maxWidth="lg">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+              <EmojiEvents color="primary" />
+              <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
+                Recent Results
+              </Typography>
+            </Box>
+            <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
+              Latest completed match outcomes.
+            </Typography>
+            <Grid container spacing={2}>
+              {recentResults.map(r => (
+                <Grid item xs={12} sm={6} md={4} key={r.matchId}>
+                  <ResultCard r={r} />
                 </Grid>
               ))}
             </Grid>
@@ -242,9 +295,9 @@ export const LandingPage: React.FC = () => {
       )}
 
       {/* Upcoming Matches */}
-      <Box sx={{ py: 8, bgcolor: liveAndRecent.length > 0 ? 'grey.50' : undefined }}>
+      <Box sx={{ py: 8, bgcolor: 'background.paper' }}>
         <Container maxWidth="lg">
-          <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom color="primary">
+          <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom color="primary" sx={outlineSx}>
             Upcoming Matches
           </Typography>
           <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
@@ -267,18 +320,18 @@ export const LandingPage: React.FC = () => {
       </Box>
 
       {/* Media Gallery */}
-      <Box sx={{ py: 8, bgcolor: 'grey.50' }}>
+      <Box sx={{ py: 8, bgcolor: 'background.paper' }}>
         <Container maxWidth="lg">
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
             <PhotoLibrary color="primary" />
-            <Typography variant="h4" fontWeight="bold" color="primary">
+            <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
               Media Gallery
             </Typography>
           </Box>
           <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
             Photos and highlights from our matches and tournaments.
           </Typography>
-          <Box sx={{ border: '2px dashed', borderColor: 'grey.300', borderRadius: 3, py: 8, textAlign: 'center', color: 'text.disabled' }}>
+          <Box sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: 3, py: 8, textAlign: 'center', color: 'text.disabled' }}>
             <PhotoLibrary sx={{ fontSize: 64, mb: 2 }} />
             <Typography variant="h6">No photos yet</Typography>
             <Typography variant="body2">Match and tournament photos will appear here.</Typography>
@@ -286,20 +339,62 @@ export const LandingPage: React.FC = () => {
         </Container>
       </Box>
 
+      {/* Feature highlights */}
+      <Box sx={{ bgcolor: 'background.paper' }}>
+        <Container maxWidth="lg">
+          <Box
+            onClick={() => setInfoOpen(o => !o)}
+            sx={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 1, cursor: 'pointer', py: 3, userSelect: 'none',
+            }}
+          >
+            <Typography variant="h5" fontWeight="bold" color="primary" sx={outlineSx}>
+              Everything you need for cricket
+            </Typography>
+            <IconButton size="small" sx={{ color: 'primary.main', transition: 'transform 0.25s', transform: infoOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              <ExpandMore />
+            </IconButton>
+          </Box>
+          <Collapse in={infoOpen} timeout={300}>
+            <Box sx={{ pb: 6 }}>
+              <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 6, maxWidth: 600, mx: 'auto' }}>
+                Manage tournaments, track results, view standings, and stay up to date with upcoming fixtures all in one place.
+              </Typography>
+              <Grid container spacing={3} justifyContent="center">
+                {[
+                  { icon: <EmojiEvents sx={{ fontSize: 40, color: 'secondary.main' }} />, title: 'Tournaments', desc: 'Create and manage tournaments with pools, standings and results.' },
+                  { icon: <CalendarMonth sx={{ fontSize: 40, color: 'primary.main' }} />, title: 'Fixtures', desc: 'Schedule matches, assign grounds and umpires, and track upcoming games.' },
+                  { icon: <SportsCricket sx={{ fontSize: 40, color: 'secondary.main' }} />, title: 'Scorecards', desc: 'Full match results, scorecards and player statistics in one place.' },
+                ].map(f => (
+                  <Grid item xs={12} sm={6} md={4} key={f.title}>
+                    <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', height: '100%', borderRadius: 2, bgcolor: 'background.paper' }}>
+                      {f.icon}
+                      <Typography variant="h6" fontWeight="bold" mt={1}>{f.title}</Typography>
+                      <Typography variant="body2" color="text.secondary" mt={0.5}>{f.desc}</Typography>
+                    </Paper>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          </Collapse>
+        </Container>
+      </Box>
+
       {/* Sponsors */}
       {sponsors.length > 0 && (
-        <Box sx={{ py: 6, bgcolor: 'grey.50' }}>
+        <Box sx={{ py: 6, bgcolor: 'background.paper' }}>
           <Container maxWidth="sm">
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
               <Handshake color="primary" />
-              <Typography variant="h5" fontWeight="bold" color="primary">
+              <Typography variant="h5" fontWeight="bold" color="primary" sx={outlineSx}>
                 Our Sponsors
               </Typography>
             </Box>
             <Fade in={sponsorVisible} timeout={400}>
               <Paper
                 variant="outlined"
-                sx={{ p: 3, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2.5 }}
+                sx={{ p: 3, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2.5, bgcolor: 'background.paper' }}
               >
                 <Avatar
                   src={sponsors[sponsorIndex].brandLogoUrl}
@@ -335,7 +430,7 @@ export const LandingPage: React.FC = () => {
                         key={i}
                         sx={{
                           width: 6, height: 6, borderRadius: '50%',
-                          bgcolor: i === sponsorIndex ? 'primary.main' : 'grey.300',
+                          bgcolor: i === sponsorIndex ? 'primary.main' : 'action.disabled',
                           transition: 'background-color 0.3s',
                           cursor: 'pointer',
                         }}
@@ -351,7 +446,14 @@ export const LandingPage: React.FC = () => {
       )}
 
       {/* Footer */}
-      <Box sx={{ bgcolor: '#1a5276', color: 'rgba(255,255,255,0.7)', py: 3, textAlign: 'center' }}>
+      <Box sx={{
+        background: isDark
+          ? 'linear-gradient(135deg, #0e1f0e 0%, #1a3a1a 100%)'
+          : 'linear-gradient(135deg, #1a5276 0%, #1a5276 60%, #28b463 100%)',
+        color: 'rgba(255,255,255,0.7)',
+        py: 3,
+        textAlign: 'center',
+      }}>
         <Typography variant="body2">
           © {new Date().getFullYear()} Cricket Legend. All rights reserved.
         </Typography>

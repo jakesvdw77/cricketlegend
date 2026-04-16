@@ -7,7 +7,9 @@ public class SponsorDTO {
     private Long sponsorId;
     private String name;
     private String brandLogoUrl;
+    private String printLogoUrl;
     private String brandWebsite;
+    private String contactPerson;
     private String contactNumber;
     private String contactEmail;
     private String address;

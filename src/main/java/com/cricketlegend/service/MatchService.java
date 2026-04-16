@@ -10,7 +10,8 @@ public interface MatchService {
     List<MatchDTO> findAll();
     MatchDTO findById(Long id);
     List<MatchDTO> findByTournament(Long tournamentId);
-    List<MatchDTO> findPreviousMatches();
+    List<MatchDTO> findCompletedMatches();
+    List<MatchDTO> findLiveMatches();
     List<MatchDTO> findUpcomingMatches();
     MatchDTO create(MatchDTO dto);
     MatchDTO update(Long id, MatchDTO dto);
@@ -18,4 +19,5 @@ public interface MatchService {
     MatchResultDTO getResult(Long matchId);
     MatchResultDTO saveResult(Long matchId, MatchResultDTO dto);
     List<MatchResultSummaryDTO> findResultsByTournament(Long tournamentId);
+    List<MatchResultSummaryDTO> findRecentResults(int limit);
 }

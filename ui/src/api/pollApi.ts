@@ -22,4 +22,7 @@ export const pollApi = {
 
   markRead: (notificationId: number) =>
     api.put(`/notifications/${notificationId}/read`),
+
+  sendNotification: (subject: string, message: string) =>
+    api.post('/notifications/send', { subject, message }),
 };

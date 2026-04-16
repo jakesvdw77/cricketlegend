@@ -1,63 +1,61 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Grid, Card, CardContent, Chip, Divider, Button, Avatar,
-  TextField, MenuItem,
 } from '@mui/material';
-import { CalendarMonth, LocationOn, EmojiEvents, ScoreboardOutlined, AccessTime } from '@mui/icons-material';
+import {
+  CalendarMonth, LocationOn, EmojiEvents, ScoreboardOutlined, AccessTime,
+  Summarize, Groups, Article, SportsScore, FiberManualRecord,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
-import { Match } from '../../types';
+import { mediaApi } from '../../api/mediaApi';
+import { Match, MediaContent } from '../../types';
+import { MediaCarousel } from '../../components/media/MediaCarousel';
+import MatchSummaryView, { SummaryView } from './MatchSummaryView';
 
-export const UpcomingMatches: React.FC = () => {
+export const LiveMatches: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [filterTournament, setFilterTournament] = useState('');
-  const [filterTeam, setFilterTeam] = useState('');
+  const [allMedia, setAllMedia] = useState<MediaContent[]>([]);
+  const [summaryMatch, setSummaryMatch] = useState<Match | null>(null);
+  const [summaryView, setSummaryView] = useState<SummaryView>('facebook');
   const navigate = useNavigate();
 
-  useEffect(() => { matchApi.findUpcoming().then(setMatches); }, []);
+  useEffect(() => { matchApi.findLive().then(setMatches); }, []);
 
-  const tournaments = useMemo(() =>
-    [...new Set(matches.map(m => m.tournamentName).filter(Boolean))].sort(),
-    [matches]);
+  useEffect(() => {
+    if (matches.length === 0) return;
+    const matchIds = matches.map(m => m.matchId).filter(Boolean) as number[];
+    Promise.all(matchIds.map(id => mediaApi.search({ matchId: id })))
+      .then(results => setAllMedia(results.flat()));
+  }, [matches]);
 
-  const teams = useMemo(() =>
-    [...new Set(matches.flatMap(m => [m.homeTeamName, m.oppositionTeamName]).filter(Boolean))].sort(),
-    [matches]);
-
-  const filtered = matches.filter(m => {
-    if (filterTournament && m.tournamentName !== filterTournament) return false;
-    if (filterTeam && m.homeTeamName !== filterTeam && m.oppositionTeamName !== filterTeam) return false;
-    return true;
-  });
+  if (summaryMatch) {
+    return <MatchSummaryView match={summaryMatch} view={summaryView} onBack={() => setSummaryMatch(null)} />;
+  }
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Upcoming Matches</Typography>
-      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-        <TextField
-          select label="Tournament" size="small" sx={{ minWidth: 200 }}
-          value={filterTournament} onChange={e => setFilterTournament(e.target.value)}
-        >
-          <MenuItem value="">All Tournaments</MenuItem>
-          {tournaments.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-        </TextField>
-        <TextField
-          select label="Team" size="small" sx={{ minWidth: 200 }}
-          value={filterTeam} onChange={e => setFilterTeam(e.target.value)}
-        >
-          <MenuItem value="">All Teams</MenuItem>
-          {teams.map(t => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-        </TextField>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Typography variant="h5">Live Matches</Typography>
+        <FiberManualRecord sx={{ color: 'error.main', fontSize: 14 }} />
       </Box>
-      {filtered.length === 0 && <Typography color="text.secondary">No upcoming matches scheduled.</Typography>}
+      {matches.length === 0 && (
+        <Typography color="text.secondary">No live or upcoming matches at this time.</Typography>
+      )}
       <Grid container spacing={2}>
-        {filtered.map(m => (
+        {matches.map(m => (
           <Grid item xs={12} sm={6} md={4} key={m.matchId} sx={{ display: 'flex' }}>
             <Card variant="outlined" sx={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Chip label={m.tournamentName} size="small" icon={<EmojiEvents />} color="primary" variant="outlined" />
-                  <Typography variant="caption" color="text.secondary">{m.matchDate}</Typography>
+                  <Chip
+                    label="Live"
+                    size="small"
+                    icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
+                    color="error"
+                    sx={{ fontWeight: 600 }}
+                  />
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, my: 1 }}>
                   <Avatar src={m.homeTeamLogoUrl} sx={{ width: 36, height: 36 }}>
@@ -75,7 +73,7 @@ export const UpcomingMatches: React.FC = () => {
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   {m.tossTime && <Chip size="small" icon={<AccessTime />} label={`Toss: ${m.tossTime}`} variant="outlined" />}
-                  <Chip size="small" icon={<CalendarMonth />} label={`${m.scheduledStartTime ?? 'TBA'}`} />
+                  <Chip size="small" icon={<CalendarMonth />} label={m.scheduledStartTime ?? 'TBA'} />
                   <Chip
                     size="small"
                     icon={<LocationOn />}
@@ -90,8 +88,27 @@ export const UpcomingMatches: React.FC = () => {
                 {m.umpire && <Typography variant="caption" display="block" mt={1}>Umpire: {m.umpire}</Typography>}
                 <Box sx={{ flexGrow: 1 }} />
                 <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
-                  <Button size="small" onClick={() => navigate(`/matches/${m.matchId}/teamsheet`)}>
-                    View Team Sheet
+                  <Button size="small" variant="outlined" startIcon={<Groups />} onClick={() => navigate(`/matches/${m.matchId}/teamsheet`)}>
+                    Team Sheet
+                  </Button>
+                  <Button size="small" variant="outlined" startIcon={<Article />} onClick={() => navigate(`/matches/scorecards?matchId=${m.matchId}`)}>
+                    Scorecard
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Summarize />}
+                    onClick={() => { setSummaryView('facebook'); setSummaryMatch(m); }}
+                  >
+                    Summary
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<SportsScore />}
+                    onClick={() => { setSummaryView('whatsapp'); setSummaryMatch(m); }}
+                  >
+                    Result
                   </Button>
                   {m.scoringUrl && (
                     <Button
@@ -112,6 +129,12 @@ export const UpcomingMatches: React.FC = () => {
           </Grid>
         ))}
       </Grid>
+
+      {allMedia.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <MediaCarousel items={allMedia} title="Match Media" />
+        </Box>
+      )}
     </Box>
   );
 };

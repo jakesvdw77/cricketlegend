@@ -8,7 +8,7 @@ import {
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
   Tabs, Tab, useMediaQuery, useTheme,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn, ContentCopy } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { teamApi } from '../../api/teamApi';
@@ -475,16 +475,24 @@ export const Tournaments: React.FC = () => {
                     {editing.name.charAt(0)}
                   </Avatar>
                   <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                      onClick={() => logoInputRef.current?.click()}
-                      disabled={uploading}
-                      sx={{ alignSelf: 'flex-start' }}
-                    >
-                      {uploading ? 'Uploading…' : 'Upload Logo'}
-                    </Button>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={uploading}
+                      >
+                        {uploading ? 'Uploading…' : 'Upload Logo'}
+                      </Button>
+                      {editing.logoUrl && (
+                        <Tooltip title="Remove logo">
+                          <IconButton size="small" color="error" onClick={() => set({ logoUrl: undefined })}>
+                            <HighlightOff fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   </Box>
                 </Box>
               </Box>

@@ -16,4 +16,6 @@ public class PlayerNotificationDTO {
     private String oppositionTeamName;
     private boolean read;
     private LocalDateTime createdAt;
+    private String subject;
+    private String message;
 }

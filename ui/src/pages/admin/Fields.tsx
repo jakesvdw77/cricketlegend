@@ -4,9 +4,9 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Link, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
-  Avatar, CircularProgress,
+  Avatar, CircularProgress, Tooltip,
 } from '@mui/material';
-import { Add, Edit, Delete, OpenInNew, ViewColumn, CloudUpload } from '@mui/icons-material';
+import { Add, Edit, Delete, OpenInNew, ViewColumn, CloudUpload, HighlightOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { fieldApi } from '../../api/fieldApi';
 import { clubApi } from '../../api/clubApi';
@@ -232,6 +232,13 @@ export const Fields: React.FC = () => {
             >
               {uploading ? 'Uploading…' : 'Upload Icon'}
             </Button>
+            {editing.iconUrl && (
+              <Tooltip title="Remove icon">
+                <IconButton size="small" color="error" onClick={() => set({ iconUrl: undefined })}>
+                  <HighlightOff fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Box>
           <TextField
             label="Name"

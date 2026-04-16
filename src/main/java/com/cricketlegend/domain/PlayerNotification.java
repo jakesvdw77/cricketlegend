@@ -28,4 +28,9 @@ public class PlayerNotification {
     private boolean read;
 
     private LocalDateTime createdAt;
+
+    private String subject;
+
+    @Column(columnDefinition = "TEXT")
+    private String message;
 }

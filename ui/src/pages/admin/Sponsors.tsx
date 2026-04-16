@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, Avatar, Link, CircularProgress, TableSortLabel,
+  DialogContent, DialogActions, TextField, Avatar, Link, CircularProgress, TableSortLabel, Tooltip,
 } from '@mui/material';
-import { Add, Edit, Delete, OpenInNew, CloudUpload } from '@mui/icons-material';
+import { Add, Edit, Delete, OpenInNew, CloudUpload, HighlightOff } from '@mui/icons-material';
 import { sponsorApi } from '../../api/sponsorApi';
 import { paymentApi } from '../../api/paymentApi';
 import { Sponsor } from '../../types';
@@ -17,8 +17,10 @@ export const Sponsors: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Sponsor>(empty);
   const [uploading, setUploading] = useState(false);
+  const [uploadingPrint, setUploadingPrint] = useState(false);
   const [viewLogoUrl, setViewLogoUrl] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const printLogoInputRef = useRef<HTMLInputElement>(null);
 
   const load = () => sponsorApi.findAll().then(setRows);
   useEffect(() => { load(); }, []);
@@ -48,6 +50,21 @@ export const Sponsors: React.FC = () => {
     } finally {
       setUploading(false);
       if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  };
+
+  const handlePrintLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPrint(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const url = await paymentApi.uploadFile(formData);
+      set({ printLogoUrl: url });
+    } finally {
+      setUploadingPrint(false);
+      if (printLogoInputRef.current) printLogoInputRef.current.value = '';
     }
   };
 
@@ -121,35 +138,72 @@ export const Sponsors: React.FC = () => {
         <DialogTitle>{editing.sponsorId ? 'Edit' : 'New'} Sponsor</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
 
-          {/* Logo upload + preview */}
+          {/* Brand logo upload + preview */}
           <Box>
-            <input
-                type="file"
-                ref={logoInputRef}
-                style={{ display: 'none' }}
-                accept="image/*"
-                onChange={handleLogoUpload}
-            />
+            <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleLogoUpload} />
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Avatar
-                  src={editing.brandLogoUrl ?? ''}
-                  variant="rounded"
-                  sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.brandLogoUrl ? 'pointer' : 'default' }}
-                  onClick={() => editing.brandLogoUrl && setViewLogoUrl(editing.brandLogoUrl)}
+                src={editing.brandLogoUrl ?? ''}
+                variant="rounded"
+                sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.brandLogoUrl ? 'pointer' : 'default' }}
+                onClick={() => editing.brandLogoUrl && setViewLogoUrl(editing.brandLogoUrl)}
               >
                 {editing.name.charAt(0)}
               </Avatar>
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Button
                     variant="outlined"
                     size="small"
                     startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
                     onClick={() => logoInputRef.current?.click()}
                     disabled={uploading}
-                    sx={{ alignSelf: 'flex-start' }}
-                >
-                  {uploading ? 'Uploading…' : 'Upload Logo'}
-                </Button>
+                  >
+                    {uploading ? 'Uploading…' : 'Upload Logo'}
+                  </Button>
+                  {editing.brandLogoUrl && (
+                    <Tooltip title="Remove logo">
+                      <IconButton size="small" color="error" onClick={() => set({ brandLogoUrl: undefined })}>
+                        <HighlightOff fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Print logo upload + preview */}
+          <Box>
+            <input type="file" ref={printLogoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePrintLogoUpload} />
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Avatar
+                src={editing.printLogoUrl ?? ''}
+                variant="rounded"
+                sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.printLogoUrl ? 'pointer' : 'default' }}
+                onClick={() => editing.printLogoUrl && setViewLogoUrl(editing.printLogoUrl)}
+              >
+                {editing.name.charAt(0)}
+              </Avatar>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={uploadingPrint ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => printLogoInputRef.current?.click()}
+                    disabled={uploadingPrint}
+                  >
+                    {uploadingPrint ? 'Uploading…' : 'Upload Print Logo'}
+                  </Button>
+                  {editing.printLogoUrl && (
+                    <Tooltip title="Remove print logo">
+                      <IconButton size="small" color="error" onClick={() => set({ printLogoUrl: undefined })}>
+                        <HighlightOff fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
               </Box>
             </Box>
           </Box>

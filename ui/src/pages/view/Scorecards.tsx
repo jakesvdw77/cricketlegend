@@ -76,7 +76,7 @@ export const Scorecards: React.FC = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    matchApi.findPrevious().then(setMatches);
+    matchApi.findCompleted().then(setMatches);
     const q = searchParams.get('matchId');
     if (q) setSelectedId(+q);
   }, []);

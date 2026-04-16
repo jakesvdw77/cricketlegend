@@ -49,10 +49,23 @@ public class MatchController {
         return ResponseEntity.ok(matchService.findResultsByTournament(tournamentId));
     }
 
-    @GetMapping("/previous")
-    @Operation(summary = "Get all previous completed matches")
-    public ResponseEntity<List<MatchDTO>> findPrevious() {
-        return ResponseEntity.ok(matchService.findPreviousMatches());
+    @GetMapping("/completed")
+    @Operation(summary = "Get all completed matches")
+    public ResponseEntity<List<MatchDTO>> findCompleted() {
+        return ResponseEntity.ok(matchService.findCompletedMatches());
+    }
+
+    @GetMapping("/live")
+    @Operation(summary = "Get today's live and upcoming matches (within 1 hour of start)")
+    public ResponseEntity<List<MatchDTO>> findLive() {
+        return ResponseEntity.ok(matchService.findLiveMatches());
+    }
+
+    @GetMapping("/recent-results")
+    @Operation(summary = "Get the most recent completed match results")
+    public ResponseEntity<List<MatchResultSummaryDTO>> findRecentResults(
+            @RequestParam(defaultValue = "6") int limit) {
+        return ResponseEntity.ok(matchService.findRecentResults(limit));
     }
 
     @GetMapping("/upcoming")

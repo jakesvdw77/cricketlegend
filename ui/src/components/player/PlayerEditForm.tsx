@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
 import {
   Box, TextField, MenuItem, Checkbox, FormControlLabel, Avatar,
-  Button, CircularProgress, Tooltip, ToggleButtonGroup, ToggleButton,
+  Button, CircularProgress, Tooltip, ToggleButtonGroup, ToggleButton, IconButton,
 } from '@mui/material';
-import { CloudUpload, Male, Female } from '@mui/icons-material';
+import { CloudUpload, Male, Female, HighlightOff } from '@mui/icons-material';
 import { paymentApi } from '../../api/paymentApi';
 import { Player, Club, BattingPosition, BattingStance, BowlingArm, BowlingType, ClothingSize, Gender } from '../../types';
 
@@ -52,16 +52,24 @@ export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, read
             {editing.name?.charAt(0)}
           </Avatar>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-              onClick={() => photoInputRef.current?.click()}
-              disabled={uploading}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              {uploading ? 'Uploading…' : 'Upload Photo'}
-            </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? 'Uploading…' : 'Upload Photo'}
+              </Button>
+              {editing.profilePictureUrl && (
+                <Tooltip title="Remove photo">
+                  <IconButton size="small" color="error" onClick={() => set({ profilePictureUrl: undefined })}>
+                    <HighlightOff fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
             {editing.playerId && (
               <ToggleButtonGroup
                 exclusive

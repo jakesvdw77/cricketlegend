@@ -89,6 +89,8 @@ public class PlayerServiceImpl implements PlayerService {
         existing.setWicketKeeper(dto.getWicketKeeper());
         existing.setPartTimeBowler(dto.getPartTimeBowler());
         existing.setGender(dto.getGender());
+        existing.setShirtSize(dto.getShirtSize());
+        existing.setPantSize(dto.getPantSize());
         resolveClub(existing, dto.getHomeClubId());
         return playerMapper.toDto(playerRepository.save(existing));
     }

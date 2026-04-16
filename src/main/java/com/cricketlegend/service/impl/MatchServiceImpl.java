@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -50,9 +51,25 @@ public class MatchServiceImpl implements MatchService {
     }
 
     @Override
-    public List<MatchDTO> findPreviousMatches() {
-        return matchRepository.findPreviousMatches(LocalDate.now())
+    public List<MatchDTO> findCompletedMatches() {
+        return matchRepository.findCompletedMatches()
                 .stream().map(matchMapper::toDto).toList();
+    }
+
+    @Override
+    public List<MatchDTO> findLiveMatches() {
+        LocalTime now = LocalTime.now();
+        return matchRepository.findTodaysMatches(LocalDate.now())
+                .stream()
+                .filter(m -> {
+                    // Exclude matches that are already fully completed
+                    if (m.getResult() != null && Boolean.TRUE.equals(m.getResult().getMatchCompleted())) return false;
+                    // Show if no start time, or if we are within 1 hour before (or past) the start time
+                    if (m.getScheduledStartTime() == null) return true;
+                    return !now.isBefore(m.getScheduledStartTime().minusHours(1));
+                })
+                .map(matchMapper::toDto)
+                .toList();
     }
 
     @Override
@@ -161,6 +178,14 @@ public class MatchServiceImpl implements MatchService {
     @Override
     public List<MatchResultSummaryDTO> findResultsByTournament(Long tournamentId) {
         return matchRepository.findCompletedByTournament(tournamentId).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    @Override
+    public List<MatchResultSummaryDTO> findRecentResults(int limit) {
+        return matchRepository.findCompletedMatches().stream()
+                .limit(limit)
                 .map(this::toSummary)
                 .toList();
     }
