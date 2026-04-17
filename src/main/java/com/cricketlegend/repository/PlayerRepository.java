@@ -9,5 +9,6 @@ import java.util.Optional;
 public interface PlayerRepository extends JpaRepository<Player, Long> {
     List<Player> findByNameContainingIgnoreCaseOrSurnameContainingIgnoreCase(String name, String surname);
     boolean existsByHomeClubClubId(Long clubId);
+    List<Player> findByHomeClubClubId(Long clubId);
     Optional<Player> findByEmailIgnoreCase(String email);
 }

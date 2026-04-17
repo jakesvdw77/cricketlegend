@@ -18,6 +18,8 @@ import { Fields } from './pages/admin/Fields';
 import { Clubs } from './pages/admin/Clubs';
 import { Sponsors } from './pages/admin/Sponsors';
 import { Payments } from './pages/admin/Payments';
+import { Reports } from './pages/admin/Reports';
+import { FundAllocation } from './pages/admin/FundAllocation';
 import { TournamentPools } from './pages/admin/TournamentPools';
 import { MatchResultCapture } from './pages/admin/MatchResultCapture';
 import { MatchAvailabilityManager } from './pages/admin/MatchAvailabilityManager';
@@ -32,6 +34,7 @@ import { TournamentSponsors } from './pages/view/TournamentSponsors';
 
 import { MyProfile } from './pages/MyProfile';
 import { MyPayments } from './pages/MyPayments';
+import { MyWallet } from './pages/MyWallet';
 
 // View pages
 import { PreviousMatches } from './pages/view/PreviousMatches';
@@ -76,6 +79,7 @@ function ThemedApp() {
             <Route path="matches/upcoming" element={<UpcomingMatches />} />
             <Route path="profile" element={<MyProfile />} />
             <Route path="my-payments" element={<MyPayments />} />
+            <Route path="my-wallet" element={<MyWallet />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />
@@ -93,6 +97,8 @@ function ThemedApp() {
             <Route path="admin/manager-teams" element={<AdminRoute element={<ManagerTeams />} />} />
             <Route path="admin/sponsors" element={<AdminRoute element={<Sponsors />} />} />
             <Route path="admin/payments" element={<AdminRoute element={<Payments />} />} />
+            <Route path="admin/reports" element={<AdminRoute element={<Reports />} />} />
+            <Route path="admin/fund-allocation" element={<AdminRoute element={<FundAllocation />} />} />
             <Route path="admin/tournaments/:tournamentId/pools" element={<ManagerRoute element={<TournamentPools />} />} />
 
             {/* View routes (all authenticated users) */}

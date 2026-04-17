@@ -54,6 +54,9 @@ public class Payment {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(columnDefinition = "TEXT")
+    private String rejectionReason;
+
     private String proofOfPaymentUrl;
 
     @Column(updatable = false)

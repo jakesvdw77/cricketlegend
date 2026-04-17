@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft, SportsCricket,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors,
+    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -100,6 +100,10 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         <ListItemIcon><Payments/></ListItemIcon>
                         <ListItemText primary="My Payments"/>
                     </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-wallet')}>
+                        <ListItemIcon><AccountBalanceWallet/></ListItemIcon>
+                        <ListItemText primary="My Wallet"/>
+                    </ListItemButton>
                 </List>
             </Collapse>
             <Divider/>
@@ -180,6 +184,14 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/payments')}>
                                 <ListItemIcon><Payments/></ListItemIcon>
                                 <ListItemText primary="Payments"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/reports')}>
+                                <ListItemIcon><BarChart/></ListItemIcon>
+                                <ListItemText primary="Reports"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/fund-allocation')}>
+                                <ListItemIcon><PieChart/></ListItemIcon>
+                                <ListItemText primary="Fund Allocation"/>
                             </ListItemButton>
                         </List>
                     </Collapse>

@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Paper, Table, TableHead, TableRow, TableCell,
-  TableBody, TableContainer, Chip, Divider, Autocomplete, TextField,
+  TableBody, TableContainer, TablePagination, Chip, Divider, Autocomplete, TextField,
   CircularProgress, Alert, Snackbar, Tooltip,
 } from '@mui/material';
 import { Upload, AttachFile, Add } from '@mui/icons-material';
+import { MenuItem } from '@mui/material';
 import { paymentApi } from '../api/paymentApi';
 import { tournamentApi } from '../api/tournamentApi';
-import { Payment, PaymentStatus, Tournament } from '../types';
+import { Payment, PaymentCategory, PaymentStatus, Tournament } from '../types';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(v);
@@ -27,8 +28,11 @@ export const MyPayments: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [snack, setSnack] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   // Form state
+  const [category, setCategory] = useState<PaymentCategory | ''>('');
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [amount, setAmount] = useState<number | ''>('');
   const [description, setDescription] = useState('');
@@ -65,17 +69,19 @@ export const MyPayments: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!tournament || !amount || !proofUrl) return;
+    if (!category || !amount || !proofUrl) return;
     setSubmitting(true);
     try {
       await paymentApi.submitProof({
-        tournamentId: tournament.tournamentId!,
+        tournamentId: tournament?.tournamentId,
+        paymentCategory: category,
         amount: Number(amount),
         description: description || undefined,
         proofOfPaymentUrl: proofUrl,
       });
       setSnack('Payment submitted successfully. It is now pending admin approval.');
       setShowForm(false);
+      setCategory('');
       setTournament(null);
       setAmount('');
       setDescription('');
@@ -88,7 +94,8 @@ export const MyPayments: React.FC = () => {
     }
   };
 
-  const canSubmit = !!tournament && !!amount && Number(amount) > 0 && !!proofUrl;
+  const canSubmit = !!category && !!amount && Number(amount) > 0 && !!proofUrl &&
+    (category !== 'TOURNAMENT_FEE' && category !== 'TOURNAMENT_REGISTRATION' || !!tournament);
 
   if (loading) {
     return (
@@ -119,14 +126,29 @@ export const MyPayments: React.FC = () => {
           </Typography>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Autocomplete
-              options={tournaments}
-              getOptionLabel={t => t.name}
-              value={tournament}
-              onChange={(_, v) => setTournament(v)}
-              renderInput={params => <TextField {...params} label="Tournament" required />}
-              isOptionEqualToValue={(o, v) => o.tournamentId === v.tournamentId}
-            />
+            <TextField
+              select
+              label="Payment Category"
+              value={category}
+              onChange={e => { setCategory(e.target.value as PaymentCategory); setTournament(null); }}
+              required
+            >
+              <MenuItem value="TOURNAMENT_FEE">Tournament Fee</MenuItem>
+              <MenuItem value="TOURNAMENT_REGISTRATION">Tournament Registration</MenuItem>
+              <MenuItem value="ANNUAL_SUBSCRIPTION">Annual Subscription</MenuItem>
+              <MenuItem value="OTHER">Other</MenuItem>
+            </TextField>
+
+            {(category === 'TOURNAMENT_FEE' || category === 'TOURNAMENT_REGISTRATION') && (
+              <Autocomplete
+                options={tournaments}
+                getOptionLabel={t => t.name}
+                value={tournament}
+                onChange={(_, v) => setTournament(v)}
+                renderInput={params => <TextField {...params} label="Tournament" required />}
+                isOptionEqualToValue={(o, v) => o.tournamentId === v.tournamentId}
+              />
+            )}
 
             <TextField
               label="Amount (R)"
@@ -214,6 +236,7 @@ export const MyPayments: React.FC = () => {
               <TableRow>
                 <TableCell>Date</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell>Category</TableCell>
                 <TableCell>Tournament</TableCell>
                 <TableCell>Description</TableCell>
                 <TableCell align="right">Amount</TableCell>
@@ -221,7 +244,7 @@ export const MyPayments: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {payments.map(p => (
+              {payments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(p => (
                 <TableRow key={p.paymentId}>
                   <TableCell>{p.paymentDate}</TableCell>
                   <TableCell>
@@ -231,6 +254,7 @@ export const MyPayments: React.FC = () => {
                       color={STATUS_COLORS[p.status ?? 'PENDING']}
                     />
                   </TableCell>
+                  <TableCell>{p.paymentCategory ? p.paymentCategory.replace('_', ' ') : '—'}</TableCell>
                   <TableCell>{p.tournamentName ?? '—'}</TableCell>
                   <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <Tooltip title={p.description ?? ''}>
@@ -254,6 +278,15 @@ export const MyPayments: React.FC = () => {
               ))}
             </TableBody>
           </Table>
+          <TablePagination
+            component="div"
+            count={payments.length}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[20, 30, 50]}
+          />
         </TableContainer>
       )}
 

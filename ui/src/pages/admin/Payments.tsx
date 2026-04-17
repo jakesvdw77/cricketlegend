@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import {
   Add, Edit, Delete, PictureAsPdf, FilterAlt, AttachFile,
-  Person, Business, EmojiEvents, CheckCircle, Cancel,
+  Person, Business, EmojiEvents, CheckCircle, Cancel, Undo,
 } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -38,9 +38,11 @@ const TYPE_LABELS: Record<PaymentType, string> = {
 
 const CATEGORY_LABELS: Record<PaymentCategory, string> = {
   TOURNAMENT_FEE: 'Tournament Fee',
+  TOURNAMENT_REGISTRATION: 'Tournament Registration',
   ANNUAL_SUBSCRIPTION: 'Annual Subscription',
   SPONSORSHIP: 'Sponsorship',
   AD_HOC: 'Ad Hoc',
+  OTHER: 'Other',
 };
 
 const TYPE_COLORS: Record<PaymentType, 'primary' | 'secondary' | 'warning'> = {
@@ -118,13 +120,44 @@ export const Payments: React.FC = () => {
   const setStatus = (id: number, status: PaymentStatus) =>
     setRows(prev => prev.map(r => r.paymentId === id ? { ...r, status } : r));
 
-  const approve = async (r: Payment) => {
-    await paymentApi.approve(r.paymentId!, r);
-    setStatus(r.paymentId!, 'APPROVED');
+  // Approval confirmation dialog
+  const [approveTarget, setApproveTarget] = useState<Payment | null>(null);
+
+  const confirmApprove = async () => {
+    if (!approveTarget) return;
+    const updated = { ...approveTarget, status: 'APPROVED' as PaymentStatus };
+    await paymentApi.update(approveTarget.paymentId!, updated);
+    setRows(prev => prev.map(r => r.paymentId === approveTarget.paymentId ? updated : r));
+    setApproveTarget(null);
+    setSnack('Payment approved.');
   };
-  const reject = async (r: Payment) => {
-    await paymentApi.reject(r.paymentId!, r);
-    setStatus(r.paymentId!, 'REJECTED');
+
+  // Rejection dialog
+  const [rejectTarget, setRejectTarget] = useState<Payment | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const openReject = (r: Payment) => { setRejectTarget(r); setRejectReason(''); };
+  const confirmReject = async () => {
+    if (!rejectTarget || !rejectReason.trim()) return;
+    const updated = { ...rejectTarget, status: 'REJECTED' as PaymentStatus, rejectionReason: rejectReason.trim() };
+    await paymentApi.update(rejectTarget.paymentId!, updated);
+    setRows(prev => prev.map(r => r.paymentId === rejectTarget.paymentId ? updated : r));
+    setRejectTarget(null);
+    setSnack('Payment rejected.');
+  };
+
+  // Reversal dialog
+  const [reversalTarget, setReversalTarget] = useState<Payment | null>(null);
+  const [reversalReason, setReversalReason] = useState('');
+
+  const openReversal = (r: Payment) => { setReversalTarget(r); setReversalReason(''); };
+  const confirmReversal = async () => {
+    if (!reversalTarget || !reversalReason.trim()) return;
+    const updated = { ...reversalTarget, status: 'PENDING' as PaymentStatus, rejectionReason: undefined, description: reversalReason.trim() + (reversalTarget.description ? `\n\n[Previous note] ${reversalTarget.description}` : '') };
+    await paymentApi.update(reversalTarget.paymentId!, updated);
+    setRows(prev => prev.map(r => r.paymentId === reversalTarget.paymentId ? updated : r));
+    setReversalTarget(null);
+    setSnack('Payment reversed to pending.');
   };
 
   const set = (patch: Partial<Payment>) => setEditing(e => ({ ...e, ...patch }));
@@ -180,11 +213,11 @@ export const Payments: React.FC = () => {
   const showPlayerField = editing.paymentType === 'PLAYER';
   const showSponsorField = editing.paymentType === 'SPONSOR';
   const showTournamentField =
-    (editing.paymentType === 'PLAYER' && editing.paymentCategory === 'TOURNAMENT_FEE') ||
+    (editing.paymentType === 'PLAYER' && (editing.paymentCategory === 'TOURNAMENT_FEE' || editing.paymentCategory === 'TOURNAMENT_REGISTRATION')) ||
     (editing.paymentType === 'SPONSOR');
   const showAdHocDescription = editing.paymentType === 'AD_HOC';
 
-  const playerCategories: PaymentCategory[] = ['TOURNAMENT_FEE', 'ANNUAL_SUBSCRIPTION'];
+  const playerCategories: PaymentCategory[] = ['TOURNAMENT_FEE', 'TOURNAMENT_REGISTRATION', 'ANNUAL_SUBSCRIPTION', 'OTHER'];
 
   const generatePdf = () => {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -452,6 +485,11 @@ export const Payments: React.FC = () => {
                   <Tooltip title={r.description ?? ''} placement="top">
                     <span>{r.description ?? '—'}</span>
                   </Tooltip>
+                  {r.rejectionReason && (
+                    <Tooltip title={`Rejection reason: ${r.rejectionReason}`} placement="top">
+                      <Chip label="Reason" size="small" color="error" variant="outlined" sx={{ ml: 0.5, fontSize: 10, height: 18 }} />
+                    </Tooltip>
+                  )}
                 </TableCell>
                 <TableCell align="right"><strong>{fmt(Number(r.amount))}</strong></TableCell>
                 <TableCell align="right">{r.taxable ? fmt(Number(r.amount) * VAT_RATE) : '—'}</TableCell>
@@ -468,12 +506,17 @@ export const Payments: React.FC = () => {
                   {isAdmin && (r.status === 'PENDING' || r.status == null) && (
                     <>
                       <Tooltip title="Approve">
-                        <IconButton size="small" color="success" onClick={() => approve(r)}><CheckCircle /></IconButton>
+                        <IconButton size="small" color="success" onClick={() => setApproveTarget(r)}><CheckCircle /></IconButton>
                       </Tooltip>
                       <Tooltip title="Reject">
-                        <IconButton size="small" color="error" onClick={() => reject(r)}><Cancel /></IconButton>
+                        <IconButton size="small" color="error" onClick={() => openReject(r)}><Cancel /></IconButton>
                       </Tooltip>
                     </>
+                  )}
+                  {isAdmin && r.status === 'REJECTED' && (
+                    <Tooltip title="Reverse rejection">
+                      <IconButton size="small" color="warning" onClick={() => openReversal(r)}><Undo /></IconButton>
+                    </Tooltip>
                   )}
                   <IconButton size="small" onClick={() => openEdit(r)}><Edit /></IconButton>
                   <IconButton size="small" color="error" onClick={() => remove(r.paymentId!)}><Delete /></IconButton>
@@ -516,7 +559,7 @@ export const Payments: React.FC = () => {
       {/* ── add/edit dialog ─────────────────────────────────────────────── */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.paymentId ? 'Edit' : 'New'} Payment</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
 
           {/* Payment type */}
           <TextField select label="Payment Type" value={editing.paymentType}
@@ -684,6 +727,108 @@ export const Payments: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={save}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Approval confirmation dialog */}
+      <Dialog open={!!approveTarget} onClose={() => setApproveTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Approve Payment</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Please confirm you want to approve the following payment:
+          </Typography>
+          <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" color="text.secondary">Player / Sponsor</Typography>
+              <Typography variant="body2" fontWeight="bold">{approveTarget?.playerName ?? approveTarget?.sponsorName ?? '—'}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" color="text.secondary">Tournament</Typography>
+              <Typography variant="body2">{approveTarget?.tournamentName ?? '—'}</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" color="text.secondary">Date</Typography>
+              <Typography variant="body2">{approveTarget?.paymentDate}</Typography>
+            </Box>
+            <TextField
+              label="Description"
+              value={approveTarget?.description ?? ''}
+              onChange={e => setApproveTarget(t => t ? { ...t, description: e.target.value } : t)}
+              multiline
+              rows={2}
+              fullWidth
+              size="small"
+            />
+            <Divider sx={{ my: 0.5 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" color="text.secondary">Amount</Typography>
+              <Typography variant="body1" fontWeight="bold" color="success.main">{fmt(Number(approveTarget?.amount ?? 0))}</Typography>
+            </Box>
+            {approveTarget?.taxable && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="text.secondary">Total incl. VAT (15%)</Typography>
+                <Typography variant="body1" fontWeight="bold" color="success.main">{fmt(Number(approveTarget.amount) * 1.15)}</Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setApproveTarget(null)}>Cancel</Button>
+          <Button variant="contained" color="success" onClick={confirmApprove}>
+            Confirm Approval
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Rejection dialog */}
+      <Dialog open={!!rejectTarget} onClose={() => setRejectTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Payment</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Enter a reason for rejecting this payment. The reason will be stored with the record.
+          </Typography>
+          <TextField
+            label="Rejection Reason"
+            value={rejectReason}
+            onChange={e => setRejectReason(e.target.value)}
+            multiline
+            rows={3}
+            fullWidth
+            required
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRejectTarget(null)}>Cancel</Button>
+          <Button variant="contained" color="error" disabled={!rejectReason.trim()} onClick={confirmReject}>
+            Reject Payment
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reversal dialog */}
+      <Dialog open={!!reversalTarget} onClose={() => setReversalTarget(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Reverse Rejection</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Enter a reason for reversing this rejection. The payment will be set back to <strong>Pending</strong>.
+          </Typography>
+          <TextField
+            label="Reason"
+            value={reversalReason}
+            onChange={e => setReversalReason(e.target.value)}
+            multiline
+            rows={3}
+            fullWidth
+            required
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReversalTarget(null)}>Cancel</Button>
+          <Button variant="contained" color="warning" disabled={!reversalReason.trim()} onClick={confirmReversal}>
+            Reverse to Pending
+          </Button>
         </DialogActions>
       </Dialog>
 

@@ -1,5 +1,5 @@
 import api from './axiosConfig';
-import { Payment, PaymentType } from '../types';
+import { AllocationResultDTO, Payment, PaymentType, WalletDTO } from '../types';
 
 export interface PaymentFilters {
   playerId?: number;
@@ -35,13 +35,32 @@ export const paymentApi = {
   findMine: () => api.get<Payment[]>('/payments/mine').then(r => r.data),
 
   /** Player-initiated payment submission (proof of payment) */
-  submitProof: (dto: { tournamentId: number; amount: number; description?: string; proofOfPaymentUrl: string }) =>
+  submitProof: (dto: { tournamentId?: number; paymentCategory?: string; amount: number; description?: string; proofOfPaymentUrl: string }) =>
     api.post<Payment>('/payments/submit', dto).then(r => r.data),
 
   uploadFile: (formData: FormData) =>
     api.post<{ url: string }>('/files/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(r => r.data.url),
+
+  /** Get the calling player's wallet balance and transactions */
+  getWallet: () => api.get<WalletDTO>('/payments/wallet/me').then(r => r.data),
+
+  /** Allocate annual subscription funds from player wallets for a club */
+  allocateAnnualSubscription: (clubId: number) =>
+    api.post<AllocationResultDTO>('/payments/allocate/annual-subscription', null, { params: { clubId } }).then(r => r.data),
+
+  /** Allocate annual subscription funds for a single player */
+  allocatePlayerAnnualSubscription: (playerId: number, amount: number) =>
+    api.post<AllocationResultDTO>(`/payments/allocate/annual-subscription/player/${playerId}`, null, { params: { amount } }).then(r => r.data),
+
+  /** Get wallet balances for all players in a club (admin) */
+  getClubWalletBalances: (clubId: number) =>
+    api.get<Record<number, number>>(`/payments/wallet/club/${clubId}`).then(r => r.data),
+
+  /** Get annual subscription allocation totals per player for a club (admin) */
+  getClubAllocationTotals: (clubId: number) =>
+    api.get<Record<number, number>>(`/payments/allocations/club/${clubId}`).then(r => r.data),
 
   /** Fetches the file with auth token and opens it in a new tab as a blob URL */
   openProof: async (storedUrl: string): Promise<void> => {

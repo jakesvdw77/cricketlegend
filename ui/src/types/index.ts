@@ -14,7 +14,7 @@ export type TossWinner = 'HOME' | 'OPPOSITION';
 export type TossDecision = 'BAT' | 'BOWL';
 
 export type PaymentType = 'PLAYER' | 'SPONSOR' | 'AD_HOC';
-export type PaymentCategory = 'TOURNAMENT_FEE' | 'ANNUAL_SUBSCRIPTION' | 'SPONSORSHIP' | 'AD_HOC';
+export type PaymentCategory = 'TOURNAMENT_FEE' | 'TOURNAMENT_REGISTRATION' | 'ANNUAL_SUBSCRIPTION' | 'SPONSORSHIP' | 'AD_HOC' | 'OTHER';
 export type PaymentStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface Payment {
@@ -32,8 +32,31 @@ export interface Payment {
   taxable?: boolean;
   status?: PaymentStatus;
   description?: string;
+  rejectionReason?: string;
   proofOfPaymentUrl?: string;
   createdAt?: string;
+}
+
+export interface WalletAllocationDTO {
+  id: number;
+  playerId: number;
+  playerName: string;
+  amount: number;
+  category: string;
+  description?: string;
+  allocationDate: string;
+  createdAt?: string;
+}
+
+export interface AllocationResultDTO {
+  allocated: { playerId: number; playerName: string; amount: number }[];
+  skipped: { playerId: number; playerName: string; reason: string; walletBalance: number; required: number }[];
+}
+
+export interface WalletDTO {
+  balance: number;
+  transactions: Payment[];
+  allocations: WalletAllocationDTO[];
 }
 
 export interface Sponsor {

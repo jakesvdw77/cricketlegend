@@ -2,7 +2,9 @@ package com.cricketlegend.service;
 
 import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
+import com.cricketlegend.dto.AllocationResultDTO;
 import com.cricketlegend.dto.PaymentDTO;
+import com.cricketlegend.dto.WalletDTO;
 
 import java.util.List;
 
@@ -14,4 +16,9 @@ public interface PaymentService {
     void delete(Long id);
     List<PaymentDTO> findMine(String email);
     PaymentDTO submitProof(String email, PaymentDTO dto);
+    WalletDTO getWallet(String email);
+    AllocationResultDTO allocateAnnualSubscription(Long clubId);
+    AllocationResultDTO allocatePlayerAnnualSubscription(Long playerId, java.math.BigDecimal amount);
+    java.util.Map<Long, java.math.BigDecimal> getClubWalletBalances(Long clubId);
+    java.util.Map<Long, java.math.BigDecimal> getClubAllocationTotals(Long clubId);
 }

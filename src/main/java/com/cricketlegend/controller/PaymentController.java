@@ -2,7 +2,9 @@ package com.cricketlegend.controller;
 
 import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
+import com.cricketlegend.dto.AllocationResultDTO;
 import com.cricketlegend.dto.PaymentDTO;
+import com.cricketlegend.dto.WalletDTO;
 import com.cricketlegend.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -77,5 +79,42 @@ public class PaymentController {
     public ResponseEntity<PaymentDTO> submitProof(@AuthenticationPrincipal Jwt jwt, @RequestBody PaymentDTO dto) {
         String email = jwt.getClaimAsString("email");
         return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.submitProof(email, dto));
+    }
+
+    @GetMapping("/wallet/me")
+    @Operation(summary = "Get the wallet balance and transactions for the logged-in player")
+    public ResponseEntity<WalletDTO> getWallet(@AuthenticationPrincipal Jwt jwt) {
+        String email = jwt.getClaimAsString("email");
+        return ResponseEntity.ok(paymentService.getWallet(email));
+    }
+
+    @PostMapping("/allocate/annual-subscription")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Allocate annual subscription funds from player wallets for a club")
+    public ResponseEntity<AllocationResultDTO> allocateAnnualSubscription(@RequestParam Long clubId) {
+        return ResponseEntity.ok(paymentService.allocateAnnualSubscription(clubId));
+    }
+
+    @GetMapping("/wallet/club/{clubId}")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Get wallet balances for all players in a club")
+    public ResponseEntity<java.util.Map<Long, java.math.BigDecimal>> getClubWalletBalances(@PathVariable Long clubId) {
+        return ResponseEntity.ok(paymentService.getClubWalletBalances(clubId));
+    }
+
+    @GetMapping("/allocations/club/{clubId}")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Get annual subscription allocation totals per player for a club")
+    public ResponseEntity<java.util.Map<Long, java.math.BigDecimal>> getClubAllocationTotals(@PathVariable Long clubId) {
+        return ResponseEntity.ok(paymentService.getClubAllocationTotals(clubId));
+    }
+
+    @PostMapping("/allocate/annual-subscription/player/{playerId}")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Allocate annual subscription funds from a single player's wallet")
+    public ResponseEntity<AllocationResultDTO> allocatePlayerAnnualSubscription(
+            @PathVariable Long playerId,
+            @RequestParam java.math.BigDecimal amount) {
+        return ResponseEntity.ok(paymentService.allocatePlayerAnnualSubscription(playerId, amount));
     }
 }

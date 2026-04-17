@@ -25,6 +25,7 @@ public class PaymentDTO {
     private PaymentStatus status;
     private boolean taxable;
     private String description;
+    private String rejectionReason;
     private String proofOfPaymentUrl;
     private LocalDateTime createdAt;
 }
