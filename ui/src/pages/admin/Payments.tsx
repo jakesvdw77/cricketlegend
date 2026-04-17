@@ -619,7 +619,7 @@ export const Payments: React.FC = () => {
           {/* Category */}
           {showPlayerField && (
             <TextField select label="Category" value={editing.paymentCategory ?? ''}
-              onChange={e => set({ paymentCategory: e.target.value as PaymentCategory, tournamentId: undefined })}>
+              onChange={e => set({ paymentCategory: e.target.value as PaymentCategory, tournamentId: undefined, amount: 0 })}>
               {playerCategories.map(c => (
                 <MenuItem key={c} value={c}>{CATEGORY_LABELS[c]}</MenuItem>
               ))}
@@ -638,7 +638,16 @@ export const Payments: React.FC = () => {
               options={tournaments}
               getOptionLabel={t => t.name}
               value={selectedTournamentObj}
-              onChange={(_, v) => set({ tournamentId: v?.tournamentId })}
+              onChange={(_, v) => {
+                const patch: Partial<Payment> = { tournamentId: v?.tournamentId };
+                if (v) {
+                  const fee = editing.paymentCategory === 'TOURNAMENT_REGISTRATION' ? v.registrationFee
+                            : editing.paymentCategory === 'TOURNAMENT_FEE' ? v.matchFee
+                            : undefined;
+                  if (fee != null) patch.amount = Number(fee);
+                }
+                set(patch);
+              }}
               renderInput={params => (
                 <TextField {...params} label="Tournament"
                   helperText={editing.paymentType === 'SPONSOR' ? 'Leave blank for once-off sponsorship' : undefined}

@@ -49,5 +49,6 @@
     <include file="db/changelog/v1/042-payment-taxable.sql"/>
     <include file="db/changelog/v1/043-payment-rejection-reason.sql"/>
     <include file="db/changelog/v1/044-wallet-allocation.sql"/>
+    <include file="db/changelog/v1/045-wallet-allocation-year.sql"/>
 
 </databaseChangeLog>

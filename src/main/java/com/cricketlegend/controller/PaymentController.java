@@ -114,7 +114,8 @@ public class PaymentController {
     @Operation(summary = "Allocate annual subscription funds from a single player's wallet")
     public ResponseEntity<AllocationResultDTO> allocatePlayerAnnualSubscription(
             @PathVariable Long playerId,
-            @RequestParam java.math.BigDecimal amount) {
-        return ResponseEntity.ok(paymentService.allocatePlayerAnnualSubscription(playerId, amount));
+            @RequestParam java.math.BigDecimal amount,
+            @RequestParam(required = false) Integer year) {
+        return ResponseEntity.ok(paymentService.allocatePlayerAnnualSubscription(playerId, amount, year));
     }
 }

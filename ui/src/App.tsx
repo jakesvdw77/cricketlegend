@@ -33,7 +33,6 @@ import { TournamentResults } from './pages/view/TournamentResults';
 import { TournamentSponsors } from './pages/view/TournamentSponsors';
 
 import { MyProfile } from './pages/MyProfile';
-import { MyPayments } from './pages/MyPayments';
 import { MyWallet } from './pages/MyWallet';
 
 // View pages
@@ -78,7 +77,7 @@ function ThemedApp() {
           <Route element={<ProtectedLayout />}>
             <Route path="matches/upcoming" element={<UpcomingMatches />} />
             <Route path="profile" element={<MyProfile />} />
-            <Route path="my-payments" element={<MyPayments />} />
+            <Route path="my-payments" element={<Navigate to="/my-wallet" replace />} />
             <Route path="my-wallet" element={<MyWallet />} />
 
             {/* Admin routes */}

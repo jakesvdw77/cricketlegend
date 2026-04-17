@@ -96,10 +96,6 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         <ListItemIcon><HowToVote/></ListItemIcon>
                         <ListItemText primary="My Availability"/>
                     </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-payments')}>
-                        <ListItemIcon><Payments/></ListItemIcon>
-                        <ListItemText primary="My Payments"/>
-                    </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/my-wallet')}>
                         <ListItemIcon><AccountBalanceWallet/></ListItemIcon>
                         <ListItemText primary="My Wallet"/>

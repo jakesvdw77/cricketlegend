@@ -51,8 +51,8 @@ export const paymentApi = {
     api.post<AllocationResultDTO>('/payments/allocate/annual-subscription', null, { params: { clubId } }).then(r => r.data),
 
   /** Allocate annual subscription funds for a single player */
-  allocatePlayerAnnualSubscription: (playerId: number, amount: number) =>
-    api.post<AllocationResultDTO>(`/payments/allocate/annual-subscription/player/${playerId}`, null, { params: { amount } }).then(r => r.data),
+  allocatePlayerAnnualSubscription: (playerId: number, amount: number, year: number) =>
+    api.post<AllocationResultDTO>(`/payments/allocate/annual-subscription/player/${playerId}`, null, { params: { amount, year } }).then(r => r.data),
 
   /** Get wallet balances for all players in a club (admin) */
   getClubWalletBalances: (clubId: number) =>

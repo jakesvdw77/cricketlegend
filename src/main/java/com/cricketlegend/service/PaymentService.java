@@ -18,7 +18,7 @@ public interface PaymentService {
     PaymentDTO submitProof(String email, PaymentDTO dto);
     WalletDTO getWallet(String email);
     AllocationResultDTO allocateAnnualSubscription(Long clubId);
-    AllocationResultDTO allocatePlayerAnnualSubscription(Long playerId, java.math.BigDecimal amount);
+    AllocationResultDTO allocatePlayerAnnualSubscription(Long playerId, java.math.BigDecimal amount, Integer year);
     java.util.Map<Long, java.math.BigDecimal> getClubWalletBalances(Long clubId);
     java.util.Map<Long, java.math.BigDecimal> getClubAllocationTotals(Long clubId);
 }

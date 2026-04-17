@@ -29,6 +29,9 @@ public class WalletAllocation {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column
+    private Integer subscriptionYear;
+
     @Column(nullable = false)
     private LocalDate allocationDate;
 

@@ -204,11 +204,12 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public AllocationResultDTO allocatePlayerAnnualSubscription(Long playerId, BigDecimal amount) {
+    public AllocationResultDTO allocatePlayerAnnualSubscription(Long playerId, BigDecimal amount, Integer year) {
         Player player = playerRepository.findById(playerId)
                 .orElseThrow(() -> NotFoundException.of("Player", playerId));
         List<Payment> allPayments = paymentRepository.findAllWithRelations();
         String fullName = player.getName() + " " + player.getSurname();
+        int subscriptionYear = (year != null) ? year : LocalDate.now().getYear();
 
         // Check wallet balance
         BigDecimal walletIncome = allPayments.stream()
@@ -237,7 +238,8 @@ public class PaymentServiceImpl implements PaymentService {
                 .player(player)
                 .amount(amount)
                 .category("ANNUAL_SUBSCRIPTION")
-                .description("Annual subscription allocation")
+                .description("Annual subscription " + subscriptionYear)
+                .subscriptionYear(subscriptionYear)
                 .allocationDate(LocalDate.now())
                 .build());
 

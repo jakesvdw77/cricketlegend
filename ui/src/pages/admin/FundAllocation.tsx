@@ -4,6 +4,7 @@ import {
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
   CircularProgress, Alert, Chip, Button, IconButton, Tooltip, Dialog,
   DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemText, Divider, Snackbar,
+  ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
 import { Subscriptions, SportsScore, Category, CheckCircle, Warning, AccountBalanceWallet, ReceiptLong } from '@mui/icons-material';
 import { clubApi } from '../../api/clubApi';
@@ -50,6 +51,7 @@ const AnnualSubscriptionTab: React.FC = () => {
   const [allocatingPlayerId, setAllocatingPlayerId] = useState<number | null>(null);
   const [amountDialog, setAmountDialog] = useState<{ playerId: number; playerName: string; walletBalance: number } | null>(null);
   const [amountInput, setAmountInput] = useState<string>('');
+  const [yearInput, setYearInput] = useState<number>(new Date().getFullYear());
   const [result, setResult] = useState<AllocationResultDTO | null>(null);
   const [snack, setSnack] = useState('');
   const [paymentsDialog, setPaymentsDialog] = useState<{ playerId: number; playerName: string; walletBalance: number; payments: Payment[] } | null>(null);
@@ -108,6 +110,7 @@ const AnnualSubscriptionTab: React.FC = () => {
   const handleAllocatePlayer = (playerId: number, playerName: string) => {
     const balance = Number(walletBalances[playerId] ?? 0);
     setAmountInput('');
+    setYearInput(new Date().getFullYear());
     setAmountDialog({ playerId, playerName, walletBalance: balance });
   };
 
@@ -118,7 +121,7 @@ const AnnualSubscriptionTab: React.FC = () => {
     setAmountDialog(null);
     setAllocatingPlayerId(amountDialog.playerId);
     try {
-      const res = await paymentApi.allocatePlayerAnnualSubscription(amountDialog.playerId, amount);
+      const res = await paymentApi.allocatePlayerAnnualSubscription(amountDialog.playerId, amount, yearInput);
       if (res.allocated.length > 0) {
         setSnack(`Allocated ${fmt(Number(res.allocated[0].amount))} for ${amountDialog.playerName}.`);
         load(selectedClubId);
@@ -144,6 +147,7 @@ const AnnualSubscriptionTab: React.FC = () => {
   const handleSelectPayment = (payment: Payment) => {
     if (!paymentsDialog) return;
     setAmountInput(String(payment.amount));
+    setYearInput(new Date().getFullYear());
     setAmountDialog({ playerId: paymentsDialog.playerId, playerName: paymentsDialog.playerName, walletBalance: paymentsDialog.walletBalance });
     setPaymentsDialog(null);
   };
@@ -354,10 +358,24 @@ const AnnualSubscriptionTab: React.FC = () => {
       {/* ── Amount dialog ────────────────────────────────────────────────── */}
       <Dialog open={!!amountDialog} onClose={() => setAmountDialog(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Allocate Funds — {amountDialog?.playerName}</DialogTitle>
-        <DialogContent sx={{ pt: '20px !important' }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <DialogContent sx={{ pt: '20px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
             Available wallet balance: <strong>{fmt(amountDialog?.walletBalance ?? 0)}</strong>
           </Typography>
+          <Box>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+              Subscription Year
+            </Typography>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={yearInput}
+              onChange={(_, v) => { if (v !== null) setYearInput(v); }}
+            >
+              <ToggleButton value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</ToggleButton>
+              <ToggleButton value={new Date().getFullYear()}>{new Date().getFullYear()}</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
           <TextField
             label="Amount to Allocate (R)"
             type="number"
