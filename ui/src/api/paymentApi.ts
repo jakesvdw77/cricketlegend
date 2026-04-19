@@ -1,5 +1,5 @@
 import api from './axiosConfig';
-import { AllocationResultDTO, MatchFeePlayerDataDTO, PagedPaymentResponse, Payment, PaymentType, WalletDTO } from '../types';
+import { AllocationResultDTO, MatchFeePlayerDataDTO, PagedAllocationResponse, PagedPaymentResponse, Payment, PaymentType, TournamentFeePlayerDataDTO, WalletDTO } from '../types';
 
 export interface PaymentFilters {
   playerId?: number;
@@ -58,6 +58,19 @@ export const paymentApi = {
   allocatePlayerAnnualSubscription: (playerId: number, amount: number, year: number) =>
     api.post<AllocationResultDTO>(`/payments/allocate/annual-subscription/player/${playerId}`, null, { params: { amount, year } }).then(r => r.data),
 
+  /** Get all wallet allocations with optional filters (server-side paginated) */
+  findAllocations: (filters: { playerId?: number; clubId?: number; category?: string; year?: number; month?: number; page?: number; size?: number } = {}) => {
+    const params: Record<string, string | number> = {};
+    if (filters.playerId != null) params.playerId = filters.playerId;
+    if (filters.clubId != null) params.clubId = filters.clubId;
+    if (filters.category) params.category = filters.category;
+    if (filters.year != null) params.year = filters.year;
+    if (filters.month != null) params.month = filters.month;
+    if (filters.page != null) params.page = filters.page;
+    if (filters.size != null) params.size = filters.size;
+    return api.get<PagedAllocationResponse>('/payments/allocations', { params }).then(r => r.data);
+  },
+
   /** Get wallet balances for all players in a club (admin) */
   getClubWalletBalances: (clubId: number) =>
     api.get<Record<number, number>>(`/payments/wallet/club/${clubId}`).then(r => r.data),
@@ -74,6 +87,22 @@ export const paymentApi = {
   allocatePlayerMatchFee: (playerId: number, amount: number, matchId: number, description: string, matchFee?: number) =>
     api.post<AllocationResultDTO>(`/payments/allocate/match-fee/player/${playerId}`, null, {
       params: { amount, matchId, description, ...(matchFee != null ? { matchFee } : {}) },
+    }).then(r => r.data),
+
+  /** Get wallet balance + tournament payment data for all players for a tournament */
+  getTournamentFeePlayerData: (tournamentId: number) =>
+    api.get<TournamentFeePlayerDataDTO[]>('/payments/tournament-fee/players', { params: { tournamentId } }).then(r => r.data),
+
+  /** Allocate tournament registration fee from a single player's wallet */
+  allocatePlayerTournamentFee: (playerId: number, amount: number, tournamentId: number, description: string, registrationFee?: number) =>
+    api.post<AllocationResultDTO>(`/payments/allocate/tournament-fee/player/${playerId}`, null, {
+      params: { amount, tournamentId, description, ...(registrationFee != null ? { registrationFee } : {}) },
+    }).then(r => r.data),
+
+  /** Allocate other funds from a single player's wallet */
+  allocatePlayerOther: (playerId: number, amount: number, description: string) =>
+    api.post<AllocationResultDTO>(`/payments/allocate/other/player/${playerId}`, null, {
+      params: { amount, description },
     }).then(r => r.data),
 
   /** Fetches the file with auth token and opens it in a new tab as a blob URL */

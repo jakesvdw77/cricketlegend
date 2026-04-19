@@ -51,5 +51,6 @@
     <include file="db/changelog/v1/044-wallet-allocation.sql"/>
     <include file="db/changelog/v1/045-wallet-allocation-year.sql"/>
     <include file="db/changelog/v1/046-wallet-allocation-match.sql"/>
+    <include file="db/changelog/v1/047-wallet-allocation-tournament.sql"/>
 
 </databaseChangeLog>

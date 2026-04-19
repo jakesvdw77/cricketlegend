@@ -6,6 +6,7 @@ import {
 import {
   EmojiEvents, CalendarMonth, LocationOn, AccessTime, Login, SportsCricket,
   PhotoLibrary, FiberManualRecord, Handshake, Language, ExpandMore, CheckCircle, Facebook,
+  AccountBalance, Groups, HowToVote,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { sponsorApi } from '../api/sponsorApi';
@@ -449,6 +450,9 @@ export const LandingPage: React.FC = () => {
                       { icon: <EmojiEvents sx={{ fontSize: 40, color: 'secondary.main' }} />, title: 'Tournaments', desc: 'Create and manage tournaments with pools, standings and results.' },
                       { icon: <CalendarMonth sx={{ fontSize: 40, color: 'primary.main' }} />, title: 'Fixtures', desc: 'Schedule matches, assign grounds and umpires, and track upcoming games.' },
                       { icon: <SportsCricket sx={{ fontSize: 40, color: 'secondary.main' }} />, title: 'Scorecards', desc: 'Full match results, scorecards and player statistics in one place.' },
+                      { icon: <AccountBalance sx={{ fontSize: 40, color: 'primary.main' }} />, title: 'Financials', desc: 'Track match fees, payments and wallet balances for players and clubs.' },
+                      { icon: <Groups sx={{ fontSize: 40, color: 'secondary.main' }} />, title: 'Team Management & Selection', desc: 'Manage squads, select teamsheets and organise player roles for every match.' },
+                      { icon: <HowToVote sx={{ fontSize: 40, color: 'primary.main' }} />, title: 'Availability Polls', desc: 'Send availability polls to players and build your squad with confidence.' },
                     ].map(f => (
                         <Grid item xs={12} sm={6} md={4} key={f.title}>
                           <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', height: '100%', borderRadius: 2, bgcolor: 'background.paper' }}>

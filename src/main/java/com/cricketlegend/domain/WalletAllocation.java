@@ -35,6 +35,9 @@ public class WalletAllocation {
     @Column
     private Long matchId;
 
+    @Column
+    private Long tournamentId;
+
     @Column(nullable = false)
     private LocalDate allocationDate;
 

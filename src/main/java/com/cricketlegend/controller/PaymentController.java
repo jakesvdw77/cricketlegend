@@ -4,8 +4,10 @@ import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import com.cricketlegend.dto.AllocationResultDTO;
 import com.cricketlegend.dto.MatchFeePlayerDataDTO;
+import com.cricketlegend.dto.PagedAllocationResponse;
 import com.cricketlegend.dto.PagedPaymentResponse;
 import com.cricketlegend.dto.PaymentDTO;
+import com.cricketlegend.dto.TournamentFeePlayerDataDTO;
 import com.cricketlegend.dto.WalletDTO;
 import com.cricketlegend.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -142,5 +144,49 @@ public class PaymentController {
             @RequestParam(required = false) java.math.BigDecimal matchFee,
             @RequestParam(required = false) String description) {
         return ResponseEntity.ok(paymentService.allocatePlayerMatchFee(playerId, amount, matchId, matchFee, description));
+    }
+
+    @GetMapping("/allocations")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Get all wallet allocations with optional filters (server-side paginated)")
+    public ResponseEntity<PagedAllocationResponse> findAllocations(
+            @RequestParam(required = false) Long playerId,
+            @RequestParam(required = false) Long clubId,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return ResponseEntity.ok(paymentService.findAllocationsWithFilters(playerId, clubId, category, year, month, page, size));
+    }
+
+    @GetMapping("/tournament-fee/players")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Get wallet balance + tournament payment data for all players for a tournament")
+    public ResponseEntity<List<TournamentFeePlayerDataDTO>> getTournamentFeePlayerData(
+            @RequestParam Long tournamentId) {
+        return ResponseEntity.ok(paymentService.getTournamentFeePlayerData(tournamentId));
+    }
+
+    @PostMapping("/allocate/tournament-fee/player/{playerId}")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Allocate tournament registration fee from a single player's wallet")
+    public ResponseEntity<AllocationResultDTO> allocatePlayerTournamentFee(
+            @PathVariable Long playerId,
+            @RequestParam java.math.BigDecimal amount,
+            @RequestParam Long tournamentId,
+            @RequestParam(required = false) java.math.BigDecimal registrationFee,
+            @RequestParam(required = false) String description) {
+        return ResponseEntity.ok(paymentService.allocatePlayerTournamentFee(playerId, amount, tournamentId, registrationFee, description));
+    }
+
+    @PostMapping("/allocate/other/player/{playerId}")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Allocate other funds from a single player's wallet")
+    public ResponseEntity<AllocationResultDTO> allocatePlayerOther(
+            @PathVariable Long playerId,
+            @RequestParam java.math.BigDecimal amount,
+            @RequestParam String description) {
+        return ResponseEntity.ok(paymentService.allocatePlayerOther(playerId, amount, description));
     }
 }

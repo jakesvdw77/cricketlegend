@@ -174,7 +174,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     </List>
                     <Collapse in={financialsOpen} timeout="auto" unmountOnExit>
                         <List disablePadding>
-                            <ListItemButton sx={{pl: 3}} onClick={() => goCollapse('/admin/sponsors')}>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/sponsors')}>
                                 <ListItemIcon><Star/></ListItemIcon>
                                 <ListItemText primary="Sponsors"/>
                             </ListItemButton>
@@ -187,7 +187,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemIcon><PieChart/></ListItemIcon>
                                 <ListItemText primary="Fund Allocation"/>
                             </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => goCollapse('/admin/reports')}>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/reports')}>
                                 <ListItemIcon><BarChart/></ListItemIcon>
                                 <ListItemText primary="Reports"/>
                             </ListItemButton>

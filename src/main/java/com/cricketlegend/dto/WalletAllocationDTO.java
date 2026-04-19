@@ -19,4 +19,9 @@ public class WalletAllocationDTO {
     private LocalDate allocationDate;
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
+    private Long matchId;
+    private String matchLabel;
+    private Long tournamentId;
+    private String tournamentName;
+    private Integer subscriptionYear;
 }

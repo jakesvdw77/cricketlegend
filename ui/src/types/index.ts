@@ -55,11 +55,34 @@ export interface WalletAllocationDTO {
   description?: string;
   allocationDate: string;
   createdAt?: string;
+  matchId?: number;
+  matchLabel?: string;
+  tournamentId?: number;
+  tournamentName?: string;
+  subscriptionYear?: number;
+}
+
+export interface PagedAllocationResponse {
+  content: WalletAllocationDTO[];
+  totalElements: number;
+  totalPages: number;
+  total: number;
 }
 
 export interface AllocationResultDTO {
   allocated: { playerId: number; playerName: string; amount: number }[];
   skipped: { playerId: number; playerName: string; reason: string; walletBalance: number; required: number }[];
+}
+
+export interface TournamentFeePlayerDataDTO {
+  playerId: number;
+  playerName: string;
+  walletBalance: number;
+  tournamentPaymentCount: number;
+  tournamentPaymentTotal: number;
+  tournamentFeeAllocated: number;
+  teamId?: number;
+  teamName?: string;
 }
 
 export interface WalletDTO {
