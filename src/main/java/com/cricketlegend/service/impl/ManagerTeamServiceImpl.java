@@ -72,6 +72,14 @@ public class ManagerTeamServiceImpl implements ManagerTeamService {
     }
 
     @Override
+    public List<ManagerTeamDTO> getManagedTeams(String email) {
+        Manager manager = managerRepository.findByEmail(email).orElse(null);
+        if (manager == null) return List.of();
+        return managerTeamRepository.findByManagerManagerId(manager.getManagerId())
+                .stream().map(this::toDto).toList();
+    }
+
+    @Override
     public Set<Long> getSquadPlayerIdsForManager(String email) {
         Set<Long> teamIds = getTeamIdsForManager(email);
         Set<Long> playerIds = new HashSet<>();

@@ -35,6 +35,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const viewOpen      = openSection === 'view';
 
     const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
+    const goCollapse = (path: string) => { navigate(path); onClose(); };
 
     return (
         <Drawer
@@ -173,21 +174,22 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     </List>
                     <Collapse in={financialsOpen} timeout="auto" unmountOnExit>
                         <List disablePadding>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/sponsors')}>
+                            <ListItemButton sx={{pl: 3}} onClick={() => goCollapse('/admin/sponsors')}>
                                 <ListItemIcon><Star/></ListItemIcon>
                                 <ListItemText primary="Sponsors"/>
                             </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/payments')}>
+                            <ListItemButton sx={{pl: 3}} onClick={() => goCollapse('/admin/payments')}>
                                 <ListItemIcon><Payments/></ListItemIcon>
                                 <ListItemText primary="Payments"/>
                             </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/reports')}>
-                                <ListItemIcon><BarChart/></ListItemIcon>
-                                <ListItemText primary="Reports"/>
-                            </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/fund-allocation')}>
+
+                            <ListItemButton sx={{pl: 3}} onClick={() => goCollapse('/admin/fund-allocation')}>
                                 <ListItemIcon><PieChart/></ListItemIcon>
                                 <ListItemText primary="Fund Allocation"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => goCollapse('/admin/reports')}>
+                                <ListItemIcon><BarChart/></ListItemIcon>
+                                <ListItemText primary="Reports"/>
                             </ListItemButton>
                         </List>
                     </Collapse>

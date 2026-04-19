@@ -2,10 +2,26 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, CircularProgress, Alert, Chip, Button,
 } from '@mui/material';
-import { HowToVote } from '@mui/icons-material';
+import { HowToVote, CheckCircle, Cancel, HelpOutline } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
-import { PlayerNotification } from '../../types';
+import { AvailabilityStatus, PlayerNotification } from '../../types';
+
+const STATUS_LABELS: Record<AvailabilityStatus, string> = {
+  YES: 'Available',
+  NO: 'Not Available',
+  UNSURE: 'Unsure',
+};
+const STATUS_COLORS: Record<AvailabilityStatus, 'success' | 'error' | 'warning'> = {
+  YES: 'success',
+  NO: 'error',
+  UNSURE: 'warning',
+};
+const STATUS_ICONS: Record<AvailabilityStatus, React.ReactElement> = {
+  YES: <CheckCircle fontSize="small" />,
+  NO: <Cancel fontSize="small" />,
+  UNSURE: <HelpOutline fontSize="small" />,
+};
 
 export const MyAvailability: React.FC = () => {
   const navigate = useNavigate();
@@ -42,10 +58,29 @@ export const MyAvailability: React.FC = () => {
                 {n.homeTeamName} vs {n.oppositionTeamName}
               </Typography>
               <Typography variant="body2" color="text.secondary">{n.matchDate}</Typography>
-              {!n.read && <Chip label="New" color="primary" size="small" sx={{ mt: 0.5 }} />}
+              <Box sx={{ display: 'flex', gap: 0.75, mt: 0.75, flexWrap: 'wrap' }}>
+                {!n.read && <Chip label="New" color="primary" size="small" />}
+                {n.availabilityStatus ? (
+                  <Chip
+                    icon={STATUS_ICONS[n.availabilityStatus]}
+                    label={`My response: ${STATUS_LABELS[n.availabilityStatus]}`}
+                    color={STATUS_COLORS[n.availabilityStatus]}
+                    size="small"
+                    variant="outlined"
+                  />
+                ) : (
+                  <Chip
+                    icon={<HowToVote fontSize="small" />}
+                    label="No response yet"
+                    size="small"
+                    variant="outlined"
+                    color="default"
+                  />
+                )}
+              </Box>
             </Box>
             <Button
-              variant="contained"
+              variant={n.availabilityStatus ? 'outlined' : 'contained'}
               size="small"
               startIcon={<HowToVote />}
               onClick={() => {
@@ -55,7 +90,7 @@ export const MyAvailability: React.FC = () => {
                 navigate(`/poll/${n.matchId}/${n.teamId}`);
               }}
             >
-              Respond
+              {n.availabilityStatus ? 'Change' : 'Respond'}
             </Button>
           </Paper>
         ))

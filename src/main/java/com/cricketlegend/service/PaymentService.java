@@ -3,13 +3,15 @@ package com.cricketlegend.service;
 import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import com.cricketlegend.dto.AllocationResultDTO;
+import com.cricketlegend.dto.MatchFeePlayerDataDTO;
+import com.cricketlegend.dto.PagedPaymentResponse;
 import com.cricketlegend.dto.PaymentDTO;
 import com.cricketlegend.dto.WalletDTO;
 
 import java.util.List;
 
 public interface PaymentService {
-    List<PaymentDTO> findWithFilters(Long playerId, Long sponsorId, Long tournamentId, PaymentType paymentType, PaymentStatus status, Integer year, Integer month);
+    PagedPaymentResponse findWithFilters(Long playerId, Long sponsorId, Long tournamentId, PaymentType paymentType, PaymentStatus status, Integer year, Integer month, int page, int size);
     PaymentDTO findById(Long id);
     PaymentDTO create(PaymentDTO dto);
     PaymentDTO update(Long id, PaymentDTO dto);
@@ -21,4 +23,6 @@ public interface PaymentService {
     AllocationResultDTO allocatePlayerAnnualSubscription(Long playerId, java.math.BigDecimal amount, Integer year);
     java.util.Map<Long, java.math.BigDecimal> getClubWalletBalances(Long clubId);
     java.util.Map<Long, java.math.BigDecimal> getClubAllocationTotals(Long clubId);
+    List<MatchFeePlayerDataDTO> getMatchFeePlayerData(Long matchId, List<Long> sideIds);
+    AllocationResultDTO allocatePlayerMatchFee(Long playerId, java.math.BigDecimal amount, Long matchId, java.math.BigDecimal matchFee, String description);
 }

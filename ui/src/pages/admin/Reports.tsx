@@ -87,9 +87,10 @@ export const Reports: React.FC = () => {
     if (tournamentFilter) filters.tournamentId = parseInt(tournamentFilter, 10);
 
     Promise.all([
-      paymentApi.findAll(filters),
+      paymentApi.findAll({ ...filters, page: 0, size: 100000 }),
       matchApi.findAll(),
-    ]).then(([pmts, matches]) => {
+    ]).then(([res, matches]) => {
+      const pmts = res.content;
       setPayments(pmts);
 
       const mm = new Map<number, number>();

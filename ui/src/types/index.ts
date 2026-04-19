@@ -37,6 +37,15 @@ export interface Payment {
   createdAt?: string;
 }
 
+export interface PagedPaymentResponse {
+  content: Payment[];
+  totalElements: number;
+  totalPages: number;
+  subtotal: number;
+  vatTotal: number;
+  grandTotal: number;
+}
+
 export interface WalletAllocationDTO {
   id: number;
   playerId: number;
@@ -396,6 +405,27 @@ export interface PlayerNotification {
   createdAt?: string;
   subject?: string;
   message?: string;
+  availabilityStatus?: AvailabilityStatus;
+}
+
+export interface MatchFeePlayerDataDTO {
+  playerId: number;
+  playerName: string;
+  walletBalance: number;
+  tournamentPaymentCount: number;
+  tournamentPaymentTotal: number;
+  matchFeeAllocated: number;
+  matchSideId: number;
+  teamName: string;
+}
+
+export interface ManagerTeamDTO {
+  id: number;
+  managerId: number;
+  managerDisplayName: string;
+  managerEmail: string;
+  teamId: number;
+  teamName: string;
 }
 
 export interface MatchSide {

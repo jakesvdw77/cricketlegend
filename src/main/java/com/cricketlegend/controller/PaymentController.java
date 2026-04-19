@@ -3,6 +3,8 @@ package com.cricketlegend.controller;
 import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import com.cricketlegend.dto.AllocationResultDTO;
+import com.cricketlegend.dto.MatchFeePlayerDataDTO;
+import com.cricketlegend.dto.PagedPaymentResponse;
 import com.cricketlegend.dto.PaymentDTO;
 import com.cricketlegend.dto.WalletDTO;
 import com.cricketlegend.service.PaymentService;
@@ -27,16 +29,18 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @GetMapping
-    @Operation(summary = "Get payments with optional filters")
-    public ResponseEntity<List<PaymentDTO>> findAll(
+    @Operation(summary = "Get payments with optional filters (server-side paginated)")
+    public ResponseEntity<PagedPaymentResponse> findAll(
             @RequestParam(required = false) Long playerId,
             @RequestParam(required = false) Long sponsorId,
             @RequestParam(required = false) Long tournamentId,
             @RequestParam(required = false) PaymentType paymentType,
             @RequestParam(required = false) PaymentStatus status,
             @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month) {
-        return ResponseEntity.ok(paymentService.findWithFilters(playerId, sponsorId, tournamentId, paymentType, status, year, month));
+            @RequestParam(required = false) Integer month,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        return ResponseEntity.ok(paymentService.findWithFilters(playerId, sponsorId, tournamentId, paymentType, status, year, month, page, size));
     }
 
     @GetMapping("/{id}")
@@ -117,5 +121,26 @@ public class PaymentController {
             @RequestParam java.math.BigDecimal amount,
             @RequestParam(required = false) Integer year) {
         return ResponseEntity.ok(paymentService.allocatePlayerAnnualSubscription(playerId, amount, year));
+    }
+
+    @GetMapping("/match-fee/players")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Get wallet balance + tournament payment count for players in match sides")
+    public ResponseEntity<List<MatchFeePlayerDataDTO>> getMatchFeePlayerData(
+            @RequestParam Long matchId,
+            @RequestParam(required = false) List<Long> sideIds) {
+        return ResponseEntity.ok(paymentService.getMatchFeePlayerData(matchId, sideIds));
+    }
+
+    @PostMapping("/allocate/match-fee/player/{playerId}")
+    @PreAuthorize("hasRole('admin')")
+    @Operation(summary = "Allocate match fee funds from a single player's wallet")
+    public ResponseEntity<AllocationResultDTO> allocatePlayerMatchFee(
+            @PathVariable Long playerId,
+            @RequestParam java.math.BigDecimal amount,
+            @RequestParam Long matchId,
+            @RequestParam(required = false) java.math.BigDecimal matchFee,
+            @RequestParam(required = false) String description) {
+        return ResponseEntity.ok(paymentService.allocatePlayerMatchFee(playerId, amount, matchId, matchFee, description));
     }
 }

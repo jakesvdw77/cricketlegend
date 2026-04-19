@@ -125,7 +125,7 @@ public class MatchPollServiceImpl implements MatchPollService {
         return notificationRepository
                 .findByPlayerPlayerIdOrderByCreatedAtDesc(player.getPlayerId())
                 .stream()
-                .map(n -> toNotificationDTO(n))
+                .map(n -> toNotificationDTO(n, player))
                 .toList();
     }
 
@@ -154,11 +154,24 @@ public class MatchPollServiceImpl implements MatchPollService {
     }
 
     @Override
-    public void sendManagerNotification(String subject, String message, String managerEmail) {
-        Set<Long> playerIds = managerTeamService.getSquadPlayerIdsForManager(managerEmail);
-        if (playerIds.isEmpty()) return;
+    public void sendManagerNotification(String subject, String message, String managerEmail, boolean isAdmin, Long teamId) {
+        List<Player> players;
+        if (isAdmin) {
+            players = playerRepository.findAll();
+        } else if (teamId != null) {
+            Team team = teamRepository.findById(teamId)
+                    .orElseThrow(() -> NotFoundException.of("Team", teamId));
+            List<Long> squadIds = team.getSquadPlayerIds();
+            if (squadIds == null || squadIds.isEmpty()) return;
+            players = playerRepository.findAllById(squadIds);
+        } else {
+            Set<Long> playerIds = managerTeamService.getSquadPlayerIdsForManager(managerEmail);
+            if (playerIds.isEmpty()) return;
+            players = playerRepository.findAllById(playerIds);
+        }
 
-        List<Player> players = playerRepository.findAllById(playerIds);
+        if (players.isEmpty()) return;
+
         List<PlayerNotification> notifications = players.stream()
                 .map(p -> PlayerNotification.builder()
                         .player(p)
@@ -228,10 +241,20 @@ public class MatchPollServiceImpl implements MatchPollService {
                 .build();
     }
 
-    private PlayerNotificationDTO toNotificationDTO(PlayerNotification n) {
+    private PlayerNotificationDTO toNotificationDTO(PlayerNotification n, Player player) {
         Match match = n.getMatchId() != null
                 ? matchRepository.findById(n.getMatchId()).orElse(null)
                 : null;
+
+        AvailabilityStatus availabilityStatus = null;
+        if (n.getType() == NotificationType.POLL_AVAILABLE && match != null && n.getTeamId() != null) {
+            availabilityStatus = pollRepository
+                    .findByMatchMatchIdAndTeamTeamId(n.getMatchId(), n.getTeamId())
+                    .flatMap(poll -> availabilityRepository
+                            .findByPollPollIdAndPlayerPlayerId(poll.getPollId(), player.getPlayerId()))
+                    .map(PlayerAvailability::getStatus)
+                    .orElse(null);
+        }
 
         return PlayerNotificationDTO.builder()
                 .notificationId(n.getNotificationId())
@@ -245,6 +268,7 @@ public class MatchPollServiceImpl implements MatchPollService {
                 .createdAt(n.getCreatedAt())
                 .subject(n.getSubject())
                 .message(n.getMessage())
+                .availabilityStatus(availabilityStatus)
                 .build();
     }
 }

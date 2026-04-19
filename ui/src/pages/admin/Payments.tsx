@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Chip, Divider,
   Autocomplete, Select, FormControl, InputLabel, Snackbar,
   Card, CardContent, ToggleButton, ToggleButtonGroup, Tooltip,
-  FormControlLabel, Checkbox,
+  FormControlLabel, Checkbox, TablePagination,
 } from '@mui/material';
 import {
   Add, Edit, Delete, PictureAsPdf, FilterAlt, AttachFile,
@@ -80,6 +80,16 @@ export const Payments: React.FC = () => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [dialogClub, setDialogClub] = useState<Club | null>(null);
 
+  // pagination
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [totalElements, setTotalElements] = useState(0);
+
+  // server-computed totals (across all filtered records, not just current page)
+  const [subtotal, setSubtotal] = useState(0);
+  const [vatTotal, setVatTotal] = useState(0);
+  const [grandTotal, setGrandTotal] = useState(0);
+
   // filters
   const [filterType, setFilterType] = useState<PaymentType | ''>('');
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | ''>('');
@@ -97,16 +107,24 @@ export const Payments: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const currentFilters = {
+    playerId: filterPlayer?.playerId,
+    sponsorId: filterSponsor?.sponsorId,
+    tournamentId: filterTournament?.tournamentId,
+    paymentType: filterType || undefined,
+    status: filterStatus || undefined,
+    year: filterYear || undefined,
+    month: filterMonth || undefined,
+  };
+
   const load = () =>
-    paymentApi.findAll({
-      playerId: filterPlayer?.playerId,
-      sponsorId: filterSponsor?.sponsorId,
-      tournamentId: filterTournament?.tournamentId,
-      paymentType: filterType || undefined,
-      status: filterStatus || undefined,
-      year: filterYear || undefined,
-      month: filterMonth || undefined,
-    }).then(setRows);
+    paymentApi.findAll({ ...currentFilters, page, size: rowsPerPage }).then(res => {
+      setRows(res.content);
+      setTotalElements(res.totalElements);
+      setSubtotal(Number(res.subtotal));
+      setVatTotal(Number(res.vatTotal));
+      setGrandTotal(Number(res.grandTotal));
+    });
 
   useEffect(() => {
     playerApi.findAll().then(setPlayers);
@@ -115,7 +133,7 @@ export const Payments: React.FC = () => {
     tournamentApi.findAll().then(setTournaments);
   }, []);
 
-  useEffect(() => { load(); }, [filterType, filterStatus, filterPlayer, filterSponsor, filterTournament, filterYear, filterMonth]);
+  useEffect(() => { load(); }, [page, rowsPerPage, filterType, filterStatus, filterPlayer, filterSponsor, filterTournament, filterYear, filterMonth]);
 
   const setStatus = (id: number, status: PaymentStatus) =>
     setRows(prev => prev.map(r => r.paymentId === id ? { ...r, status } : r));
@@ -201,9 +219,6 @@ export const Payments: React.FC = () => {
   };
 
   const VAT_RATE = 0.15;
-  const subtotal = rows.reduce((s, r) => s + Number(r.amount), 0);
-  const vatTotal = rows.reduce((s, r) => s + (r.taxable ? Number(r.amount) * VAT_RATE : 0), 0);
-  const grandTotal = subtotal + vatTotal;
 
   // ── filter helpers
   const selectedPlayerObj = players.find(p => p.playerId === editing.playerId) ?? null;
@@ -219,7 +234,14 @@ export const Payments: React.FC = () => {
 
   const playerCategories: PaymentCategory[] = ['TOURNAMENT_FEE', 'TOURNAMENT_REGISTRATION', 'ANNUAL_SUBSCRIPTION', 'OTHER'];
 
-  const generatePdf = () => {
+  const generatePdf = async () => {
+    // Fetch all filtered records (not just current page) for the PDF
+    const allData = await paymentApi.findAll({ ...currentFilters, page: 0, size: 100000 });
+    const allRows = allData.content;
+    const pdfSubtotal = Number(allData.subtotal);
+    const pdfVatTotal = Number(allData.vatTotal);
+    const pdfGrandTotal = Number(allData.grandTotal);
+
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
     const now = new Date().toLocaleString('en-ZA');
@@ -243,10 +265,10 @@ export const Payments: React.FC = () => {
     const boxW = 60;
     const gap = 8;
     const boxes = [
-      { label: 'Subtotal', value: fmt(subtotal) },
-      { label: 'VAT (15%)', value: fmt(vatTotal) },
-      { label: 'Grand Total (incl. VAT)', value: fmt(grandTotal) },
-      { label: 'Number of Payments', value: String(rows.length) },
+      { label: 'Subtotal', value: fmt(pdfSubtotal) },
+      { label: 'VAT (15%)', value: fmt(pdfVatTotal) },
+      { label: 'Grand Total (incl. VAT)', value: fmt(pdfGrandTotal) },
+      { label: 'Number of Payments', value: String(allData.totalElements) },
     ];
     boxes.forEach((b, i) => {
       const x = 14 + i * (boxW + gap);
@@ -265,7 +287,7 @@ export const Payments: React.FC = () => {
     });
 
     // ── Table ────────────────────────────────────────────────────────────────
-    const tableRows = rows.map(r => [
+    const tableRows = allRows.map(r => [
       r.paymentDate,
       TYPE_LABELS[r.paymentType],
       r.playerName ?? r.sponsorName ?? '—',
@@ -282,11 +304,11 @@ export const Payments: React.FC = () => {
       head: [['Date', 'Type', 'Player / Sponsor', 'Category', 'Tournament', 'Description', 'Amount', 'VAT (15%)', 'Total']],
       body: tableRows,
       foot: [[
-        '', '', '', '', '', 'Subtotal', fmt(subtotal), '', '',
+        '', '', '', '', '', 'Subtotal', fmt(pdfSubtotal), '', '',
       ], [
-        '', '', '', '', '', 'VAT (15%)', '', fmt(vatTotal), '',
+        '', '', '', '', '', 'VAT (15%)', '', fmt(pdfVatTotal), '',
       ], [
-        '', '', '', '', '', 'Grand Total', '', '', fmt(grandTotal),
+        '', '', '', '', '', 'Grand Total', '', '', fmt(pdfGrandTotal),
       ]],
       headStyles: { fillColor: [26, 82, 118], textColor: 255, fontStyle: 'bold', fontSize: 9 },
       footStyles: { fillColor: [240, 244, 248], textColor: [50, 50, 50], fontStyle: 'bold', fontSize: 9 },
@@ -337,7 +359,7 @@ export const Payments: React.FC = () => {
             size="small"
             exclusive
             value={filterType}
-            onChange={(_, v) => { setFilterType(v ?? ''); setFilterPlayer(null); setFilterSponsor(null); }}
+            onChange={(_, v) => { setFilterType(v ?? ''); setFilterPlayer(null); setFilterSponsor(null); setPage(0); }}
           >
             <ToggleButton value="">All</ToggleButton>
             <ToggleButton value="PLAYER"><Person sx={{ mr: 0.5, fontSize: 16 }} />Player</ToggleButton>
@@ -350,7 +372,7 @@ export const Payments: React.FC = () => {
               options={players}
               getOptionLabel={p => `${p.name} ${p.surname}`}
               value={filterPlayer}
-              onChange={(_, v) => setFilterPlayer(v)}
+              onChange={(_, v) => { setFilterPlayer(v); setPage(0); }}
               renderInput={params => <TextField {...params} label="Search Player" size="small" />}
               sx={{ minWidth: 220 }}
               clearOnEscape
@@ -362,7 +384,7 @@ export const Payments: React.FC = () => {
               options={sponsors}
               getOptionLabel={s => s.name}
               value={filterSponsor}
-              onChange={(_, v) => setFilterSponsor(v)}
+              onChange={(_, v) => { setFilterSponsor(v); setPage(0); }}
               renderInput={params => <TextField {...params} label="Search Sponsor" size="small" />}
               sx={{ minWidth: 200 }}
               clearOnEscape
@@ -373,7 +395,7 @@ export const Payments: React.FC = () => {
             options={tournaments}
             getOptionLabel={t => t.name}
             value={filterTournament}
-            onChange={(_, v) => setFilterTournament(v)}
+            onChange={(_, v) => { setFilterTournament(v); setPage(0); }}
             renderInput={params => <TextField {...params} label="Tournament" size="small" />}
             sx={{ minWidth: 220 }}
             clearOnEscape
@@ -382,7 +404,7 @@ export const Payments: React.FC = () => {
           <FormControl size="small" sx={{ minWidth: 100 }}>
             <InputLabel>Year</InputLabel>
             <Select label="Year" value={filterYear}
-              onChange={e => setFilterYear(e.target.value as number | '')}>
+              onChange={e => { setFilterYear(e.target.value as number | ''); setPage(0); }}>
               <MenuItem value="">All</MenuItem>
               {YEARS.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
             </Select>
@@ -391,7 +413,7 @@ export const Payments: React.FC = () => {
           <FormControl size="small" sx={{ minWidth: 130 }}>
             <InputLabel>Month</InputLabel>
             <Select label="Month" value={filterMonth}
-              onChange={e => setFilterMonth(e.target.value as number | '')}>
+              onChange={e => { setFilterMonth(e.target.value as number | ''); setPage(0); }}>
               <MenuItem value="">All</MenuItem>
               {MONTHS.map(m => <MenuItem key={m.value} value={m.value}>{m.label}</MenuItem>)}
             </Select>
@@ -400,7 +422,7 @@ export const Payments: React.FC = () => {
           <FormControl size="small" sx={{ minWidth: 130 }}>
             <InputLabel>Status</InputLabel>
             <Select label="Status" value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value as PaymentStatus | '')}>
+              onChange={e => { setFilterStatus(e.target.value as PaymentStatus | ''); setPage(0); }}>
               <MenuItem value="">All</MenuItem>
               <MenuItem value="PENDING">Pending</MenuItem>
               <MenuItem value="APPROVED">Approved</MenuItem>
@@ -410,12 +432,10 @@ export const Payments: React.FC = () => {
 
           <Button size="small" onClick={() => {
             setFilterType(''); setFilterStatus(''); setFilterPlayer(null); setFilterSponsor(null);
-            setFilterTournament(null); setFilterYear(''); setFilterMonth('');
+            setFilterTournament(null); setFilterYear(''); setFilterMonth(''); setPage(0);
           }}>Clear</Button>
         </Box>
       </Paper>
-
-      {/* ── summary ─────────────────────────────────────────────────────── */}
 
       {/* ── summary ─────────────────────────────────────────────────────── */}
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
@@ -440,7 +460,7 @@ export const Payments: React.FC = () => {
         <Card variant="outlined" sx={{ flex: 1, minWidth: 120 }}>
           <CardContent sx={{ py: 1, '&:last-child': { pb: 1 } }}>
             <Typography variant="caption" color="text.secondary">Payments</Typography>
-            <Typography variant="h5" color="text.primary" fontWeight="bold">{rows.length}</Typography>
+            <Typography variant="h5" color="text.primary" fontWeight="bold">{totalElements}</Typography>
           </CardContent>
         </Card>
       </Box>
@@ -555,6 +575,16 @@ export const Payments: React.FC = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <TablePagination
+        component="div"
+        count={totalElements}
+        page={page}
+        rowsPerPage={rowsPerPage}
+        rowsPerPageOptions={[10, 25, 50, 100]}
+        onPageChange={(_, newPage) => setPage(newPage)}
+        onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+      />
 
       {/* ── add/edit dialog ─────────────────────────────────────────────── */}
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>

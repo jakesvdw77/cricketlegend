@@ -32,6 +32,9 @@ public class WalletAllocation {
     @Column
     private Integer subscriptionYear;
 
+    @Column
+    private Long matchId;
+
     @Column(nullable = false)
     private LocalDate allocationDate;
 

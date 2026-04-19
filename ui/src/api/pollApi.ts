@@ -1,5 +1,5 @@
 import api from './axiosConfig';
-import { MatchPoll, PlayerNotification, AvailabilityStatus } from '../types';
+import { MatchPoll, PlayerNotification, AvailabilityStatus, ManagerTeamDTO } from '../types';
 
 export const pollApi = {
   togglePoll: (matchId: number, teamId: number, open: boolean) =>
@@ -23,6 +23,9 @@ export const pollApi = {
   markRead: (notificationId: number) =>
     api.put(`/notifications/${notificationId}/read`),
 
-  sendNotification: (subject: string, message: string) =>
-    api.post('/notifications/send', { subject, message }),
+  sendNotification: (subject: string, message: string, teamId?: number) =>
+    api.post('/notifications/send', { subject, message, teamId: teamId ?? null }),
+
+  getManagedTeams: () =>
+    api.get<ManagerTeamDTO[]>('/managers/my-managed-teams').then(r => r.data),
 };

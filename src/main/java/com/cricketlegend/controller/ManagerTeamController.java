@@ -54,6 +54,14 @@ public class ManagerTeamController {
         return ResponseEntity.ok(managerTeamService.getTeamIdsForManager(email));
     }
 
+    @GetMapping("/api/v1/managers/my-managed-teams")
+    @PreAuthorize("hasAnyRole('admin','manager')")
+    @Operation(summary = "Get teams (with names) the current manager is assigned to")
+    public ResponseEntity<List<ManagerTeamDTO>> getMyManagedTeams(@AuthenticationPrincipal Jwt jwt) {
+        String email = jwt.getClaimAsString("email");
+        return ResponseEntity.ok(managerTeamService.getManagedTeams(email));
+    }
+
     @GetMapping("/api/v1/managers/my-squad-player-ids")
     @PreAuthorize("hasAnyRole('admin','manager')")
     @Operation(summary = "Get player IDs across all squads the current manager manages")

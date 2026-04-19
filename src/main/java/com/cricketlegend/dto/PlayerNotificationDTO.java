@@ -1,5 +1,6 @@
 package com.cricketlegend.dto;
 
+import com.cricketlegend.domain.enums.AvailabilityStatus;
 import com.cricketlegend.domain.enums.NotificationType;
 import lombok.*;
 
@@ -18,4 +19,5 @@ public class PlayerNotificationDTO {
     private LocalDateTime createdAt;
     private String subject;
     private String message;
+    private AvailabilityStatus availabilityStatus;
 }

@@ -1,5 +1,5 @@
 import api from './axiosConfig';
-import { AllocationResultDTO, Payment, PaymentType, WalletDTO } from '../types';
+import { AllocationResultDTO, MatchFeePlayerDataDTO, PagedPaymentResponse, Payment, PaymentType, WalletDTO } from '../types';
 
 export interface PaymentFilters {
   playerId?: number;
@@ -9,6 +9,8 @@ export interface PaymentFilters {
   status?: string;
   year?: number;
   month?: number;
+  page?: number;
+  size?: number;
 }
 
 export const paymentApi = {
@@ -21,7 +23,9 @@ export const paymentApi = {
     if (filters.status) params.status = filters.status;
     if (filters.year != null) params.year = filters.year;
     if (filters.month != null) params.month = filters.month;
-    return api.get<Payment[]>('/payments', { params }).then(r => r.data);
+    if (filters.page != null) params.page = filters.page;
+    if (filters.size != null) params.size = filters.size;
+    return api.get<PagedPaymentResponse>('/payments', { params }).then(r => r.data);
   },
   create: (dto: Payment) => api.post<Payment>('/payments', dto).then(r => r.data),
   update: (id: number, dto: Payment) => api.put<Payment>(`/payments/${id}`, dto).then(r => r.data),
@@ -61,6 +65,16 @@ export const paymentApi = {
   /** Get annual subscription allocation totals per player for a club (admin) */
   getClubAllocationTotals: (clubId: number) =>
     api.get<Record<number, number>>(`/payments/allocations/club/${clubId}`).then(r => r.data),
+
+  /** Get wallet balance + tournament payment count for players in selected match sides */
+  getMatchFeePlayerData: (matchId: number, sideIds: number[]) =>
+    api.get<MatchFeePlayerDataDTO[]>('/payments/match-fee/players', { params: { matchId, sideIds } }).then(r => r.data),
+
+  /** Allocate match fee from a single player's wallet */
+  allocatePlayerMatchFee: (playerId: number, amount: number, matchId: number, description: string, matchFee?: number) =>
+    api.post<AllocationResultDTO>(`/payments/allocate/match-fee/player/${playerId}`, null, {
+      params: { amount, matchId, description, ...(matchFee != null ? { matchFee } : {}) },
+    }).then(r => r.data),
 
   /** Fetches the file with auth token and opens it in a new tab as a blob URL */
   openProof: async (storedUrl: string): Promise<void> => {

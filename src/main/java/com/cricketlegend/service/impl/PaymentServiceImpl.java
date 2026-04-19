@@ -6,26 +6,43 @@ import com.cricketlegend.domain.enums.PaymentCategory;
 import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import com.cricketlegend.dto.AllocationResultDTO;
+import com.cricketlegend.dto.MatchFeePlayerDataDTO;
+import com.cricketlegend.dto.PagedPaymentResponse;
 import com.cricketlegend.dto.PaymentDTO;
 import com.cricketlegend.dto.WalletAllocationDTO;
 import com.cricketlegend.dto.WalletDTO;
 import com.cricketlegend.domain.WalletAllocation;
+import com.cricketlegend.domain.MatchSide;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.PaymentMapper;
+import com.cricketlegend.repository.MatchRepository;
+import com.cricketlegend.repository.MatchSideRepository;
 import com.cricketlegend.repository.PaymentRepository;
 import com.cricketlegend.repository.PlayerRepository;
 import com.cricketlegend.repository.SponsorRepository;
 import com.cricketlegend.repository.TournamentRepository;
 import com.cricketlegend.repository.WalletAllocationRepository;
 import com.cricketlegend.service.PaymentService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 @Service
 @RequiredArgsConstructor
@@ -38,10 +55,16 @@ public class PaymentServiceImpl implements PaymentService {
     private final SponsorRepository sponsorRepository;
     private final TournamentRepository tournamentRepository;
     private final WalletAllocationRepository allocationRepository;
+    private final MatchRepository matchRepository;
+    private final MatchSideRepository matchSideRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
-    public List<PaymentDTO> findWithFilters(Long playerId, Long sponsorId, Long tournamentId,
-                                            PaymentType paymentType, PaymentStatus status, Integer year, Integer month) {
+    public PagedPaymentResponse findWithFilters(Long playerId, Long sponsorId, Long tournamentId,
+                                                PaymentType paymentType, PaymentStatus status,
+                                                Integer year, Integer month, int page, int size) {
         LocalDate startDate = null;
         LocalDate endDate = null;
         if (year != null && month != null) {
@@ -52,27 +75,105 @@ public class PaymentServiceImpl implements PaymentService {
             endDate = LocalDate.of(year, 12, 31);
         }
 
-        final LocalDate sd = startDate;
-        final LocalDate ed = endDate;
+        // JpaSpecificationExecutor uses Criteria API — handles nullable params without
+        // the PostgreSQL "could not determine data type of parameter" JPQL issue.
+        Specification<Payment> spec = buildSpec(playerId, sponsorId, tournamentId, paymentType, status, startDate, endDate);
+        Page<Payment> rawPage = paymentRepository.findAll(
+                spec, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "paymentDate")));
 
-        Stream<Payment> stream = paymentRepository.findAllWithRelations().stream();
+        List<PaymentDTO> content;
+        if (rawPage.isEmpty()) {
+            content = List.of();
+        } else {
+            // Extract IDs from the lazy-loaded page (avoids N+1), then re-fetch with JOIN FETCH.
+            List<Long> ids = rawPage.getContent().stream().map(Payment::getPaymentId).toList();
+            List<Payment> payments = paymentRepository.findByIds(ids);
+            Map<Long, Payment> byId = payments.stream()
+                    .collect(Collectors.toMap(Payment::getPaymentId, p -> p));
+            content = ids.stream()
+                    .map(byId::get)
+                    .filter(Objects::nonNull)
+                    .map(paymentMapper::toDto)
+                    .toList();
+        }
 
-        if (playerId != null)
-            stream = stream.filter(p -> p.getPlayer() != null && playerId.equals(p.getPlayer().getPlayerId()));
-        if (sponsorId != null)
-            stream = stream.filter(p -> p.getSponsor() != null && sponsorId.equals(p.getSponsor().getSponsorId()));
-        if (tournamentId != null)
-            stream = stream.filter(p -> p.getTournament() != null && tournamentId.equals(p.getTournament().getTournamentId()));
-        if (paymentType != null)
-            stream = stream.filter(p -> paymentType == p.getPaymentType());
-        if (status != null)
-            stream = stream.filter(p -> status == p.getStatus());
-        if (sd != null)
-            stream = stream.filter(p -> !p.getPaymentDate().isBefore(sd));
-        if (ed != null)
-            stream = stream.filter(p -> !p.getPaymentDate().isAfter(ed));
+        // Aggregate totals across ALL matching records (independent of current page).
+        // Uses dynamic JPQL so only non-null params are bound — avoids Hibernate 6 null-type issues.
+        BigDecimal[] totals = computeTotals(playerId, sponsorId, tournamentId, paymentType, status, startDate, endDate);
+        BigDecimal subtotal = totals[0];
+        BigDecimal vatTotal = totals[1];
 
-        return stream.map(paymentMapper::toDto).toList();
+        return PagedPaymentResponse.builder()
+                .content(content)
+                .totalElements(rawPage.getTotalElements())
+                .totalPages(rawPage.getTotalPages())
+                .subtotal(subtotal)
+                .vatTotal(vatTotal)
+                .grandTotal(subtotal.add(vatTotal))
+                .build();
+    }
+
+    private Specification<Payment> buildSpec(Long playerId, Long sponsorId, Long tournamentId,
+                                             PaymentType paymentType, PaymentStatus status,
+                                             LocalDate startDate, LocalDate endDate) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (playerId != null)
+                predicates.add(cb.equal(root.get("player").get("playerId"), playerId));
+            if (sponsorId != null)
+                predicates.add(cb.equal(root.get("sponsor").get("sponsorId"), sponsorId));
+            if (tournamentId != null)
+                predicates.add(cb.equal(root.get("tournament").get("tournamentId"), tournamentId));
+            if (paymentType != null)
+                predicates.add(cb.equal(root.get("paymentType"), paymentType));
+            if (status != null)
+                predicates.add(cb.equal(root.get("status"), status));
+            if (startDate != null)
+                predicates.add(cb.greaterThanOrEqualTo(root.get("paymentDate"), startDate));
+            if (endDate != null)
+                predicates.add(cb.lessThanOrEqualTo(root.get("paymentDate"), endDate));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    /**
+     * Computes subtotal and VAT total across ALL records matching the given filters.
+     * Uses dynamic JPQL so only non-null parameters are bound — this avoids the Hibernate 6
+     * "cannot determine JDBC type for null parameter" issue that affects both JPQL (:param IS NULL)
+     * and native queries with nullable parameters.
+     */
+    private BigDecimal[] computeTotals(Long playerId, Long sponsorId, Long tournamentId,
+                                       PaymentType paymentType, PaymentStatus status,
+                                       LocalDate startDate, LocalDate endDate) {
+        StringBuilder jpql = new StringBuilder(
+            "SELECT COALESCE(SUM(p.amount), 0), " +
+            "COALESCE(SUM(CASE WHEN p.taxable = TRUE THEN p.amount * 0.15 ELSE 0 END), 0) " +
+            "FROM Payment p " +
+            "LEFT JOIN p.player pl LEFT JOIN p.sponsor sp LEFT JOIN p.tournament t " +
+            "WHERE 1=1");
+
+        if (playerId != null)    jpql.append(" AND pl.playerId = :playerId");
+        if (sponsorId != null)   jpql.append(" AND sp.sponsorId = :sponsorId");
+        if (tournamentId != null) jpql.append(" AND t.tournamentId = :tournamentId");
+        if (paymentType != null) jpql.append(" AND p.paymentType = :paymentType");
+        if (status != null)      jpql.append(" AND p.status = :status");
+        if (startDate != null)   jpql.append(" AND p.paymentDate >= :startDate");
+        if (endDate != null)     jpql.append(" AND p.paymentDate <= :endDate");
+
+        TypedQuery<Object[]> query = entityManager.createQuery(jpql.toString(), Object[].class);
+        if (playerId != null)    query.setParameter("playerId", playerId);
+        if (sponsorId != null)   query.setParameter("sponsorId", sponsorId);
+        if (tournamentId != null) query.setParameter("tournamentId", tournamentId);
+        if (paymentType != null) query.setParameter("paymentType", paymentType);
+        if (status != null)      query.setParameter("status", status);
+        if (startDate != null)   query.setParameter("startDate", startDate);
+        if (endDate != null)     query.setParameter("endDate", endDate);
+
+        Object[] row = query.getSingleResult();
+        return new BigDecimal[]{
+            new BigDecimal(row[0].toString()),
+            new BigDecimal(row[1].toString())
+        };
     }
 
     @Override
@@ -286,6 +387,139 @@ public class PaymentServiceImpl implements PaymentService {
             balances.put(pid, income.subtract(allocated));
         }
         return balances;
+    }
+
+    @Override
+    public List<MatchFeePlayerDataDTO> getMatchFeePlayerData(Long matchId, List<Long> sideIds) {
+        var match = matchRepository.findById(matchId)
+                .orElseThrow(() -> NotFoundException.of("Match", matchId));
+        Long tournamentId = match.getTournament() != null ? match.getTournament().getTournamentId() : null;
+
+        List<MatchSide> sides = matchSideRepository.findByMatchMatchId(matchId);
+        if (sideIds != null && !sideIds.isEmpty()) {
+            sides = sides.stream().filter(s -> sideIds.contains(s.getMatchSideId())).toList();
+        }
+
+        // Collect unique player IDs per side (playing XI + 12th man)
+        Map<Long, MatchFeePlayerDataDTO.MatchFeePlayerDataDTOBuilder> playerBuilders = new LinkedHashMap<>();
+        for (MatchSide side : sides) {
+            String teamName = side.getTeam() != null ? side.getTeam().getTeamName() : "";
+            List<Long> playerIds = new ArrayList<>();
+            if (side.getPlayingXi() != null) playerIds.addAll(side.getPlayingXi());
+            if (side.getTwelfthManPlayerId() != null) playerIds.add(side.getTwelfthManPlayerId());
+
+            for (Long pid : playerIds) {
+                if (!playerBuilders.containsKey(pid)) {
+                    playerBuilders.put(pid, MatchFeePlayerDataDTO.builder()
+                            .playerId(pid)
+                            .matchSideId(side.getMatchSideId())
+                            .teamName(teamName));
+                }
+            }
+        }
+
+        if (playerBuilders.isEmpty()) return List.of();
+
+        List<Payment> allPayments = paymentRepository.findAllWithRelations();
+        List<Player> players = playerRepository.findAllById(playerBuilders.keySet());
+        Map<Long, Player> playerMap = new java.util.HashMap<>();
+        players.forEach(p -> playerMap.put(p.getPlayerId(), p));
+
+        List<MatchFeePlayerDataDTO> result = new ArrayList<>();
+        for (var entry : playerBuilders.entrySet()) {
+            Long pid = entry.getKey();
+            Player player = playerMap.get(pid);
+            if (player == null) continue;
+
+            BigDecimal income = allPayments.stream()
+                    .filter(p -> p.getPlayer() != null && p.getPlayer().getPlayerId().equals(pid) && p.getStatus() == PaymentStatus.APPROVED)
+                    .map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal allocated = allocationRepository.findByPlayerPlayerId(pid).stream()
+                    .map(WalletAllocation::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            List<Payment> tourPayments = tournamentId == null ? List.of() : allPayments.stream()
+                    .filter(p -> p.getPlayer() != null && p.getPlayer().getPlayerId().equals(pid)
+                            && p.getTournament() != null && p.getTournament().getTournamentId().equals(tournamentId)
+                            && p.getStatus() == PaymentStatus.APPROVED)
+                    .toList();
+
+            BigDecimal tourPaymentTotal = tourPayments.stream()
+                    .map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal matchFeeAllocated = allocationRepository
+                    .findByPlayerPlayerIdAndCategoryAndMatchId(pid, "MATCH_FEE", matchId).stream()
+                    .map(WalletAllocation::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            result.add(entry.getValue()
+                    .playerName(player.getName() + " " + player.getSurname())
+                    .walletBalance(income.subtract(allocated))
+                    .tournamentPaymentCount(tourPayments.size())
+                    .tournamentPaymentTotal(tourPaymentTotal)
+                    .matchFeeAllocated(matchFeeAllocated)
+                    .build());
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public AllocationResultDTO allocatePlayerMatchFee(Long playerId, BigDecimal amount, Long matchId, BigDecimal matchFee, String description) {
+        Player player = playerRepository.findById(playerId)
+                .orElseThrow(() -> NotFoundException.of("Player", playerId));
+        String fullName = player.getName() + " " + player.getSurname();
+
+        List<Payment> allPayments = paymentRepository.findAllWithRelations();
+        BigDecimal income = allPayments.stream()
+                .filter(p -> p.getPlayer() != null && p.getPlayer().getPlayerId().equals(playerId) && p.getStatus() == PaymentStatus.APPROVED)
+                .map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal allocated = allocationRepository.findByPlayerPlayerId(playerId).stream()
+                .map(WalletAllocation::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal walletBalance = income.subtract(allocated);
+
+        // Enforce match fee cap
+        if (matchFee != null && matchFee.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal alreadyAllocatedForMatch = allocationRepository
+                    .findByPlayerPlayerIdAndCategoryAndMatchId(playerId, "MATCH_FEE", matchId).stream()
+                    .map(WalletAllocation::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal remaining = matchFee.subtract(alreadyAllocatedForMatch);
+            if (amount.compareTo(remaining) > 0) {
+                return AllocationResultDTO.builder()
+                        .allocated(List.of())
+                        .skipped(List.of(AllocationResultDTO.SkippedEntry.builder()
+                                .playerId(playerId).playerName(fullName)
+                                .reason("Amount exceeds remaining match fee (" + remaining + ")")
+                                .walletBalance(walletBalance).required(amount)
+                                .build()))
+                        .build();
+            }
+        }
+
+        if (walletBalance.compareTo(amount) < 0) {
+            return AllocationResultDTO.builder()
+                    .allocated(List.of())
+                    .skipped(List.of(AllocationResultDTO.SkippedEntry.builder()
+                            .playerId(playerId).playerName(fullName)
+                            .reason("Insufficient wallet funds")
+                            .walletBalance(walletBalance).required(amount)
+                            .build()))
+                    .build();
+        }
+
+        String desc = description != null && !description.isBlank() ? description : "Match fee";
+        allocationRepository.save(WalletAllocation.builder()
+                .player(player)
+                .amount(amount)
+                .category("MATCH_FEE")
+                .description(desc)
+                .matchId(matchId)
+                .allocationDate(LocalDate.now())
+                .build());
+
+        return AllocationResultDTO.builder()
+                .allocated(List.of(AllocationResultDTO.AllocatedEntry.builder()
+                        .playerId(playerId).playerName(fullName).amount(amount).build()))
+                .skipped(List.of())
+                .build();
     }
 
     private void processPlayerAllocation(Player player, List<Payment> allPayments,

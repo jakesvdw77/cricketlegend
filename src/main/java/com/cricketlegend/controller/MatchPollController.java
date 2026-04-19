@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-record SendNotificationRequest(String subject, String message) {}
+record SendNotificationRequest(String subject, String message, Long teamId) {}
 
 @RestController
 @RequestMapping("/api/v1")
@@ -110,12 +110,15 @@ public class MatchPollController {
 
     @PostMapping("/notifications/send")
     @PreAuthorize("hasAnyRole('admin','manager')")
-    @Operation(summary = "Send a message notification to managed players")
+    @Operation(summary = "Send a message notification to managed players or all players (admin)")
     public ResponseEntity<Void> sendNotification(
             @RequestBody SendNotificationRequest request,
+            Authentication authentication,
             @AuthenticationPrincipal Jwt jwt) {
         String email = jwt.getClaimAsString("email");
-        pollService.sendManagerNotification(request.subject(), request.message(), email);
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        pollService.sendManagerNotification(request.subject(), request.message(), email, isAdmin, request.teamId());
         return ResponseEntity.ok().build();
     }
 }

@@ -14,5 +14,5 @@ public interface MatchPollService {
     List<PlayerNotificationDTO> getMyNotifications(String email);
     long countUnreadNotifications(String email);
     void markNotificationRead(Long notificationId, String email);
-    void sendManagerNotification(String subject, String message, String managerEmail);
+    void sendManagerNotification(String subject, String message, String managerEmail, boolean isAdmin, Long teamId);
 }

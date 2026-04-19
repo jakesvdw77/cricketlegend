@@ -20,6 +20,9 @@ public interface ManagerTeamService {
     /** Returns the team IDs this manager is allowed to manage. */
     Set<Long> getTeamIdsForManager(String email);
 
+    /** Returns the teams (with names) this manager is assigned to. */
+    List<ManagerTeamDTO> getManagedTeams(String email);
+
     /** Returns all squad player IDs across the manager's assigned teams. */
     Set<Long> getSquadPlayerIdsForManager(String email);
 
