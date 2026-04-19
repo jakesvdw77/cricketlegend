@@ -135,8 +135,7 @@ export const Payments: React.FC = () => {
 
   useEffect(() => { load(); }, [page, rowsPerPage, filterType, filterStatus, filterPlayer, filterSponsor, filterTournament, filterYear, filterMonth]);
 
-  const setStatus = (id: number, status: PaymentStatus) =>
-    setRows(prev => prev.map(r => r.paymentId === id ? { ...r, status } : r));
+
 
   // Approval confirmation dialog
   const [approveTarget, setApproveTarget] = useState<Payment | null>(null);
@@ -320,7 +319,7 @@ export const Payments: React.FC = () => {
         8: { halign: 'right', fontStyle: 'bold' },
       },
       styles: { overflow: 'linebreak', cellPadding: 2 },
-      didDrawPage: (data) => {
+      didDrawPage: (_data) => {
         const pg = doc.getCurrentPageInfo().pageNumber;
         const total = (doc.internal as any).pages?.length - 1 || pg;
         doc.setFontSize(8);

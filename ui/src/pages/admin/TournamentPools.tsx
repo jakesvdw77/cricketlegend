@@ -4,7 +4,7 @@ import {
   Box, Typography, Button, Grid, Card, CardContent, Avatar,
   Chip, Divider, CircularProgress, Alert,
 } from '@mui/material';
-import { ArrowBack, Email, Phone } from '@mui/icons-material';
+import { ArrowBack } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { teamApi } from '../../api/teamApi';
 import { Tournament, Team } from '../../types';

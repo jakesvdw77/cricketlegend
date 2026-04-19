@@ -21,7 +21,7 @@ export const MediaCarousel: React.FC<Props> = ({
   items,
   interval = 5000,
   height = 420,
-  title,
+  title: _title,
 }) => {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);

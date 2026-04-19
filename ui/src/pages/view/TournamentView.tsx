@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, SportsCricket, Language, Facebook,
-  PictureAsPdf, AppRegistration, Groups, AttachMoney, Leaderboard, Assignment, Handshake,
+  PictureAsPdf, AppRegistration, Groups, Leaderboard, Assignment, Handshake,
 } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { Tournament } from '../../types';
@@ -179,6 +179,4 @@ const InfoRow: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = 
   </Box>
 );
 
-const FeeChip: React.FC<{ label: string; amount: number }> = ({ label, amount }) => (
-  <Chip label={`${label}: R${amount.toLocaleString()}`} size="small" variant="outlined" />
-);
+
