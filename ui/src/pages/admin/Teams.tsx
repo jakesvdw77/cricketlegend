@@ -5,9 +5,9 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Avatar, CircularProgress,
   List, ListItem, ListItemAvatar, ListItemText, Autocomplete, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel, Tooltip,
-  useMediaQuery, useTheme, Tabs, Tab, Chip,
+  useMediaQuery, useTheme, Tabs, Tab, Chip, InputAdornment,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket, ViewColumn, ContentCopy } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, Groups, PersonRemove, Print, SportsCricket, ViewColumn, ContentCopy, Language, Facebook, Instagram, YouTube } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';
 import { playerDescription } from '../../utils/playerDescription';
 import { teamApi } from '../../api/teamApi';
@@ -23,7 +23,7 @@ import { useManagerTeams } from '../../hooks/useManagerTeams';
 
 const empty: Team = { teamName: '' };
 
-type ColKey = 'teamName' | 'club' | 'captain' | 'homeGround' | 'selector' | 'coach' | 'manager' | 'sponsors';
+type ColKey = 'teamName' | 'club' | 'captain' | 'homeGround' | 'selector' | 'coach' | 'manager' | 'sponsors' | 'links';
 const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'teamName',   label: 'Team Name' },
   { key: 'club',       label: 'Club' },
@@ -33,8 +33,9 @@ const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'coach',      label: 'Coach' },
   { key: 'manager',    label: 'Manager' },
   { key: 'sponsors',   label: 'Sponsors' },
+  { key: 'links',      label: 'Links' },
 ];
-const DEFAULT_VISIBLE = new Set<ColKey>(['teamName', 'club', 'homeGround', 'captain', 'selector', 'coach', 'manager', 'sponsors']);
+const DEFAULT_VISIBLE = new Set<ColKey>(['teamName', 'club', 'homeGround', 'captain', 'selector', 'coach', 'manager', 'sponsors', 'links']);
 const MOBILE_VISIBLE = new Set<ColKey>(['teamName', 'club', 'captain']);
 
 export const Teams: React.FC = () => {
@@ -263,6 +264,7 @@ export const Teams: React.FC = () => {
               {col('coach')      && <TableCell>Coach</TableCell>}
               {col('manager')    && <TableCell>Manager</TableCell>}
               {col('sponsors')   && <TableCell>Sponsors</TableCell>}
+              {col('links')      && <TableCell>Links</TableCell>}
               <TableCell />
             </TableRow>
           </TableHead>
@@ -301,6 +303,32 @@ export const Teams: React.FC = () => {
                       } : undefined}
                       title={r.sponsors?.length ? 'View sponsors' : 'No sponsors'}
                     />
+                  </TableCell>
+                )}
+                {col('links') && (
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      {r.websiteUrl && (
+                        <IconButton size="small" component="a" href={r.websiteUrl} target="_blank" rel="noopener noreferrer" title="Website">
+                          <Language fontSize="small" />
+                        </IconButton>
+                      )}
+                      {r.facebookUrl && (
+                        <IconButton size="small" component="a" href={r.facebookUrl} target="_blank" rel="noopener noreferrer" title="Facebook" sx={{ color: '#1877F2' }}>
+                          <Facebook fontSize="small" />
+                        </IconButton>
+                      )}
+                      {r.instagramUrl && (
+                        <IconButton size="small" component="a" href={r.instagramUrl} target="_blank" rel="noopener noreferrer" title="Instagram" sx={{ color: '#E1306C' }}>
+                          <Instagram fontSize="small" />
+                        </IconButton>
+                      )}
+                      {r.youtubeUrl && (
+                        <IconButton size="small" component="a" href={r.youtubeUrl} target="_blank" rel="noopener noreferrer" title="YouTube" sx={{ color: '#FF0000' }}>
+                          <YouTube fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
                   </TableCell>
                 )}
                 <TableCell>
@@ -442,7 +470,14 @@ export const Teams: React.FC = () => {
           <TextField label="Website URL" value={editing.websiteUrl ?? ''}
                      onChange={e => set({ websiteUrl: e.target.value })} />
           <TextField label="Facebook URL" value={editing.facebookUrl ?? ''}
-                     onChange={e => set({ facebookUrl: e.target.value })} />
+                     onChange={e => set({ facebookUrl: e.target.value })}
+                     InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
+          <TextField label="Instagram URL" value={editing.instagramUrl ?? ''}
+                     onChange={e => set({ instagramUrl: e.target.value })}
+                     InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
+          <TextField label="YouTube URL" value={editing.youtubeUrl ?? ''}
+                     onChange={e => set({ youtubeUrl: e.target.value })}
+                     InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
 
           {/* Team photo upload + preview */}
           <Box>

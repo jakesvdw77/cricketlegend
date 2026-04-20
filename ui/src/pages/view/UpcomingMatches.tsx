@@ -3,7 +3,7 @@ import {
   Box, Typography, Grid, Card, CardContent, Chip, Divider, Button, Avatar,
   TextField, MenuItem,
 } from '@mui/material';
-import { CalendarMonth, LocationOn, EmojiEvents, ScoreboardOutlined, AccessTime } from '@mui/icons-material';
+import { CalendarMonth, LocationOn, EmojiEvents, ScoreboardOutlined, AccessTime, YouTube } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { Match } from '../../types';
@@ -104,6 +104,20 @@ export const UpcomingMatches: React.FC = () => {
                       component="a"
                     >
                       Live Scoring
+                    </Button>
+                  )}
+                  {m.youtubeUrl && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<YouTube />}
+                      href={m.youtubeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      component="a"
+                      sx={{ color: '#FF0000', borderColor: '#FF0000', '&:hover': { borderColor: '#CC0000', bgcolor: 'rgba(255,0,0,0.04)' } }}
+                    >
+                      Watch
                     </Button>
                   )}
                 </Box>

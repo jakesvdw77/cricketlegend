@@ -8,7 +8,7 @@ import {
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
   Tabs, Tab, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { teamApi } from '../../api/teamApi';
@@ -415,6 +415,16 @@ export const Tournaments: React.FC = () => {
                           <Facebook fontSize="small" />
                         </IconButton>
                       )}
+                      {r.instagramLink && (
+                        <IconButton size="small" component="a" href={r.instagramLink} target="_blank" rel="noopener noreferrer" title="Instagram" sx={{ color: '#E1306C' }}>
+                          <Instagram fontSize="small" />
+                        </IconButton>
+                      )}
+                      {r.youtubeLink && (
+                        <IconButton size="small" component="a" href={r.youtubeLink} target="_blank" rel="noopener noreferrer" title="YouTube" sx={{ color: '#FF0000' }}>
+                          <YouTube fontSize="small" />
+                        </IconButton>
+                      )}
                       {r.playingConditionsUrl && (
                         <IconButton size="small" component="a" href={r.playingConditionsUrl} target="_blank" rel="noopener noreferrer" title="Playing Conditions" color="error">
                           <PictureAsPdf fontSize="small" />
@@ -685,8 +695,14 @@ export const Tournaments: React.FC = () => {
                 </Box>
               </Box>
 
-              <TextField label="Website" value={editing.websiteLink ?? ''} onChange={e => set({ websiteLink: e.target.value })} />
-              <TextField label="Facebook" value={editing.facebookLink ?? ''} onChange={e => set({ facebookLink: e.target.value })} />
+              <TextField label="Website" value={editing.websiteLink ?? ''} onChange={e => set({ websiteLink: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Language fontSize="small" /></InputAdornment> }} />
+              <TextField label="Facebook" value={editing.facebookLink ?? ''} onChange={e => set({ facebookLink: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="Instagram" value={editing.instagramLink ?? ''} onChange={e => set({ instagramLink: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="YouTube" value={editing.youtubeLink ?? ''} onChange={e => set({ youtubeLink: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
               <TextField
                 label="Registration Page URL"
                 value={editing.registrationPageUrl ?? ''}

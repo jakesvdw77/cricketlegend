@@ -12,6 +12,7 @@ public class MatchResultSummaryDTO {
     private String oppositionTeamName;
     private String fieldName;
     private String scoringUrl;
+    private String youtubeUrl;
 
     private String sideBattingFirstName;
     private Integer scoreBattingFirst;

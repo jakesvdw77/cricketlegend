@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   Print, ArrowBack, Star, SportsCricket, WhatsApp, ContentCopy,
-  ScoreboardOutlined, Share, Facebook, Refresh,
+  ScoreboardOutlined, Share, Facebook, Refresh, YouTube,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
@@ -339,6 +339,19 @@ export const MatchTeamSheet: React.FC = () => {
             component="a"
           >
             Live Scoring
+          </Button>
+        )}
+        {match.youtubeUrl && (
+          <Button
+            variant="outlined"
+            startIcon={<YouTube />}
+            href={match.youtubeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            component="a"
+            sx={{ color: '#FF0000', borderColor: '#FF0000', '&:hover': { borderColor: '#CC0000', bgcolor: 'rgba(255,0,0,0.04)' } }}
+          >
+            Watch Live
           </Button>
         )}
         <Tooltip title={!side?.teamAnnounced ? 'Team has not been announced yet' : ''}>

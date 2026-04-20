@@ -67,6 +67,8 @@ public class TournamentServiceImpl implements TournamentService {
         existing.setPlayingConditionsUrl(dto.getPlayingConditionsUrl());
         existing.setWebsiteLink(dto.getWebsiteLink());
         existing.setFacebookLink(dto.getFacebookLink());
+        existing.setInstagramLink(dto.getInstagramLink());
+        existing.setYoutubeLink(dto.getYoutubeLink());
         existing.setRegistrationPageUrl(dto.getRegistrationPageUrl());
         existing.setEntryFee(dto.getEntryFee());
         existing.setRegistrationFee(dto.getRegistrationFee());

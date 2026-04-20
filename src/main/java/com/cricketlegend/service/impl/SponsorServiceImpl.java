@@ -46,10 +46,17 @@ public class SponsorServiceImpl implements SponsorService {
                 .orElseThrow(() -> NotFoundException.of("Sponsor", id));
         existing.setName(dto.getName());
         existing.setBrandLogoUrl(dto.getBrandLogoUrl());
+        existing.setPrintLogoUrl(dto.getPrintLogoUrl());
         existing.setBrandWebsite(dto.getBrandWebsite());
+        existing.setFacebookUrl(dto.getFacebookUrl());
+        existing.setInstagramUrl(dto.getInstagramUrl());
+        existing.setYoutubeUrl(dto.getYoutubeUrl());
         existing.setContactPerson(dto.getContactPerson());
         existing.setContactNumber(dto.getContactNumber());
         existing.setContactEmail(dto.getContactEmail());
+        existing.setAddress(dto.getAddress());
+        existing.setVatNumber(dto.getVatNumber());
+        existing.setRegistrationNumber(dto.getRegistrationNumber());
         return sponsorMapper.toDto(sponsorRepository.save(existing));
     }
 

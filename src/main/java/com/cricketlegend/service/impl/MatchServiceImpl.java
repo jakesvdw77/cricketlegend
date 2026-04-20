@@ -95,6 +95,7 @@ public class MatchServiceImpl implements MatchService {
         existing.setScheduledStartTime(dto.getScheduledStartTime());
         existing.setUmpire(dto.getUmpire());
         existing.setScoringUrl(dto.getScoringUrl());
+        existing.setYoutubeUrl(dto.getYoutubeUrl());
         existing.setMatchStage(dto.getMatchStage());
         existing.setTossTime(dto.getTossTime());
         existing.setArrivalTime(dto.getArrivalTime());
@@ -199,6 +200,7 @@ public class MatchServiceImpl implements MatchService {
                 .oppositionTeamName(m.getOppositionTeam() != null ? m.getOppositionTeam().getTeamName() : null)
                 .fieldName(m.getField() != null ? m.getField().getName() : null)
                 .scoringUrl(m.getScoringUrl())
+                .youtubeUrl(m.getYoutubeUrl())
                 .sideBattingFirstName(r.getSideBattingFirst() != null ? r.getSideBattingFirst().getTeamName() : null)
                 .scoreBattingFirst(r.getScoreBattingFirst())
                 .wicketsLostBattingFirst(r.getWicketsLostBattingFirst())

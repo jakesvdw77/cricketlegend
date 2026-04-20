@@ -97,6 +97,9 @@ export interface Sponsor {
   brandLogoUrl?: string;
   printLogoUrl?: string;
   brandWebsite?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
   contactPerson?: string;
   contactNumber?: string;
   contactEmail?: string;
@@ -193,6 +196,8 @@ export interface Team {
   teamPhotoUrl?: string;
   websiteUrl?: string;
   facebookUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
   mediaContent?: MediaContent[];
   sponsors?: Sponsor[];
 }
@@ -225,6 +230,8 @@ export interface Tournament {
   playingConditionsUrl?: string;
   websiteLink?: string;
   facebookLink?: string;
+  instagramLink?: string;
+  youtubeLink?: string;
   registrationPageUrl?: string;
   entryFee?: number;
   registrationFee?: number;
@@ -260,6 +267,7 @@ export interface Match {
   fieldName?: string;
   fieldGoogleMapsUrl?: string;
   scoringUrl?: string;
+  youtubeUrl?: string;
   tournamentId?: number;
   tournamentName?: string;
 }
@@ -313,6 +321,7 @@ export interface MatchResultSummary {
   oppositionTeamName?: string;
   fieldName?: string;
   scoringUrl?: string;
+  youtubeUrl?: string;
   sideBattingFirstName?: string;
   scoreBattingFirst?: number;
   wicketsLostBattingFirst?: number;

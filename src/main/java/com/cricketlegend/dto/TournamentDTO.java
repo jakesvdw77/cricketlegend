@@ -24,6 +24,8 @@ public class TournamentDTO {
     private String playingConditionsUrl;
     private String websiteLink;
     private String facebookLink;
+    private String instagramLink;
+    private String youtubeLink;
     private String registrationPageUrl;
     private BigDecimal entryFee;
     private BigDecimal registrationFee;

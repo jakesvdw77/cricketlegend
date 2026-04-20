@@ -49,7 +49,7 @@ export const MyWallet: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [category, setCategory] = useState<PaymentCategory | ''>('');
   const [tournament, setTournament] = useState<Tournament | null>(null);
-  const [amount, setAmount] = useState<number | ''>('');
+  const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState('');
   const [proofUrl, setProofUrl] = useState('');
   const [snack, setSnack] = useState('');
@@ -200,7 +200,7 @@ export const MyWallet: React.FC = () => {
                     setTournament(v);
                     if (v) {
                       const fee = category === 'TOURNAMENT_REGISTRATION' ? v.registrationFee : v.matchFee;
-                      if (fee != null) setAmount(Number(fee));
+                      if (fee != null) setAmount(String(fee));
                     }
                   }}
                 renderInput={params => <TextField {...params} label="Tournament" required />}
@@ -213,7 +213,7 @@ export const MyWallet: React.FC = () => {
               type="number"
               value={amount}
               inputProps={{ min: 0, step: 0.01 }}
-              onChange={e => setAmount(parseFloat(e.target.value) || '')}
+              onChange={e => setAmount(e.target.value)}
               required
             />
 

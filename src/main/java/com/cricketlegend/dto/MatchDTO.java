@@ -17,6 +17,7 @@ public class MatchDTO {
     private LocalTime arrivalTime;
     private String umpire;
     private String scoringUrl;
+    private String youtubeUrl;
     private MatchStage matchStage;
     private TossWinner tossWonBy;
     private TossDecision tossDecision;

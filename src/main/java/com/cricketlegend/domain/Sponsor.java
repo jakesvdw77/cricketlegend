@@ -18,6 +18,9 @@ public class Sponsor {
     private String brandLogoUrl;
     private String printLogoUrl;
     private String brandWebsite;
+    private String facebookUrl;
+    private String instagramUrl;
+    private String youtubeUrl;
     private String contactPerson;
     private String contactNumber;
     private String contactEmail;

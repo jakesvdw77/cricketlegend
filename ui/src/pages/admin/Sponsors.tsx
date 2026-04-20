@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, Avatar, Link, CircularProgress, TableSortLabel, Tooltip,
+  DialogContent, DialogActions, TextField, Avatar, Link, CircularProgress, TableSortLabel, Tooltip, InputAdornment,
 } from '@mui/material';
-import { Add, Edit, Delete, OpenInNew, CloudUpload, HighlightOff } from '@mui/icons-material';
+import { Add, Edit, Delete, OpenInNew, CloudUpload, HighlightOff, Language, Facebook, Instagram, YouTube } from '@mui/icons-material';
 import { sponsorApi } from '../../api/sponsorApi';
 import { paymentApi } from '../../api/paymentApi';
 import { Sponsor } from '../../types';
@@ -86,6 +86,7 @@ export const Sponsors: React.FC = () => {
                 <TableSortLabel active direction={sortDir} onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>Name</TableSortLabel>
               </TableCell>
               <TableCell>Website</TableCell>
+              <TableCell>Social</TableCell>
               <TableCell>Contact Person</TableCell>
               <TableCell>Contact Email</TableCell>
               <TableCell>Contact Number</TableCell>
@@ -119,6 +120,25 @@ export const Sponsors: React.FC = () => {
                       {r.brandWebsite} <OpenInNew sx={{ fontSize: 14 }} />
                     </Link>
                   )}
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                    {r.facebookUrl && (
+                      <IconButton size="small" component="a" href={r.facebookUrl} target="_blank" rel="noopener noreferrer" title="Facebook" sx={{ color: '#1877F2' }}>
+                        <Facebook fontSize="small" />
+                      </IconButton>
+                    )}
+                    {r.instagramUrl && (
+                      <IconButton size="small" component="a" href={r.instagramUrl} target="_blank" rel="noopener noreferrer" title="Instagram" sx={{ color: '#E1306C' }}>
+                        <Instagram fontSize="small" />
+                      </IconButton>
+                    )}
+                    {r.youtubeUrl && (
+                      <IconButton size="small" component="a" href={r.youtubeUrl} target="_blank" rel="noopener noreferrer" title="YouTube" sx={{ color: '#FF0000' }}>
+                        <YouTube fontSize="small" />
+                      </IconButton>
+                    )}
+                  </Box>
                 </TableCell>
                 <TableCell>{r.contactPerson}</TableCell>
                 <TableCell>{r.contactEmail}</TableCell>
@@ -214,7 +234,17 @@ export const Sponsors: React.FC = () => {
 
 
           <TextField label="Brand Website" value={editing.brandWebsite ?? ''}
-            onChange={e => set({ brandWebsite: e.target.value })} />
+            onChange={e => set({ brandWebsite: e.target.value })}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Language fontSize="small" /></InputAdornment> }} />
+          <TextField label="Facebook URL" value={editing.facebookUrl ?? ''}
+            onChange={e => set({ facebookUrl: e.target.value })}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
+          <TextField label="Instagram URL" value={editing.instagramUrl ?? ''}
+            onChange={e => set({ instagramUrl: e.target.value })}
+            InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
+          <TextField label="YouTube URL" value={editing.youtubeUrl ?? ''}
+            onChange={e => set({ youtubeUrl: e.target.value })}
+            InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
           <TextField label="Contact Person" value={editing.contactPerson ?? ''}
             onChange={e => set({ contactPerson: e.target.value })} />
           <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>

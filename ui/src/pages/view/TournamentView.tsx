@@ -5,7 +5,7 @@ import {
   Chip, Divider, Button, CircularProgress, IconButton, Tooltip,
 } from '@mui/material';
 import {
-  EmojiEvents, CalendarMonth, SportsCricket, Language, Facebook,
+  EmojiEvents, CalendarMonth, SportsCricket, Language, Facebook, Instagram, YouTube,
   PictureAsPdf, AppRegistration, Groups, Leaderboard, Assignment, Handshake,
 } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -124,6 +124,20 @@ export const TournamentView: React.FC = () => {
                     <Tooltip title="Facebook">
                       <IconButton size="small" component="a" href={t.facebookLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#1877F2' }}>
                         <Facebook fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {t.instagramLink && (
+                    <Tooltip title="Instagram">
+                      <IconButton size="small" component="a" href={t.instagramLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#E1306C' }}>
+                        <Instagram fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {t.youtubeLink && (
+                    <Tooltip title="YouTube">
+                      <IconButton size="small" component="a" href={t.youtubeLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#FF0000' }}>
+                        <YouTube fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   )}

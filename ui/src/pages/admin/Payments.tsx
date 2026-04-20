@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, TextField, MenuItem, Chip, Divider,
   Autocomplete, Select, FormControl, InputLabel, Snackbar,
   Card, CardContent, ToggleButton, ToggleButtonGroup, Tooltip,
-  FormControlLabel, Checkbox, TablePagination,
+  FormControlLabel, Checkbox, TablePagination, Radio, RadioGroup,
 } from '@mui/material';
 import {
   Add, Edit, Delete, PictureAsPdf, FilterAlt, AttachFile,
@@ -102,6 +102,8 @@ export const Payments: React.FC = () => {
   // dialog
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Payment>(empty);
+  const [amountStr, setAmountStr] = useState<string>('0');
+  const [vatInclusive, setVatInclusive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [snack, setSnack] = useState('');
 
@@ -208,12 +210,14 @@ export const Payments: React.FC = () => {
     }
   };
 
-  const openCreate = () => { setEditing(empty); setDialogClub(null); setOpen(true); };
+  const openCreate = () => { setEditing(empty); setAmountStr('0'); setVatInclusive(false); setDialogClub(null); setOpen(true); };
   const openEdit = (p: Payment) => {
     // Pre-select the club when editing so the player list is already filtered
     const club = clubs.find(c => c.clubId === players.find(pl => pl.playerId === p.playerId)?.homeClubId) ?? null;
     setDialogClub(club);
     setEditing(p);
+    setAmountStr(String(p.amount ?? 0));
+    setVatInclusive(false);
     setOpen(true);
   };
 
@@ -648,7 +652,7 @@ export const Payments: React.FC = () => {
           {/* Category */}
           {showPlayerField && (
             <TextField select label="Category" value={editing.paymentCategory ?? ''}
-              onChange={e => set({ paymentCategory: e.target.value as PaymentCategory, tournamentId: undefined, amount: 0 })}>
+              onChange={e => { set({ paymentCategory: e.target.value as PaymentCategory, tournamentId: undefined, amount: 0 }); setAmountStr('0'); }}>
               {playerCategories.map(c => (
                 <MenuItem key={c} value={c}>{CATEGORY_LABELS[c]}</MenuItem>
               ))}
@@ -673,7 +677,7 @@ export const Payments: React.FC = () => {
                   const fee = editing.paymentCategory === 'TOURNAMENT_REGISTRATION' ? v.registrationFee
                             : editing.paymentCategory === 'TOURNAMENT_FEE' ? v.matchFee
                             : undefined;
-                  if (fee != null) patch.amount = Number(fee);
+                  if (fee != null) { patch.amount = Number(fee); setAmountStr(String(fee)); }
                 }
                 set(patch);
               }}
@@ -695,27 +699,57 @@ export const Payments: React.FC = () => {
               InputLabelProps={{ shrink: true }}
               onChange={e => set({ paymentDate: e.target.value })}
               fullWidth required />
-            <TextField label="Amount (R)" type="number" value={editing.amount}
+            <TextField label="Amount (R)" type="number" value={amountStr}
               inputProps={{ min: 0, step: 0.01 }}
-              onChange={e => set({ amount: parseFloat(e.target.value) || 0 })}
+              onChange={e => {
+                const raw = parseFloat(e.target.value) || 0;
+                setAmountStr(e.target.value);
+                set({ amount: editing.taxable && vatInclusive ? raw / 1.15 : raw });
+              }}
               fullWidth required />
           </Box>
 
           {/* VAT */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             <FormControlLabel
               control={
                 <Checkbox
                   checked={!!editing.taxable}
-                  onChange={e => set({ taxable: e.target.checked })}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    const raw = parseFloat(amountStr) || 0;
+                    if (!checked) setVatInclusive(false);
+                    // when unchecking, always use raw; when checking, vatInclusive is still false (just set above)
+                    set({ taxable: checked, amount: checked && vatInclusive ? raw / 1.15 : raw });
+                  }}
                 />
               }
               label="Subject to VAT (15%)"
             />
             {editing.taxable && (
-              <Typography variant="body2" color="text.secondary">
-                VAT: {fmt(Number(editing.amount) * VAT_RATE)} &nbsp;|&nbsp; Total incl. VAT: {fmt(Number(editing.amount) * 1.15)}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, pl: 1 }}>
+                <FormControl>
+                  <RadioGroup
+                    row
+                    value={vatInclusive ? 'inclusive' : 'exclusive'}
+                    onChange={e => {
+                      const incl = e.target.value === 'inclusive';
+                      const raw = parseFloat(amountStr) || 0;
+                      setVatInclusive(incl);
+                      set({ amount: incl ? raw / 1.15 : raw });
+                    }}
+                  >
+                    <FormControlLabel value="exclusive" control={<Radio size="small" />} label="VAT Exclusive (VAT added on top)" />
+                    <FormControlLabel value="inclusive" control={<Radio size="small" />} label="VAT Inclusive (VAT already in amount)" />
+                  </RadioGroup>
+                </FormControl>
+                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                  {vatInclusive
+                    ? <>Net: {fmt(editing.amount)} &nbsp;|&nbsp; VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total paid: {fmt(parseFloat(amountStr) || 0)}</>
+                    : <>VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total incl. VAT: {fmt(editing.amount * 1.15)}</>
+                  }
+                </Typography>
+              </Box>
             )}
           </Box>
 

@@ -4,9 +4,9 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem,
   Stepper, Step, StepLabel, TableSortLabel, TablePagination,
-  Popover, FormGroup, Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme,
+  Popover, FormGroup, Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme, InputAdornment,
 } from '@mui/material';
-import { Add, Edit, Delete, Assignment, Groups, ViewColumn, Print, HowToVote } from '@mui/icons-material';
+import { Add, Edit, Delete, Assignment, Groups, ViewColumn, Print, HowToVote, YouTube } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
@@ -311,6 +311,9 @@ export const Matches: React.FC = () => {
                 onChange={e => setEditing({ ...editing, umpire: e.target.value })} />
               <TextField label="Live Scoring URL" value={editing.scoringUrl ?? ''}
                 onChange={e => setEditing({ ...editing, scoringUrl: e.target.value })} />
+              <TextField label="YouTube Stream URL" value={editing.youtubeUrl ?? ''}
+                onChange={e => setEditing({ ...editing, youtubeUrl: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
               <TextField select label="Stage" value={editing.matchStage ?? ''}
                 onChange={e => setEditing({ ...editing, matchStage: e.target.value as MatchStage })}>
                 <MenuItem value="POOL">Pool</MenuItem>

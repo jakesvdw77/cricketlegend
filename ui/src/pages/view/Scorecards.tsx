@@ -3,7 +3,7 @@ import {
   Box, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   TableContainer, Paper, Chip, Divider, Alert, Select, MenuItem, FormControl, InputLabel, Button,
 } from '@mui/material';
-import { ScoreboardOutlined } from '@mui/icons-material';
+import { ScoreboardOutlined, YouTube } from '@mui/icons-material';
 import { useSearchParams } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { Match, MatchResult, TeamScorecard } from '../../types';
@@ -124,6 +124,20 @@ export const Scorecards: React.FC = () => {
                 component="a"
               >
                 Live Scoring
+              </Button>
+            )}
+            {selectedMatch.youtubeUrl && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<YouTube />}
+                href={selectedMatch.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                component="a"
+                sx={{ color: '#FF0000', borderColor: '#FF0000', '&:hover': { borderColor: '#CC0000', bgcolor: 'rgba(255,0,0,0.04)' } }}
+              >
+                Watch
               </Button>
             )}
           </Box>

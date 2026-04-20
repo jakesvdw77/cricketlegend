@@ -24,6 +24,7 @@ public class Match {
     private LocalTime arrivalTime;
     private String umpire;
     private String scoringUrl;
+    private String youtubeUrl;
 
     @Enumerated(EnumType.STRING)
     private MatchStage matchStage;

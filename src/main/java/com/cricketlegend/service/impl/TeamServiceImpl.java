@@ -74,6 +74,8 @@ public class TeamServiceImpl implements TeamService {
         existing.setTeamPhotoUrl(dto.getTeamPhotoUrl());
         existing.setWebsiteUrl(dto.getWebsiteUrl());
         existing.setFacebookUrl(dto.getFacebookUrl());
+        existing.setInstagramUrl(dto.getInstagramUrl());
+        existing.setYoutubeUrl(dto.getYoutubeUrl());
         resolveAssociations(existing, dto);
         resolveSponsors(existing, dto);
         return teamMapper.toDto(teamRepository.save(existing));

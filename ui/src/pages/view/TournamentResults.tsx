@@ -5,7 +5,7 @@ import {
   Card, CardContent, Grid, Divider, CardActions,
 } from '@mui/material';
 import {
-  ArrowBack, SportsCricket, CalendarMonth, LocationOn, EmojiEvents, Star, ScoreboardOutlined,
+  ArrowBack, SportsCricket, CalendarMonth, LocationOn, EmojiEvents, Star, ScoreboardOutlined, YouTube,
 } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { matchApi } from '../../api/matchApi';
@@ -155,18 +155,33 @@ const ResultCard: React.FC<{ result: MatchResultSummary }> = ({ result: r }) => 
           )}
         </Box>
       </CardContent>
-      {r.scoringUrl && (
+      {(r.scoringUrl || r.youtubeUrl) && (
         <CardActions sx={{ pt: 0 }}>
-          <Button
-            size="small"
-            startIcon={<ScoreboardOutlined />}
-            href={r.scoringUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            component="a"
-          >
-            Live Scoring
-          </Button>
+          {r.scoringUrl && (
+            <Button
+              size="small"
+              startIcon={<ScoreboardOutlined />}
+              href={r.scoringUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              component="a"
+            >
+              Live Scoring
+            </Button>
+          )}
+          {r.youtubeUrl && (
+            <Button
+              size="small"
+              startIcon={<YouTube />}
+              href={r.youtubeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              component="a"
+              sx={{ color: '#FF0000', '&:hover': { bgcolor: 'rgba(255,0,0,0.04)' } }}
+            >
+              Watch
+            </Button>
+          )}
         </CardActions>
       )}
     </Card>

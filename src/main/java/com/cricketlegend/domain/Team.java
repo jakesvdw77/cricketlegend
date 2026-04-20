@@ -44,6 +44,8 @@ public class Team {
     private String teamPhotoUrl;
     private String websiteUrl;
     private String facebookUrl;
+    private String instagramUrl;
+    private String youtubeUrl;
 
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(name = "team_media",
