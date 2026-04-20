@@ -12,8 +12,10 @@ import { matchApi } from '../api/matchApi';
 import { sponsorApi } from '../api/sponsorApi';
 import { mediaApi } from '../api/mediaApi';
 import { tournamentApi } from '../api/tournamentApi';
-import { Match, MatchResultSummary, Sponsor, MediaContent, Tournament } from '../types';
+import { socialMediaPageApi } from '../api/socialMediaPageApi';
+import { Match, MatchResultSummary, Sponsor, MediaContent, Tournament, SocialMediaPage } from '../types';
 import { MediaCarousel } from '../components/media/MediaCarousel';
+import { SocialMediaPageEmbed } from '../components/SocialMediaPageEmbed';
 import keycloak from '../keycloak';
 
 const STAGE_LABEL: Record<string, string> = { POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
@@ -325,6 +327,7 @@ export const LandingPage: React.FC = () => {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [allMedia, setAllMedia] = useState<MediaContent[]>([]);
   const [nextTournament, setNextTournament] = useState<Tournament | null>(null);
+  const [socialMediaPages, setSocialMediaPages] = useState<SocialMediaPage[]>([]);
   const [sponsorIndex, setSponsorIndex] = useState(0);
   const [sponsorVisible, setSponsorVisible] = useState(true);
   const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -334,21 +337,21 @@ export const LandingPage: React.FC = () => {
     matchApi.findLive().then(setLiveMatches).catch(() => {});
     matchApi.findRecentResults(6).then(setRecentResults).catch(() => {});
     sponsorApi.findAll().then(setSponsors).catch(() => {});
+    socialMediaPageApi.findEnabled().then(setSocialMediaPages).catch(() => {});
     tournamentApi.findAll().then(async all => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
 
-      // Active tournaments: started on or before today and ending on or after today
-      const active = all.filter(t => {
+      // Active or upcoming tournaments (not yet ended)
+      const relevant = all.filter(t => {
         if (!t.startDate) return false;
-        const start = new Date(`${t.startDate}T00:00:00`);
         const end = t.endDate ? new Date(`${t.endDate}T23:59:59`) : null;
-        return start <= today && (end === null || end >= today);
+        return end === null || end >= today;
       });
 
-      // Fetch media for each active tournament and combine
-      if (active.length > 0) {
+      // Fetch media for each relevant tournament and combine
+      if (relevant.length > 0) {
         const results = await Promise.all(
-          active.map(t => mediaApi.search({ tournamentId: t.tournamentId }).catch(() => []))
+          relevant.map(t => mediaApi.search({ tournamentId: t.tournamentId }).catch(() => []))
         );
         setAllMedia(results.flat());
       }
@@ -583,59 +586,23 @@ export const LandingPage: React.FC = () => {
       <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
 
       {/* Facebook Pages */}
-      <Box sx={{ py: 6, bgcolor: 'background.default' }}>
-        <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
-            <Facebook sx={{ color: '#1877F2' }} />
-            <Typography variant="h5" fontWeight="bold" color="primary" sx={outlineSx}>
-              Follow Us
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 3 }}>
-            <Box sx={{ overflow: 'hidden', borderRadius: 2, maxWidth: '100%' }}>
-              <iframe
-                src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2Fprofile.php%3Fid%3D61586073304490%23&tabs=timeline&width=500&height=600&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true"
-                width="500"
-                height="600"
-                style={{ border: 'none', overflow: 'hidden', display: 'block', maxWidth: '100%' }}
-                scrolling="no"
-                frameBorder={0}
-                allowFullScreen
-                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                title="Cricket Legend on Facebook"
-              />
+      {socialMediaPages.length > 0 && (
+        <Box sx={{ py: 6, bgcolor: 'background.default' }}>
+          <Container maxWidth="lg">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
+              <Facebook sx={{ color: '#1877F2' }} />
+              <Typography variant="h5" fontWeight="bold" color="primary" sx={outlineSx}>
+                Follow Us
+              </Typography>
             </Box>
-            <Box sx={{ overflow: 'hidden', borderRadius: 2, maxWidth: '100%' }}>
-              <iframe
-                src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2FIreneVillagersCricketClub%2F&tabs=timeline&width=500&height=600&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true"
-                width="500"
-                height="600"
-                style={{ border: 'none', overflow: 'hidden', display: 'block', maxWidth: '100%' }}
-                scrolling="no"
-                frameBorder={0}
-                allowFullScreen
-                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                title="Irene Villagers Cricket Club on Facebook"
-              />
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 3 }}>
+              {socialMediaPages.map(page => (
+                <SocialMediaPageEmbed key={page.id} url={page.url} label={page.label} />
+              ))}
             </Box>
-            <Box sx={{ overflow: 'hidden', borderRadius: 2, maxWidth: '100%' }}>
-              <iframe
-                src="https://www.facebook.com/plugins/page.php?href=https%3A%2F%2Fwww.facebook.com%2Fprofile.php%3Fid%3D61586112601604&tabs=timeline&width=500&height=600&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=true"
-                width="500"
-                height="600"
-                style={{ border: 'none', overflow: 'hidden', display: 'block', maxWidth: '100%' }}
-                scrolling="no"
-                frameBorder={0}
-                allowFullScreen
-                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                title="Facebook Page"
-              />
-            </Box>
-
-
-          </Box>
-        </Container>
-      </Box>
+          </Container>
+        </Box>
+      )}
 
       <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
 

@@ -26,6 +26,7 @@ import { MatchAvailabilityManager } from './pages/admin/MatchAvailabilityManager
 import { ManagerTeams } from './pages/admin/ManagerTeams';
 import { Managers } from './pages/admin/Managers';
 import { MediaLibrary } from './pages/admin/MediaLibrary';
+import { SocialMediaPages } from './pages/admin/SocialMediaPages';
 import { SendNotification } from './pages/admin/SendNotification';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
@@ -92,6 +93,7 @@ function ThemedApp() {
             <Route path="admin/matches/:matchId/result" element={<ManagerRoute element={<MatchResultCapture />} />} />
             <Route path="admin/matches/:matchId/availability" element={<ManagerRoute element={<MatchAvailabilityManager />} />} />
             <Route path="admin/fields" element={<ManagerRoute element={<Fields />} />} />
+            <Route path="admin/social-media-pages" element={<AdminRoute element={<SocialMediaPages />} />} />
             <Route path="admin/managers" element={<AdminRoute element={<Managers />} />} />
             <Route path="admin/manager-teams" element={<AdminRoute element={<ManagerTeams />} />} />
             <Route path="admin/sponsors" element={<AdminRoute element={<Sponsors />} />} />

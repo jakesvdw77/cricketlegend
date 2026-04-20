@@ -441,6 +441,13 @@ export interface PlayerNotification {
   availabilityStatus?: AvailabilityStatus;
 }
 
+export interface SocialMediaPage {
+  id?: number;
+  url: string;
+  label?: string;
+  enabled: boolean;
+}
+
 export interface MatchFeePlayerDataDTO {
   playerId: number;
   playerName: string;

@@ -76,7 +76,7 @@ export const MediaCarousel: React.FC<Props> = ({
         {/* Media */}
         <Box
           sx={{
-            width: '100%', height: '100%',
+            position: 'absolute', inset: 0,
             opacity: fade ? 1 : 0,
             transition: 'opacity 0.18s ease-in-out',
           }}
@@ -97,7 +97,14 @@ export const MediaCarousel: React.FC<Props> = ({
               component="img"
               src={item.url}
               alt={item.caption ?? ''}
-              sx={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+              sx={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                transform: 'translate(-50%, -50%)',
+                maxWidth: '100%', maxHeight: '100%',
+                width: 'auto', height: 'auto',
+                display: 'block',
+              }}
             />
           )}
         </Box>

@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft, SportsCricket,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart,
+    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Facebook,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -182,7 +182,6 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemIcon><Payments/></ListItemIcon>
                                 <ListItemText primary="Payments"/>
                             </ListItemButton>
-
                             <ListItemButton sx={{pl: 3}} onClick={() => goCollapse('/admin/fund-allocation')}>
                                 <ListItemIcon><PieChart/></ListItemIcon>
                                 <ListItemText primary="Fund Allocation"/>
@@ -214,6 +213,14 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                             </ListItemButton>
                         </List>
                     </Collapse>
+                    <Divider/>
+
+                    <List disablePadding>
+                        <ListItemButton onClick={() => go('/admin/social-media-pages')}>
+                            <ListItemIcon><Facebook/></ListItemIcon>
+                            <ListItemText primary="Social Media Pages" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                        </ListItemButton>
+                    </List>
                     <Divider/>
                 </>
             ) : null}
