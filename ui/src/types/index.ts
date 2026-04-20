@@ -30,6 +30,7 @@ export interface Payment {
   paymentDate: string;
   amount: number;
   taxable?: boolean;
+  vatInclusive?: boolean;
   status?: PaymentStatus;
   description?: string;
   rejectionReason?: string;

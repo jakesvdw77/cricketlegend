@@ -51,6 +51,9 @@ public class Payment {
     @Column(nullable = false)
     private boolean taxable = false;
 
+    @Column(nullable = false)
+    private boolean vatInclusive = false;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

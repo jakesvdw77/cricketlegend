@@ -103,7 +103,6 @@ export const Payments: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Payment>(empty);
   const [amountStr, setAmountStr] = useState<string>('0');
-  const [vatInclusive, setVatInclusive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [snack, setSnack] = useState('');
 
@@ -210,14 +209,13 @@ export const Payments: React.FC = () => {
     }
   };
 
-  const openCreate = () => { setEditing(empty); setAmountStr('0'); setVatInclusive(false); setDialogClub(null); setOpen(true); };
+  const openCreate = () => { setEditing(empty); setAmountStr('0'); setDialogClub(null); setOpen(true); };
   const openEdit = (p: Payment) => {
     // Pre-select the club when editing so the player list is already filtered
     const club = clubs.find(c => c.clubId === players.find(pl => pl.playerId === p.playerId)?.homeClubId) ?? null;
     setDialogClub(club);
     setEditing(p);
     setAmountStr(String(p.amount ?? 0));
-    setVatInclusive(false);
     setOpen(true);
   };
 
@@ -297,9 +295,9 @@ export const Payments: React.FC = () => {
       r.paymentCategory ? CATEGORY_LABELS[r.paymentCategory] : '—',
       r.tournamentName ?? '—',
       r.description ?? '—',
-      fmt(Number(r.amount)),
+      fmt(r.vatInclusive ? Number(r.amount) * (1 - VAT_RATE) : Number(r.amount)),
       r.taxable ? fmt(Number(r.amount) * VAT_RATE) : '—',
-      fmt(Number(r.amount) + (r.taxable ? Number(r.amount) * VAT_RATE : 0)),
+      r.vatInclusive ? fmt(Number(r.amount)) : fmt(Number(r.amount) + (r.taxable ? Number(r.amount) * VAT_RATE : 0)),
     ]);
 
     autoTable(doc, {
@@ -514,9 +512,9 @@ export const Payments: React.FC = () => {
                     </Tooltip>
                   )}
                 </TableCell>
-                <TableCell align="right"><strong>{fmt(Number(r.amount))}</strong></TableCell>
+                <TableCell align="right"><strong>{fmt(r.vatInclusive ? Number(r.amount) * (1 - VAT_RATE) : Number(r.amount))}</strong></TableCell>
                 <TableCell align="right">{r.taxable ? fmt(Number(r.amount) * VAT_RATE) : '—'}</TableCell>
-                <TableCell align="right"><strong>{fmt(Number(r.amount) + (r.taxable ? Number(r.amount) * VAT_RATE : 0))}</strong></TableCell>
+                <TableCell align="right"><strong>{r.vatInclusive ? fmt(Number(r.amount)) : fmt(Number(r.amount) + (r.taxable ? Number(r.amount) * VAT_RATE : 0))}</strong></TableCell>
                 <TableCell>
                   {r.proofOfPaymentUrl ? (
                     <Button size="small" variant="text" startIcon={<AttachFile />}
@@ -652,7 +650,7 @@ export const Payments: React.FC = () => {
           {/* Category */}
           {showPlayerField && (
             <TextField select label="Category" value={editing.paymentCategory ?? ''}
-              onChange={e => { set({ paymentCategory: e.target.value as PaymentCategory, tournamentId: undefined, amount: 0 }); setAmountStr('0'); }}>
+              onChange={e => { set({ paymentCategory: e.target.value as PaymentCategory, tournamentId: undefined, amount: 0, vatInclusive: false }); setAmountStr('0'); }}>
               {playerCategories.map(c => (
                 <MenuItem key={c} value={c}>{CATEGORY_LABELS[c]}</MenuItem>
               ))}
@@ -702,9 +700,8 @@ export const Payments: React.FC = () => {
             <TextField label="Amount (R)" type="number" value={amountStr}
               inputProps={{ min: 0, step: 0.01 }}
               onChange={e => {
-                const raw = parseFloat(e.target.value) || 0;
                 setAmountStr(e.target.value);
-                set({ amount: editing.taxable && vatInclusive ? raw / 1.15 : raw });
+                set({ amount: parseFloat(e.target.value) || 0 });
               }}
               fullWidth required />
           </Box>
@@ -717,10 +714,7 @@ export const Payments: React.FC = () => {
                   checked={!!editing.taxable}
                   onChange={e => {
                     const checked = e.target.checked;
-                    const raw = parseFloat(amountStr) || 0;
-                    if (!checked) setVatInclusive(false);
-                    // when unchecking, always use raw; when checking, vatInclusive is still false (just set above)
-                    set({ taxable: checked, amount: checked && vatInclusive ? raw / 1.15 : raw });
+                    set({ taxable: checked, vatInclusive: checked ? editing.vatInclusive : false });
                   }}
                 />
               }
@@ -731,22 +725,17 @@ export const Payments: React.FC = () => {
                 <FormControl>
                   <RadioGroup
                     row
-                    value={vatInclusive ? 'inclusive' : 'exclusive'}
-                    onChange={e => {
-                      const incl = e.target.value === 'inclusive';
-                      const raw = parseFloat(amountStr) || 0;
-                      setVatInclusive(incl);
-                      set({ amount: incl ? raw / 1.15 : raw });
-                    }}
+                    value={editing.vatInclusive ? 'inclusive' : 'exclusive'}
+                    onChange={e => set({ vatInclusive: e.target.value === 'inclusive' })}
                   >
                     <FormControlLabel value="exclusive" control={<Radio size="small" />} label="VAT Exclusive (VAT added on top)" />
                     <FormControlLabel value="inclusive" control={<Radio size="small" />} label="VAT Inclusive (VAT already in amount)" />
                   </RadioGroup>
                 </FormControl>
                 <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                  {vatInclusive
-                    ? <>Net: {fmt(editing.amount)} &nbsp;|&nbsp; VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total paid: {fmt(parseFloat(amountStr) || 0)}</>
-                    : <>VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total incl. VAT: {fmt(editing.amount * 1.15)}</>
+                  {editing.vatInclusive
+                    ? <>Net: {fmt(editing.amount * (1 - VAT_RATE))} &nbsp;|&nbsp; VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total paid: {fmt(editing.amount)}</>
+                    : <>VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total incl. VAT: {fmt(editing.amount * (1 + VAT_RATE))}</>
                   }
                 </Typography>
               </Box>
@@ -834,12 +823,22 @@ export const Payments: React.FC = () => {
             <Divider sx={{ my: 0.5 }} />
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" color="text.secondary">Amount</Typography>
-              <Typography variant="body1" fontWeight="bold" color="success.main">{fmt(Number(approveTarget?.amount ?? 0))}</Typography>
+              <Typography variant="body1" fontWeight="bold" color="success.main">
+                {fmt(approveTarget?.vatInclusive ? Number(approveTarget.amount) * (1 - VAT_RATE) : Number(approveTarget?.amount ?? 0))}
+              </Typography>
             </Box>
             {approveTarget?.taxable && (
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" color="text.secondary">Total incl. VAT (15%)</Typography>
-                <Typography variant="body1" fontWeight="bold" color="success.main">{fmt(Number(approveTarget.amount) * 1.15)}</Typography>
+                <Typography variant="body2" color="text.secondary">{approveTarget.vatInclusive ? 'VAT (15%)' : 'VAT (15%)'}</Typography>
+                <Typography variant="body1" fontWeight="bold" color="success.main">{fmt(Number(approveTarget.amount) * VAT_RATE)}</Typography>
+              </Box>
+            )}
+            {approveTarget?.taxable && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="text.secondary">Total</Typography>
+                <Typography variant="body1" fontWeight="bold" color="success.main">
+                  {fmt(approveTarget.vatInclusive ? Number(approveTarget.amount) : Number(approveTarget.amount) * (1 + VAT_RATE))}
+                </Typography>
               </Box>
             )}
           </Box>

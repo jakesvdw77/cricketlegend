@@ -24,6 +24,7 @@ public class PaymentDTO {
     private BigDecimal amount;
     private PaymentStatus status;
     private boolean taxable;
+    private boolean vatInclusive;
     private String description;
     private String rejectionReason;
     private String proofOfPaymentUrl;

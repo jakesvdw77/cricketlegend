@@ -154,7 +154,7 @@ public class PaymentServiceImpl implements PaymentService {
                                        PaymentType paymentType, PaymentStatus status,
                                        LocalDate startDate, LocalDate endDate) {
         StringBuilder jpql = new StringBuilder(
-            "SELECT COALESCE(SUM(p.amount), 0), " +
+            "SELECT COALESCE(SUM(CASE WHEN p.vatInclusive = TRUE THEN p.amount * 0.85 ELSE p.amount END), 0), " +
             "COALESCE(SUM(CASE WHEN p.taxable = TRUE THEN p.amount * 0.15 ELSE 0 END), 0) " +
             "FROM Payment p " +
             "LEFT JOIN p.player pl LEFT JOIN p.sponsor sp LEFT JOIN p.tournament t " +
@@ -212,6 +212,7 @@ public class PaymentServiceImpl implements PaymentService {
         existing.setProofOfPaymentUrl(dto.getProofOfPaymentUrl());
         if (dto.getStatus() != null) existing.setStatus(dto.getStatus());
         existing.setTaxable(dto.isTaxable());
+        existing.setVatInclusive(dto.isVatInclusive());
         existing.setRejectionReason(dto.getRejectionReason());
         resolveRelations(existing, dto);
         return paymentMapper.toDto(paymentRepository.save(existing));
