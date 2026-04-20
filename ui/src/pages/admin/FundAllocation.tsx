@@ -1013,8 +1013,8 @@ const TournamentFeesTab: React.FC = () => {
   };
 
   const handleAllocate = (player: TournamentFeePlayerDataDTO) => {
-    const regFee = selectedTournament?.registrationFee ?? 0;
-    const remaining = Math.max(0, regFee - Number(player.tournamentFeeAllocated));
+    const totalFee = (selectedTournament?.entryFee ?? 0) + (selectedTournament?.registrationFee ?? 0);
+    const remaining = Math.max(0, totalFee - Number(player.tournamentFeeAllocated));
     setAmountInput(remaining > 0 ? String(remaining) : '');
     setAmountDialog({ player });
   };
@@ -1027,10 +1027,11 @@ const TournamentFeesTab: React.FC = () => {
     setAmountDialog(null);
     setAllocatingPlayerId(player.playerId);
     try {
+      const totalFee = (selectedTournament.entryFee ?? 0) + (selectedTournament.registrationFee ?? 0);
       const res = await paymentApi.allocatePlayerTournamentFee(
         player.playerId, amount, selectedTournament.tournamentId!,
         `Tournament registration fee - ${selectedTournament.name}`,
-        selectedTournament.registrationFee ?? undefined
+        totalFee > 0 ? totalFee : undefined
       );
       if (res.allocated.length > 0) {
         setSnack(`Allocated ${fmt(amount)} for ${player.playerName}.`);
@@ -1055,15 +1056,15 @@ const TournamentFeesTab: React.FC = () => {
 
   const handleSelectPayment = (_payment: Payment) => {
     if (!paymentsDialog) return;
-    const regFee = selectedTournament?.registrationFee ?? 0;
+    const totalFee = (selectedTournament?.entryFee ?? 0) + (selectedTournament?.registrationFee ?? 0);
     const alreadyAllocated = Number(paymentsDialog.player.tournamentFeeAllocated ?? 0);
-    const remaining = Math.max(0, regFee - alreadyAllocated);
+    const remaining = Math.max(0, totalFee - alreadyAllocated);
     setAmountInput(remaining > 0 ? String(remaining) : '');
     setAmountDialog({ player: paymentsDialog.player });
     setPaymentsDialog(null);
   };
 
-  const registrationFee = selectedTournament?.registrationFee ?? 0;
+  const totalFee = (selectedTournament?.entryFee ?? 0) + (selectedTournament?.registrationFee ?? 0);
 
   // Unique teams from loaded players (sorted by name, unassigned last)
   const teams = useMemo(() => {
@@ -1084,10 +1085,10 @@ const TournamentFeesTab: React.FC = () => {
       result = result.filter(p => p.playerName.toLowerCase().includes(q));
     }
     if (showUnallocatedOnly) {
-      result = result.filter(p => Number(p.tournamentFeeAllocated) < registrationFee);
+      result = result.filter(p => Number(p.tournamentFeeAllocated) < totalFee);
     }
     return result;
-  }, [players, selectedTeamId, searchText, showUnallocatedOnly, registrationFee]);
+  }, [players, selectedTeamId, searchText, showUnallocatedOnly, totalFee]);
 
   // Group displayed players by team for rendering
   const groupedPlayers = useMemo(() => {
@@ -1101,8 +1102,8 @@ const TournamentFeesTab: React.FC = () => {
   }, [displayedPlayers]);
 
   const unallocatedCount = useMemo(
-    () => players.filter(p => Number(p.tournamentFeeAllocated) < registrationFee).length,
-    [players, registrationFee]
+    () => players.filter(p => Number(p.tournamentFeeAllocated) < totalFee).length,
+    [players, totalFee]
   );
 
   return (
@@ -1133,9 +1134,14 @@ const TournamentFeesTab: React.FC = () => {
         )}
       </Box>
 
-      {selectedTournament && registrationFee > 0 && (
+      {selectedTournament && totalFee > 0 && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Registration fee for <strong>{selectedTournament.name}</strong>: <strong>{fmt(registrationFee)}</strong> per player
+          Tournament fees for <strong>{selectedTournament.name}</strong>:{' '}
+          {(selectedTournament.entryFee ?? 0) > 0 && (selectedTournament.registrationFee ?? 0) > 0 ? (
+            <>entry <strong>{fmt(selectedTournament.entryFee!)}</strong> + registration <strong>{fmt(selectedTournament.registrationFee!)}</strong> = <strong>{fmt(totalFee)}</strong> per player</>
+          ) : (
+            <strong>{fmt(totalFee)}</strong>
+          )}
         </Alert>
       )}
 
@@ -1321,21 +1327,15 @@ const TournamentFeesTab: React.FC = () => {
 
       {/* Amount dialog */}
       {(() => {
-        const regFee = selectedTournament?.registrationFee ?? 0;
+        const dialogTotalFee = (selectedTournament?.entryFee ?? 0) + (selectedTournament?.registrationFee ?? 0);
         const alreadyAllocated = Number(amountDialog?.player.tournamentFeeAllocated ?? 0);
-        const remainingFee = Math.max(0, regFee - alreadyAllocated);
+        const remainingFee = Math.max(0, dialogTotalFee - alreadyAllocated);
         const walletBalance = Number(amountDialog?.player.walletBalance ?? 0);
-        const maxAllowable = regFee > 0 ? Math.min(walletBalance, remainingFee) : walletBalance;
         const enteredAmount = parseFloat(amountInput);
         const exceedsWallet = !!amountInput && enteredAmount > walletBalance;
-        const exceedsFee = !!amountInput && regFee > 0 && enteredAmount > remainingFee;
-        const hasError = !!amountInput && (enteredAmount <= 0 || exceedsWallet || exceedsFee);
-        const errorText = exceedsFee
-          ? `Amount exceeds remaining registration fee (${fmt(remainingFee)})`
-          : exceedsWallet
-            ? 'Amount exceeds available wallet balance'
-            : undefined;
-        const fullyAllocated = regFee > 0 && remainingFee === 0;
+        const exceedsFee = !!amountInput && dialogTotalFee > 0 && enteredAmount > remainingFee;
+        const hasError = !!amountInput && (enteredAmount <= 0 || exceedsWallet);
+        const fullyAllocated = dialogTotalFee > 0 && remainingFee === 0;
 
         return (
           <Dialog open={!!amountDialog} onClose={() => setAmountDialog(null)} maxWidth="xs" fullWidth>
@@ -1345,17 +1345,17 @@ const TournamentFeesTab: React.FC = () => {
                 <Typography variant="body2" color="text.secondary">
                   Wallet balance: <strong>{fmt(walletBalance)}</strong>
                 </Typography>
-                {regFee > 0 && (
+                {dialogTotalFee > 0 && (
                   <>
                     <Typography variant="body2" color="text.secondary">
-                      Registration fee: <strong>{fmt(regFee)}</strong>
+                      Tournament fee: <strong>{fmt(dialogTotalFee)}</strong>
                     </Typography>
                     {alreadyAllocated > 0 && (
                       <Typography variant="body2" color="text.secondary">
                         Already allocated: <strong style={{ color: '#1565c0' }}>{fmt(alreadyAllocated)}</strong>
                       </Typography>
                     )}
-                    <Typography variant="body2" color={fullyAllocated ? 'error' : 'text.secondary'}>
+                    <Typography variant="body2" color={fullyAllocated ? 'success.main' : 'text.secondary'}>
                       Remaining to allocate: <strong>{fmt(remainingFee)}</strong>
                     </Typography>
                   </>
@@ -1367,15 +1367,23 @@ const TournamentFeesTab: React.FC = () => {
                 fullWidth
                 autoFocus
                 value={amountInput}
-                inputProps={{ min: 0.01, max: maxAllowable, step: 0.01 }}
+                inputProps={{ min: 0.01, step: 0.01 }}
                 onChange={e => setAmountInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleConfirmAllocate(); }}
                 error={hasError}
-                helperText={errorText}
-                disabled={fullyAllocated}
+                helperText={
+                  exceedsWallet
+                    ? 'Amount exceeds available wallet balance'
+                    : undefined
+                }
               />
+              {exceedsFee && !exceedsWallet && (
+                <Alert severity="warning" sx={{ py: 0.5 }}>
+                  Amount exceeds the remaining tournament fee ({fmt(remainingFee)}). You can still proceed.
+                </Alert>
+              )}
               {fullyAllocated && (
-                <Alert severity="success" sx={{ py: 0.5 }}>Registration fee fully allocated for this player.</Alert>
+                <Alert severity="success" sx={{ py: 0.5 }}>Tournament fee fully allocated for this player.</Alert>
               )}
             </DialogContent>
             <DialogActions>
@@ -1383,7 +1391,7 @@ const TournamentFeesTab: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleConfirmAllocate}
-                disabled={!amountInput || enteredAmount <= 0 || hasError || fullyAllocated}
+                disabled={!amountInput || enteredAmount <= 0 || hasError}
               >
                 Allocate
               </Button>
