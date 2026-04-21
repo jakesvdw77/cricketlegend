@@ -427,19 +427,19 @@ export const LandingPage: React.FC = () => {
             </Typography>
           </Box>
           {/* Feature highlights */}
-          <Box sx={{ bgcolor: 'background.paper' }}>
+          <Box>
             <Container maxWidth="lg">
               <Box
                   onClick={() => setInfoOpen(o => !o)}
                   sx={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: 1, cursor: 'pointer', py: 3, userSelect: 'none',
+                    position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', py: 3, userSelect: 'none',
                   }}
               >
                 <Typography variant="h5" fontWeight="bold" color="primary" sx={outlineSx}>
                   Everything you need for cricket
                 </Typography>
-                <IconButton size="small" sx={{ color: 'primary.main', transition: 'transform 0.25s', transform: infoOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                <IconButton size="small" sx={{ position: 'absolute', right: 0, color: 'primary.main', transition: 'transform 0.25s', transform: infoOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
                   <ExpandMore />
                 </IconButton>
               </Box>
