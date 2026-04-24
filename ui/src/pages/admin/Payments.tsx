@@ -295,8 +295,8 @@ export const Payments: React.FC = () => {
       r.paymentCategory ? CATEGORY_LABELS[r.paymentCategory] : '—',
       r.tournamentName ?? '—',
       r.description ?? '—',
-      fmt(r.vatInclusive ? Number(r.amount) * (1 - VAT_RATE) : Number(r.amount)),
-      r.taxable ? fmt(Number(r.amount) * VAT_RATE) : '—',
+      fmt(r.vatInclusive ? Number(r.amount) / 1.15 : Number(r.amount)),
+      r.taxable ? fmt(r.vatInclusive ? Number(r.amount) - Number(r.amount) / 1.15 : Number(r.amount) * VAT_RATE) : '—',
       r.vatInclusive ? fmt(Number(r.amount)) : fmt(Number(r.amount) + (r.taxable ? Number(r.amount) * VAT_RATE : 0)),
     ]);
 
@@ -512,8 +512,8 @@ export const Payments: React.FC = () => {
                     </Tooltip>
                   )}
                 </TableCell>
-                <TableCell align="right"><strong>{fmt(r.vatInclusive ? Number(r.amount) * (1 - VAT_RATE) : Number(r.amount))}</strong></TableCell>
-                <TableCell align="right">{r.taxable ? fmt(Number(r.amount) * VAT_RATE) : '—'}</TableCell>
+                <TableCell align="right"><strong>{fmt(r.vatInclusive ? Number(r.amount) / 1.15 : Number(r.amount))}</strong></TableCell>
+                <TableCell align="right">{r.taxable ? fmt(r.vatInclusive ? Number(r.amount) - Number(r.amount) / 1.15 : Number(r.amount) * VAT_RATE) : '—'}</TableCell>
                 <TableCell align="right"><strong>{r.vatInclusive ? fmt(Number(r.amount)) : fmt(Number(r.amount) + (r.taxable ? Number(r.amount) * VAT_RATE : 0))}</strong></TableCell>
                 <TableCell>
                   {r.proofOfPaymentUrl ? (
@@ -734,7 +734,7 @@ export const Payments: React.FC = () => {
                 </FormControl>
                 <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
                   {editing.vatInclusive
-                    ? <>Net: {fmt(editing.amount * (1 - VAT_RATE))} &nbsp;|&nbsp; VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total paid: {fmt(editing.amount)}</>
+                    ? <>Net: {fmt(editing.amount / 1.15)} &nbsp;|&nbsp; VAT: {fmt(editing.amount - editing.amount / 1.15)} &nbsp;|&nbsp; Total paid: {fmt(editing.amount)}</>
                     : <>VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total incl. VAT: {fmt(editing.amount * (1 + VAT_RATE))}</>
                   }
                 </Typography>
@@ -824,13 +824,13 @@ export const Payments: React.FC = () => {
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="body2" color="text.secondary">Amount</Typography>
               <Typography variant="body1" fontWeight="bold" color="success.main">
-                {fmt(approveTarget?.vatInclusive ? Number(approveTarget.amount) * (1 - VAT_RATE) : Number(approveTarget?.amount ?? 0))}
+                {fmt(approveTarget?.vatInclusive ? Number(approveTarget.amount) / 1.15 : Number(approveTarget?.amount ?? 0))}
               </Typography>
             </Box>
             {approveTarget?.taxable && (
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" color="text.secondary">{approveTarget.vatInclusive ? 'VAT (15%)' : 'VAT (15%)'}</Typography>
-                <Typography variant="body1" fontWeight="bold" color="success.main">{fmt(Number(approveTarget.amount) * VAT_RATE)}</Typography>
+                <Typography variant="body1" fontWeight="bold" color="success.main">{fmt(approveTarget.vatInclusive ? Number(approveTarget.amount) - Number(approveTarget.amount) / 1.15 : Number(approveTarget.amount) * VAT_RATE)}</Typography>
               </Box>
             )}
             {approveTarget?.taxable && (

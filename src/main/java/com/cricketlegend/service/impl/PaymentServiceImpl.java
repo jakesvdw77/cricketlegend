@@ -154,8 +154,10 @@ public class PaymentServiceImpl implements PaymentService {
                                        PaymentType paymentType, PaymentStatus status,
                                        LocalDate startDate, LocalDate endDate) {
         StringBuilder jpql = new StringBuilder(
-            "SELECT COALESCE(SUM(CASE WHEN p.vatInclusive = TRUE THEN p.amount * 0.85 ELSE p.amount END), 0), " +
-            "COALESCE(SUM(CASE WHEN p.taxable = TRUE THEN p.amount * 0.15 ELSE 0 END), 0) " +
+            "SELECT COALESCE(SUM(CASE WHEN p.vatInclusive = TRUE THEN p.amount / 1.15 ELSE p.amount END), 0), " +
+            "COALESCE(SUM(CASE WHEN p.taxable = TRUE AND p.vatInclusive = TRUE THEN p.amount - (p.amount / 1.15) " +
+            "                  WHEN p.taxable = TRUE AND p.vatInclusive = FALSE THEN p.amount * 0.15 " +
+            "                  ELSE 0 END), 0) " +
             "FROM Payment p " +
             "LEFT JOIN p.player pl LEFT JOIN p.sponsor sp LEFT JOIN p.tournament t " +
             "WHERE 1=1");
