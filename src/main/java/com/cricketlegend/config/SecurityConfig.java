@@ -30,9 +30,12 @@ public class SecurityConfig {
             "/api/v1/matches/recent-results",
             "/api/v1/matches/tournament/*",
             "/api/v1/matches/tournament/*/results",
+            "/api/v1/matches/*",
+            "/api/v1/matches/*/result",
             "/api/v1/sponsors",
             "/api/v1/tournaments",
             "/api/v1/tournaments/*",
+            "/api/v1/tournaments/*/standings",
             "/api/v1/media",
             "/api/v1/social-media-pages/enabled"
     };

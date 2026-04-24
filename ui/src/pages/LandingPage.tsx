@@ -1,20 +1,23 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, AppBar, Toolbar, Avatar, Card, CardContent,
-  Chip, Divider, Grid, Container, Paper, Fade, Collapse, IconButton, useTheme,
+  Chip, Divider, Grid, Container, Tabs, Tab, Table, TableHead, TableRow,
+  TableCell, TableBody, TableContainer, Paper, Dialog, DialogTitle,
+  DialogContent, IconButton, CircularProgress, useTheme,
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, LocationOn, AccessTime, Login, SportsCricket,
-  PhotoLibrary, FiberManualRecord, Handshake, Language, ExpandMore, CheckCircle, Facebook,
-  AccountBalance, Groups, HowToVote, EventNote,
+  PhotoLibrary, FiberManualRecord, Handshake, Language, CheckCircle, Facebook,
+  AccountBalance, Groups, HowToVote, EventNote, Close, Instagram, YouTube, OpenInNew, AppRegistration, Article, ScoreboardOutlined,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { sponsorApi } from '../api/sponsorApi';
 import { mediaApi } from '../api/mediaApi';
 import { tournamentApi } from '../api/tournamentApi';
 import { socialMediaPageApi } from '../api/socialMediaPageApi';
-import { Match, MatchResultSummary, Sponsor, MediaContent, Tournament, SocialMediaPage } from '../types';
+import { Match, MatchResultSummary, Sponsor, MediaContent, Tournament, SocialMediaPage, PoolStandings } from '../types';
+import MatchSummaryView from './view/MatchSummaryView';
 import { MediaCarousel } from '../components/media/MediaCarousel';
 import { SocialMediaPageEmbed } from '../components/SocialMediaPageEmbed';
 import keycloak from '../keycloak';
@@ -42,33 +45,27 @@ function useCountdown(target: Date | null) {
       seconds: Math.floor((diff % 60_000)     / 1_000),
     };
   };
-
   const [left, setLeft] = useState(calc);
-
   useEffect(() => {
     if (!target) return;
     setLeft(calc());
     const id = setInterval(() => setLeft(calc()), 1000);
     return () => clearInterval(id);
   }, [target?.getTime()]);
-
   return left;
 }
 
-// ── Countdown display ────────────────────────────────────────────────────────
+// ── CountdownDisplay ─────────────────────────────────────────────────────────
 
 const CountdownDisplay: React.FC<{ matchDate?: string; startTime?: string }> = ({ matchDate, startTime }) => {
   const target = useMemo(() => parseMatchStart(matchDate, startTime), [matchDate, startTime]);
   const left   = useCountdown(target);
-
   if (!left) return null;
-
   const units = left.days > 0
     ? [{ v: left.days, l: 'd' }, { v: left.hours, l: 'h' }, { v: left.minutes, l: 'm' }]
     : [{ v: left.hours, l: 'h' }, { v: left.minutes, l: 'm' }, { v: left.seconds, l: 's' }];
-
   return (
-    <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
       <AccessTime sx={{ fontSize: 13, color: 'text.secondary' }} />
       <Typography variant="caption" color="text.secondary" sx={{ mr: 0.25 }}>Starts in</Typography>
       {units.map(({ v, l }, i) => (
@@ -90,10 +87,10 @@ const CountdownDisplay: React.FC<{ matchDate?: string; startTime?: string }> = (
   );
 };
 
-// ── Shared match card ────────────────────────────────────────────────────────
+// ── MatchCard ────────────────────────────────────────────────────────────────
 
 const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
-  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper' }}>
+  <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column' }}>
     {live && (
       <Box sx={{
         position: 'absolute', top: -10, right: 12,
@@ -106,29 +103,25 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
       </Box>
     )}
     <CardContent>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+      {!live && (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+          <CountdownDisplay matchDate={m.matchDate} startTime={m.scheduledStartTime} />
+        </Box>
+      )}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Chip label={m.tournamentName} size="small" icon={<EmojiEvents />} color="primary" variant="outlined" />
-        {m.matchStage && (
-          <Chip label={STAGE_LABEL[m.matchStage] ?? m.matchStage} size="small" variant="outlined" />
-        )}
+        {m.matchStage && <Chip label={STAGE_LABEL[m.matchStage] ?? m.matchStage} size="small" variant="outlined" />}
       </Box>
-
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, my: 1.5 }}>
-        <Avatar src={m.homeTeamLogoUrl} sx={{ width: 40, height: 40 }}>
-          {m.homeTeamName?.charAt(0)}
-        </Avatar>
+        <Avatar src={m.homeTeamLogoUrl} sx={{ width: 40, height: 40 }}>{m.homeTeamName?.charAt(0)}</Avatar>
         <Box sx={{ textAlign: 'center' }}>
           <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{m.homeTeamName}</Typography>
           <Typography variant="caption" color="text.secondary">vs</Typography>
           <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{m.oppositionTeamName}</Typography>
         </Box>
-        <Avatar src={m.oppositionTeamLogoUrl} sx={{ width: 40, height: 40 }}>
-          {m.oppositionTeamName?.charAt(0)}
-        </Avatar>
+        <Avatar src={m.oppositionTeamLogoUrl} sx={{ width: 40, height: 40 }}>{m.oppositionTeamName?.charAt(0)}</Avatar>
       </Box>
-
       <Divider sx={{ my: 1 }} />
-
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
         {m.matchDate && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -164,26 +157,37 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
           </Box>
         )}
       </Box>
-
-      {!live && (
-        <CountdownDisplay matchDate={m.matchDate} startTime={m.scheduledStartTime} />
-      )}
     </CardContent>
+    {live && m.scoringUrl && (
+      <>
+        <Divider />
+        <Box sx={{ px: 1.5, py: 1 }}>
+          <Button
+            size="small"
+            startIcon={<ScoreboardOutlined />}
+            component="a"
+            href={m.scoringUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Live Scoring
+          </Button>
+        </Box>
+      </>
+    )}
   </Card>
 );
 
-// ── Result card ──────────────────────────────────────────────────────────────
+// ── ResultCard ───────────────────────────────────────────────────────────────
 
-const ResultCard: React.FC<{ r: MatchResultSummary }> = ({ r }) => {
+const ResultCard: React.FC<{ r: MatchResultSummary; onSummary?: () => void }> = ({ r, onSummary }) => {
   const scoreLine = (score?: number, wickets?: number, overs?: string) =>
     score != null ? `${score}/${wickets ?? 0}${overs ? ` (${overs})` : ''}` : null;
-
   const firstScore  = scoreLine(r.scoreBattingFirst,  r.wicketsLostBattingFirst,  r.oversBattingFirst);
   const secondScore = scoreLine(r.scoreBattingSecond, r.wicketsLostBattingSecond, r.oversBattingSecond);
-
   return (
-    <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, bgcolor: 'background.paper' }}>
-      <CardContent>
+    <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, bgcolor: 'background.paper', display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ flex: 1 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
           <Typography variant="caption" color="text.secondary">{r.matchDate?.toString()}</Typography>
           {r.matchDrawn
@@ -192,17 +196,11 @@ const ResultCard: React.FC<{ r: MatchResultSummary }> = ({ r }) => {
               <Chip icon={<CheckCircle sx={{ fontSize: '14px !important' }} />} label={r.winningTeamName} size="small" color="success" variant="outlined" />
             )}
         </Box>
-
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
-          <Typography variant="subtitle1" fontWeight="bold" textAlign="right" sx={{ flex: 1 }}>
-            {r.homeTeamName}
-          </Typography>
+          <Typography variant="subtitle1" fontWeight="bold" textAlign="right" sx={{ flex: 1 }}>{r.homeTeamName}</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ px: 0.5 }}>vs</Typography>
-          <Typography variant="subtitle1" fontWeight="bold" textAlign="left" sx={{ flex: 1 }}>
-            {r.oppositionTeamName}
-          </Typography>
+          <Typography variant="subtitle1" fontWeight="bold" textAlign="left" sx={{ flex: 1 }}>{r.oppositionTeamName}</Typography>
         </Box>
-
         {(firstScore || secondScore) && (
           <>
             <Divider sx={{ mb: 1 }} />
@@ -224,100 +222,184 @@ const ResultCard: React.FC<{ r: MatchResultSummary }> = ({ r }) => {
             </Box>
           </>
         )}
-
         {r.matchOutcomeDescription && (
           <Typography variant="caption" color="text.secondary" display="block" mt={1} sx={{ fontStyle: 'italic' }}>
             {r.matchOutcomeDescription}
           </Typography>
         )}
       </CardContent>
+      {onSummary && (
+        <>
+          <Divider />
+          <Box sx={{ px: 1.5, py: 1 }}>
+            <Button size="small" startIcon={<Article />} onClick={onSummary}>
+              Summary
+            </Button>
+          </Box>
+        </>
+      )}
     </Card>
   );
 };
 
-// ── Tournament countdown ─────────────────────────────────────────────────────
+// ── NavCountdown (compact navbar widget) ────────────────────────────────────
 
-const TournamentCountdown: React.FC<{ tournament: Tournament; outlineSx: object }> = ({ tournament, outlineSx }) => {
+const NavCountdown: React.FC<{ tournament: Tournament }> = ({ tournament }) => {
   const target = useMemo(() => {
     if (!tournament.startDate) return null;
     const d = new Date(`${tournament.startDate}T00:00:00`);
     return isNaN(d.getTime()) ? null : d;
   }, [tournament.startDate]);
-
   const left = useCountdown(target);
   if (!left) return null;
-
-  const startLabel = target
-    ? target.toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    : '';
-
   const units = [
-    { value: left.days,    label: 'Days' },
-    { value: left.hours,   label: 'Hours' },
-    { value: left.minutes, label: 'Minutes' },
-    { value: left.seconds, label: 'Seconds' },
+    { v: left.days,    l: 'd' },
+    { v: left.hours,   l: 'h' },
+    { v: left.minutes, l: 'm' },
+    { v: left.seconds, l: 's' },
   ];
-
   return (
     <Box sx={{
-      py: { xs: 3, md: 4 },
-      bgcolor: 'background.paper',
-      textAlign: 'center',
+      display: { xs: 'none', sm: 'flex' },
+      alignItems: 'center', gap: 1.25, mr: 1,
+      pl: 1.5, borderLeft: '1px solid rgba(255,255,255,0.18)',
     }}>
-      <Container maxWidth="md">
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: { xs: 1.5, sm: 3 } }}>
-          <Box sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 3, fontSize: '0.65rem', display: 'block' }}>
-              Next Tournament
-            </Typography>
-            <Typography variant="h6" fontWeight="bold" color="primary" sx={{ lineHeight: 1.2, ...outlineSx }}>
-              {tournament.name}
-            </Typography>
-            {startLabel && (
-              <Typography variant="caption" color="text.secondary">
-                {startLabel}
-              </Typography>
-            )}
-          </Box>
+      {/* Label + name */}
+      <Box sx={{ display: { sm: 'none', md: 'block' }, textAlign: 'right' }}>
+        <Typography sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: 1.5, opacity: 0.5, lineHeight: 1 }}>
+          Next
+        </Typography>
+        <Typography sx={{
+          fontSize: '0.72rem', fontWeight: 600, opacity: 0.9, lineHeight: 1.3,
+          maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {tournament.name}
+        </Typography>
+      </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.75 }}>
-            {units.map(({ value, label }, i) => (
-              <React.Fragment key={label}>
-                {i > 0 && (
-                  <Typography sx={{ fontSize: '1.4rem', fontWeight: 700, color: 'text.disabled', mt: 0.25, lineHeight: 1 }}>
-                    :
-                  </Typography>
-                )}
-                <Box sx={{ textAlign: 'center' }}>
-                  <Box sx={{
-                    bgcolor: 'primary.main',
-                    borderRadius: 1,
-                    px: 1,
-                    py: 0.5,
-                    minWidth: 44,
-                  }}>
-                    <Typography sx={{
-                      fontVariantNumeric: 'tabular-nums',
-                      fontSize: '1.5rem',
-                      fontWeight: 800,
-                      lineHeight: 1,
-                      color: 'primary.contrastText',
-                    }}>
-                      {String(value).padStart(2, '0')}
-                    </Typography>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: 1, textTransform: 'uppercase', mt: 0.5, display: 'block', fontSize: '0.55rem' }}>
-                    {label}
-                  </Typography>
-                </Box>
-              </React.Fragment>
-            ))}
-          </Box>
-        </Box>
-      </Container>
+      {/* Digit boxes */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.35 }}>
+        {units.map(({ v, l }, i) => (
+          <React.Fragment key={l}>
+            {i > 0 && (
+              <Typography sx={{ fontSize: '0.85rem', fontWeight: 700, opacity: 0.35, lineHeight: 1, mt: '3px' }}>:</Typography>
+            )}
+            <Box sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                bgcolor: 'rgba(255,255,255,0.12)', borderRadius: '4px',
+                px: 0.6, py: '3px', minWidth: 26,
+              }}>
+                <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                  {String(v).padStart(2, '0')}
+                </Typography>
+              </Box>
+              <Typography sx={{ fontSize: '0.48rem', opacity: 0.45, lineHeight: 1, mt: '2px', display: 'block' }}>{l}</Typography>
+            </Box>
+          </React.Fragment>
+        ))}
+      </Box>
     </Box>
   );
 };
+
+// ── Standings table (reused from TournamentStandings page) ──────────────────
+
+const StandingsTable: React.FC<{ pools: PoolStandings[] }> = ({ pools }) => {
+  if (pools.length === 0)
+    return <Typography color="text.secondary">No standings available yet.</Typography>;
+  return (
+    <>
+      {pools.map(pool => (
+        <Box key={pool.poolId} sx={{ mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <EmojiEvents color="primary" fontSize="small" />
+            <Typography variant="subtitle1" fontWeight="bold">{pool.poolName}</Typography>
+          </Box>
+          <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ '& th': { fontWeight: 700, whiteSpace: 'nowrap' } }}>
+                  <TableCell width={28}>#</TableCell>
+                  <TableCell>Team</TableCell>
+                  <TableCell align="center" title="Games Played">P</TableCell>
+                  <TableCell align="center" title="Won">W</TableCell>
+                  <TableCell align="center" title="Lost">L</TableCell>
+                  <TableCell align="center" title="No Result">NR</TableCell>
+                  <TableCell align="center" title="Drawn">D</TableCell>
+                  <TableCell align="center" title="Bonus Points">BP</TableCell>
+                  <TableCell align="center" title="Total Points">Pts</TableCell>
+                  <TableCell align="right" title="Net Run Rate">NRR</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pool.entries.map((e, idx) => {
+                  const nrr = e.netRunRate >= 0 ? `+${e.netRunRate.toFixed(3)}` : e.netRunRate.toFixed(3);
+                  return (
+                    <TableRow key={e.teamId} sx={{ '&:last-child td': { border: 0 }, ...(idx < 2 ? { bgcolor: 'action.hover' } : {}) }}>
+                      <TableCell><Typography variant="body2" color="text.secondary">{idx + 1}</Typography></TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar src={e.logoUrl} variant="rounded" sx={{ width: 26, height: 26, fontSize: 11 }}>{e.teamName.charAt(0)}</Avatar>
+                          <Typography variant="body2" fontWeight={idx === 0 ? 700 : 400}>{e.teamName}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell align="center"><Typography variant="body2">{e.gamesPlayed}</Typography></TableCell>
+                      <TableCell align="center"><Typography variant="body2" color="success.main" fontWeight={600}>{e.won}</Typography></TableCell>
+                      <TableCell align="center"><Typography variant="body2" color="error.main">{e.lost}</Typography></TableCell>
+                      <TableCell align="center"><Typography variant="body2" color="text.secondary">{e.noResults}</Typography></TableCell>
+                      <TableCell align="center"><Typography variant="body2" color="text.secondary">{e.draws}</Typography></TableCell>
+                      <TableCell align="center"><Typography variant="body2">{e.bonusPoints}</Typography></TableCell>
+                      <TableCell align="center"><Typography variant="body2" fontWeight={700}>{e.points}</Typography></TableCell>
+                      <TableCell align="right">
+                        <Typography variant="body2" color={e.netRunRate >= 0 ? 'success.main' : 'error.main'} fontWeight={500}>{nrr}</Typography>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box sx={{ display: 'flex', gap: 2, mt: 0.75, flexWrap: 'wrap' }}>
+            {[['P','Played'],['W','Won'],['L','Lost'],['NR','No Result'],['D','Drawn'],['BP','Bonus Points'],['Pts','Total Points'],['NRR','Net Run Rate']].map(([l,d]) => (
+              <Typography key={l} variant="caption" color="text.secondary"><b>{l}</b> = {d}</Typography>
+            ))}
+          </Box>
+        </Box>
+      ))}
+    </>
+  );
+};
+
+// ── SectionHeader ────────────────────────────────────────────────────────────
+
+const SectionHeader: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+  live?: boolean;
+}> = ({ icon, title, subtitle, live }) => (
+  <Box sx={{ mb: 4 }}>
+    <Box sx={{
+      display: 'flex', alignItems: 'center', gap: 1.5,
+      pl: 2, borderLeft: '4px solid', borderColor: 'primary.main',
+      mb: subtitle ? 0.75 : 0,
+    }}>
+      {live && (
+        <Chip
+          icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
+          label="LIVE"
+          size="small"
+          sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
+        />
+      )}
+      {icon}
+      <Typography variant="h5" fontWeight="bold" color="primary">{title}</Typography>
+    </Box>
+    {subtitle && (
+      <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>{subtitle}</Typography>
+    )}
+  </Box>
+);
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
@@ -332,9 +414,23 @@ export const LandingPage: React.FC = () => {
   const [liveTournaments, setLiveTournaments] = useState<Tournament[]>([]);
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([]);
   const [socialMediaPages, setSocialMediaPages] = useState<SocialMediaPage[]>([]);
-  const [sponsorIndex, setSponsorIndex] = useState(0);
-  const [sponsorVisible, setSponsorVisible] = useState(true);
-  const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [featureDialog, setFeatureDialog] = useState<{ title: string; desc: string; icon: React.ReactNode } | null>(null);
+  const [summaryMatch, setSummaryMatch] = useState<Match | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  const openSummary = (matchId: number) => {
+    setSummaryLoading(true);
+    matchApi.findById(matchId)
+      .then(setSummaryMatch)
+      .catch(() => setSummaryLoading(false))
+      .finally(() => setSummaryLoading(false));
+  };
+  const [upcomingTab, setUpcomingTab] = useState(0);
+  const [resultsTab, setResultsTab] = useState(0);
+  const [standingsMap, setStandingsMap] = useState<Record<number, PoolStandings[]>>({});
+  const [selectedStandingsTournament, setSelectedStandingsTournament] = useState<number | null>(null);
+  const tournamentsRef = useRef<HTMLDivElement | null>(null);
+  const upcomingRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     matchApi.findUpcoming().then(setUpcomingMatches).catch(() => {});
@@ -345,35 +441,34 @@ export const LandingPage: React.FC = () => {
     tournamentApi.findAll().then(async all => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().slice(0, 10);
-
-      // Active or upcoming tournaments (not yet ended)
       const relevant = all.filter(t => {
         if (!t.startDate) return false;
         const end = t.endDate ? new Date(`${t.endDate}T23:59:59`) : null;
         return end === null || end >= today;
       });
-
-      // Fetch media for each relevant tournament and combine
       if (relevant.length > 0) {
         const results = await Promise.all(
           relevant.map(t => mediaApi.search({ tournamentId: t.tournamentId }).catch(() => []))
         );
         setAllMedia(results.flat());
       }
-
-      // Next upcoming tournament (not yet started)
       const next = all
         .filter(t => t.startDate && new Date(`${t.startDate}T00:00:00`) > today)
         .sort((a, b) => a.startDate!.localeCompare(b.startDate!));
       setNextTournament(next[0] ?? null);
-
-      // Live tournaments: started but not yet ended
-      setLiveTournaments(all.filter(t =>
-        t.startDate && t.startDate <= todayStr &&
-        (!t.endDate || t.endDate >= todayStr)
-      ));
-
-      // Upcoming tournaments: not yet started, sorted soonest first
+      const live = all.filter(t =>
+        t.startDate && t.startDate <= todayStr && (!t.endDate || t.endDate >= todayStr)
+      );
+      setLiveTournaments(live);
+      if (live.length > 0) {
+        const entries = await Promise.all(
+          live.map(t => tournamentApi.getStandings(t.tournamentId!)
+            .then(s => [t.tournamentId!, s] as [number, PoolStandings[]])
+            .catch(() => [t.tournamentId!, []] as [number, PoolStandings[]]))
+        );
+        setStandingsMap(Object.fromEntries(entries));
+        setSelectedStandingsTournament(live[0].tournamentId!);
+      }
       setUpcomingTournaments(
         all
           .filter(t => t.startDate && t.startDate > todayStr)
@@ -382,148 +477,129 @@ export const LandingPage: React.FC = () => {
     }).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (sponsors.length <= 1) return;
-    rotateRef.current = setInterval(() => {
-      setSponsorVisible(false);
-      setTimeout(() => {
-        setSponsorIndex(i => (i + 1) % sponsors.length);
-        setSponsorVisible(true);
-      }, 400);
-    }, 4000);
-    return () => { if (rotateRef.current) clearInterval(rotateRef.current); };
-  }, [sponsors.length]);
-
-  const [infoOpen, setInfoOpen] = useState(false);
   const theme = useTheme();
   const isDark = theme.palette.mode === 'dark';
-  const outlineSx = isDark
-    ? {
-        color: '#dce8dc',
-        WebkitTextStroke: '1px #4fa83a',
-        textShadow: '0 0 6px rgba(79,168,58,0.25)',
-      }
-    : {};
 
-  const handleLogin = () => keycloak.login();
+  const heroBg = isDark
+    ? 'linear-gradient(160deg, #0a160a 0%, #0e2a0e 50%, #1a3a1a 100%)'
+    : 'linear-gradient(160deg, #0d3349 0%, #1a5276 55%, #1e7a4a 100%)';
+
+  const stats = [
+    { label: 'Active Tournaments', value: liveTournaments.length + upcomingTournaments.length },
+    { label: 'Live Matches',       value: liveMatches.length },
+    { label: 'Upcoming Fixtures',  value: upcomingMatches.length },
+    { label: 'Recent Results',     value: recentResults.length },
+  ].filter(s => s.value > 0);
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
 
-      {/* Navbar */}
-      <AppBar position="sticky" elevation={2}>
+      {/* ── Navbar ─────────────────────────────────────────────────────── */}
+      <AppBar position="sticky" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <Toolbar sx={{ gap: 1 }}>
           <SportsCricket sx={{ mr: 1 }} />
-          <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1, letterSpacing: 0.5 }}>
             Cricket Legend
           </Typography>
+          {nextTournament && <NavCountdown tournament={nextTournament} />}
           <Button
-            variant="outlined"
+            variant="contained"
+            disableElevation
             startIcon={<Login />}
-            onClick={handleLogin}
-            sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.6)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
+            onClick={() => keycloak.login()}
+            sx={{ bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}
           >
             Login
           </Button>
         </Toolbar>
       </AppBar>
 
-      {/* Hero */}
+      {/* ── Hero ───────────────────────────────────────────────────────── */}
       <Box sx={{
-        background: isDark
-          ? 'linear-gradient(135deg, #0e1f0e 0%, #1a3a1a 100%)'
-          : `linear-gradient(135deg, #1a5276 0%, #1a5276 60%, #28b463 100%)`,
+        background: heroBg,
         color: 'white',
-        py: { xs: 3, md: 4 },
-        textAlign: 'center',
+        minHeight: { xs: 'auto', md: 'auto' },
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
-        <Container maxWidth="md">
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
-            <SportsCricket sx={{ fontSize: 36, opacity: 0.9 }} />
-            <Typography variant="h4" fontWeight="bold" sx={{ fontSize: { xs: '1.6rem', md: '2rem' }, ...outlineSx }}>
+        {/* Dot pattern overlay */}
+        <Box sx={{
+          position: 'absolute', inset: 0, opacity: 0.04,
+          backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+          pointerEvents: 'none',
+        }} />
+
+        <Container maxWidth="md" sx={{ textAlign: 'center', py: { xs: 2.5, md: 3 }, position: 'relative', zIndex: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 2 }}>
+            <SportsCricket sx={{ fontSize: { xs: 28, md: 40 }, opacity: 0.85 }} />
+            <Typography component="h1" sx={{
+              fontSize: { xs: '2.2rem', sm: '3rem', md: '3.8rem' },
+              fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.5px',
+            }}>
               Cricket Legend
             </Typography>
           </Box>
-          {/* Feature highlights */}
-          <Box>
-            <Container maxWidth="lg">
-              <Box
-                  onClick={() => setInfoOpen(o => !o)}
-                  sx={{
-                    position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', py: 3, userSelect: 'none',
-                  }}
-              >
-                <Typography variant="h5" fontWeight="bold" color="primary" sx={outlineSx}>
-                  Everything you need for cricket
-                </Typography>
-                <IconButton size="small" sx={{ position: 'absolute', right: 0, color: 'primary.main', transition: 'transform 0.25s', transform: infoOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                  <ExpandMore />
-                </IconButton>
+
+          <Typography variant="h6" sx={{
+            opacity: 0.82, fontWeight: 400,
+            maxWidth: 540, mx: 'auto', mb: 4.5,
+            fontSize: { xs: '1rem', md: '1.15rem' }, lineHeight: 1.65,
+          }}>
+            Complete cricket management — tournaments, fixtures, scorecards, team selection and financials in one platform.
+          </Typography>
+
+        </Container>
+
+        {/* Stats strip */}
+        {stats.length > 0 && (
+          <Box sx={{
+            bgcolor: 'rgba(0,0,0,0.28)',
+            backdropFilter: 'blur(8px)',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            py: 1.5, mt: { xs: 2.5, md: 3 },
+          }}>
+            <Container maxWidth="md">
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: { xs: 3, sm: 6 }, flexWrap: 'wrap' }}>
+                {stats.map(s => (
+                  <Box key={s.label} sx={{ textAlign: 'center' }}>
+                    <Typography sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 800, lineHeight: 1 }}>
+                      {s.value}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.62rem', opacity: 0.65, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                      {s.label}
+                    </Typography>
+                  </Box>
+                ))}
               </Box>
-              <Collapse in={infoOpen} timeout={300}>
-                <Box sx={{ pb: 6 }}>
-                  <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 6, maxWidth: 600, mx: 'auto' }}>
-                    Manage tournaments, track results, view standings, and stay up to date with upcoming fixtures all in one place.
-                  </Typography>
-                  <Grid container spacing={3} justifyContent="center">
-                    {[
-                      { icon: <EmojiEvents sx={{ fontSize: 40, color: 'secondary.main' }} />, title: 'Tournaments', desc: 'Create and manage tournaments with pools, standings and results.' },
-                      { icon: <CalendarMonth sx={{ fontSize: 40, color: 'primary.main' }} />, title: 'Fixtures', desc: 'Schedule matches, assign grounds and umpires, and track upcoming games.' },
-                      { icon: <SportsCricket sx={{ fontSize: 40, color: 'secondary.main' }} />, title: 'Scorecards', desc: 'Full match results, scorecards and player statistics in one place.' },
-                      { icon: <AccountBalance sx={{ fontSize: 40, color: 'primary.main' }} />, title: 'Financials', desc: 'Track match fees, payments and wallet balances for players and clubs.' },
-                      { icon: <Groups sx={{ fontSize: 40, color: 'secondary.main' }} />, title: 'Team Management & Selection', desc: 'Manage squads, select teamsheets and organise player roles for every match.' },
-                      { icon: <HowToVote sx={{ fontSize: 40, color: 'primary.main' }} />, title: 'Availability Polls', desc: 'Send availability polls to players and build your squad with confidence.' },
-                    ].map(f => (
-                        <Grid item xs={12} sm={6} md={4} key={f.title}>
-                          <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', height: '100%', borderRadius: 2, bgcolor: 'background.paper' }}>
-                            {f.icon}
-                            <Typography variant="h6" fontWeight="bold" mt={1}>{f.title}</Typography>
-                            <Typography variant="body2" color="text.secondary" mt={0.5}>{f.desc}</Typography>
-                          </Paper>
-                        </Grid>
-                    ))}
-                  </Grid>
-                </Box>
-              </Collapse>
             </Container>
           </Box>
-        </Container>
+        )}
+
       </Box>
 
-      <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-
-      {/* Tournament Countdown */}
-      {nextTournament && <TournamentCountdown tournament={nextTournament} outlineSx={outlineSx} />}
-
-      {/* Live Tournaments */}
+      {/* ── Live Tournaments ────────────────────────────────────────────── */}
       {liveTournaments.length > 0 && (
         <>
-          <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-          <Box sx={{ py: 6, bgcolor: 'background.paper' }}>
+          <Divider />
+          <Box ref={tournamentsRef} sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
             <Container maxWidth="lg">
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
-                <Chip
-                  icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
-                  label="LIVE"
-                  size="small"
-                  sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
-                />
-                <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
-                  Live Tournaments
-                </Typography>
-              </Box>
-              <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-                Tournaments currently in progress.
-              </Typography>
-              <Grid container spacing={2} justifyContent="center">
+              <SectionHeader
+                icon={<EmojiEvents color="primary" />}
+                title="Live Tournaments"
+                subtitle="Tournaments currently in progress."
+                live
+              />
+              <Grid container spacing={2}>
                 {liveTournaments.map(t => (
                   <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
-                    <Card variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.default' }}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper' }}>
                       <Box sx={{
                         position: 'absolute', top: -10, right: 12,
-                        bgcolor: '#e53935', color: 'white',
-                        borderRadius: 1, px: 1, py: 0.25,
+                        bgcolor: '#e53935', color: 'white', borderRadius: 1, px: 1, py: 0.25,
                         display: 'flex', alignItems: 'center', gap: 0.4,
                         fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.5,
                       }}>
@@ -531,66 +607,7 @@ export const LandingPage: React.FC = () => {
                       </Box>
                       <CardContent>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                          <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>
-                            {t.name.charAt(0)}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{t.name}</Typography>
-                            {t.cricketFormat && <Chip label={t.cricketFormat} size="small" variant="outlined" sx={{ mt: 0.5 }} />}
-                          </Box>
-                        </Box>
-                        {(t.startDate || t.endDate) && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-                            <CalendarMonth sx={{ fontSize: 15, color: 'text.secondary' }} />
-                            <Typography variant="body2" color="text.secondary">
-                              {t.startDate ?? '?'} — {t.endDate ?? '?'}
-                            </Typography>
-                          </Box>
-                        )}
-                      </CardContent>
-                      <Divider />
-                      <Box sx={{ px: 1.5, py: 1 }}>
-                        <Button
-                          size="small"
-                          startIcon={<EventNote />}
-                          onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}
-                        >
-                          View Schedule
-                        </Button>
-                      </Box>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Container>
-          </Box>
-        </>
-      )}
-
-      {/* Upcoming Tournaments */}
-      {upcomingTournaments.length > 0 && (
-        <>
-          <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-          <Box sx={{ py: 6, bgcolor: 'background.default' }}>
-            <Container maxWidth="lg">
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-                <EmojiEvents color="primary" />
-                <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
-                  Upcoming Tournaments
-                </Typography>
-              </Box>
-              <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-                Tournaments starting soon.
-              </Typography>
-              <Grid container spacing={2} justifyContent="center">
-                {upcomingTournaments.map(t => (
-                  <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
-                    <Card variant="outlined" sx={{ borderRadius: 2, bgcolor: 'background.paper' }}>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                          <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>
-                            {t.name.charAt(0)}
-                          </Avatar>
+                          <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>{t.name.charAt(0)}</Avatar>
                           <Box>
                             <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{t.name}</Typography>
                             {t.cricketFormat && <Chip label={t.cricketFormat} size="small" variant="outlined" sx={{ mt: 0.5 }} />}
@@ -599,19 +616,13 @@ export const LandingPage: React.FC = () => {
                         {(t.startDate || t.endDate) && (
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <CalendarMonth sx={{ fontSize: 15, color: 'text.secondary' }} />
-                            <Typography variant="body2" color="text.secondary">
-                              {t.startDate ?? '?'} — {t.endDate ?? '?'}
-                            </Typography>
+                            <Typography variant="body2" color="text.secondary">{t.startDate ?? '?'} — {t.endDate ?? '?'}</Typography>
                           </Box>
                         )}
                       </CardContent>
                       <Divider />
                       <Box sx={{ px: 1.5, py: 1 }}>
-                        <Button
-                          size="small"
-                          startIcon={<EventNote />}
-                          onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}
-                        >
+                        <Button size="small" startIcon={<EventNote />} onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}>
                           View Schedule
                         </Button>
                       </Box>
@@ -624,210 +635,458 @@ export const LandingPage: React.FC = () => {
         </>
       )}
 
-      {/* Live Matches */}
+
+      {/* ── Live Matches ────────────────────────────────────────────────── */}
       {liveMatches.length > 0 && (
         <>
-        <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-        <Box sx={{ py: 8 }}>
-          <Container maxWidth="lg">
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
-              <Chip
-                icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
-                label="LIVE"
-                size="small"
-                sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
+          <Divider />
+          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
+            <Container maxWidth="lg">
+              <SectionHeader
+                icon={<SportsCricket color="primary" />}
+                title="Live Matches"
+                subtitle="Matches happening right now."
+                live
               />
-              <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
-                Live Matches
-              </Typography>
-            </Box>
-            <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-              Matches happening today.
-            </Typography>
-            <Grid container spacing={2}>
-              {liveMatches.map(m => (
-                <Grid item xs={12} sm={6} md={4} key={m.matchId}>
-                  <MatchCard m={m} live />
-                </Grid>
-              ))}
-            </Grid>
-          </Container>
-        </Box>
+              <Grid container spacing={2}>
+                {liveMatches.map(m => (
+                  <Grid item xs={12} sm={6} md={4} key={m.matchId}>
+                    <MatchCard m={m} live />
+                  </Grid>
+                ))}
+              </Grid>
+            </Container>
+          </Box>
         </>
       )}
 
-      <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-
-      {/* Recent Results */}
-      {recentResults.length > 0 && (
-        <Box sx={{ py: 8, bgcolor: 'background.default' }}>
-          <Container maxWidth="lg">
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-              <EmojiEvents color="primary" />
-              <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
-                Recent Results
-              </Typography>
-            </Box>
-            <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-              Latest completed match outcomes.
-            </Typography>
-            <Grid container spacing={2}>
-              {recentResults.map(r => (
-                <Grid item xs={12} sm={6} md={4} key={r.matchId}>
-                  <ResultCard r={r} />
-                </Grid>
-              ))}
-            </Grid>
-          </Container>
-        </Box>
-      )}
-
-      <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-
-      {/* Upcoming Matches */}
-      <Box sx={{ py: 8, bgcolor: 'background.default' }}>
-        <Container maxWidth="lg">
-          <Typography variant="h4" fontWeight="bold" textAlign="center" gutterBottom color="primary" sx={outlineSx}>
-            Upcoming Matches
-          </Typography>
-          <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-            Stay up to date with what's on the schedule.
-          </Typography>
-          {upcomingMatches.length === 0 ? (
-            <Typography textAlign="center" color="text.secondary">
-              No upcoming matches scheduled at this time.
-            </Typography>
-          ) : (
-            <Grid container spacing={2}>
-              {upcomingMatches.map(m => (
-                <Grid item xs={12} sm={6} md={4} key={m.matchId}>
-                  <MatchCard m={m} />
-                </Grid>
-              ))}
-            </Grid>
-          )}
-        </Container>
-      </Box>
-
-      <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-
-      {/* Media Gallery */}
-      {allMedia.length > 0 && (
-        <Box sx={{ py: 8, bgcolor: 'background.paper' }}>
-          <Container maxWidth="lg">
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-              <PhotoLibrary color="primary" />
-              <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
-                Media Gallery
-              </Typography>
-            </Box>
-            <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
-              Photos and highlights from our matches and tournaments.
-            </Typography>
-            <MediaCarousel items={allMedia} height={480} />
-          </Container>
-        </Box>
-      )}
-
-      <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-
-      {/* Facebook Pages */}
-      {socialMediaPages.length > 0 && (
-        <Box sx={{ py: 6, bgcolor: 'background.default' }}>
-          <Container maxWidth="lg">
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
-              <Facebook sx={{ color: '#1877F2' }} />
-              <Typography variant="h5" fontWeight="bold" color="primary" sx={outlineSx}>
-                Follow Us
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 3 }}>
-              {socialMediaPages.map(page => (
-                <SocialMediaPageEmbed key={page.id} url={page.url} label={page.label} />
-              ))}
-            </Box>
-          </Container>
-        </Box>
-      )}
-
-      <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
-
-      {/* Sponsors */}
-      {sponsors.length > 0 && (
-          <Box sx={{ py: 6, bgcolor: 'background.paper' }}>
-            <Container maxWidth="sm">
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 3 }}>
-                <Handshake color="primary" />
-                <Typography variant="h5" fontWeight="bold" color="primary" sx={outlineSx}>
-                  Our Sponsors
-                </Typography>
-              </Box>
-              <Fade in={sponsorVisible} timeout={400}>
-                <Paper
-                    variant="outlined"
-                    sx={{ p: 3, borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2.5, bgcolor: 'background.paper' }}
-                >
-                  <Avatar
-                      src={sponsors[sponsorIndex].brandLogoUrl}
-                      variant="rounded"
-                      sx={{ width: 64, height: 64, flexShrink: 0 }}
-                  >
-                    {sponsors[sponsorIndex].name.charAt(0)}
-                  </Avatar>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography variant="h6" fontWeight="bold" noWrap>
-                      {sponsors[sponsorIndex].name}
-                    </Typography>
-                    {sponsors[sponsorIndex].brandWebsite && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                          <Language sx={{ fontSize: 14, color: 'text.secondary' }} />
-                          <Typography
-                              variant="body2"
-                              component="a"
-                              href={sponsors[sponsorIndex].brandWebsite}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          >
-                            {sponsors[sponsorIndex].brandWebsite}
-                          </Typography>
-                        </Box>
-                    )}
-                  </Box>
-                  {sponsors.length > 1 && (
-                      <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                        {sponsors.map((_, i) => (
-                            <Box
-                                key={i}
-                                sx={{
-                                  width: 6, height: 6, borderRadius: '50%',
-                                  bgcolor: i === sponsorIndex ? 'primary.main' : 'action.disabled',
-                                  transition: 'background-color 0.3s',
-                                  cursor: 'pointer',
-                                }}
-                                onClick={() => { setSponsorVisible(false); setTimeout(() => { setSponsorIndex(i); setSponsorVisible(true); }, 400); }}
-                            />
-                        ))}
-                      </Box>
+      {/* ── Results & Standings ─────────────────────────────────────────── */}
+      {(recentResults.length > 0 || Object.keys(standingsMap).length > 0) && (
+        <>
+          <Divider />
+          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.paper' }}>
+            <Container maxWidth="lg">
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.5,
+                  pl: 2, borderLeft: '4px solid', borderColor: 'primary.main', mb: 2,
+                }}>
+                  <CheckCircle color="primary" />
+                  <Typography variant="h5" fontWeight="bold" color="primary">Results</Typography>
+                </Box>
+                <Tabs value={resultsTab} onChange={(_, v) => setResultsTab(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                  <Tab
+                    icon={<CheckCircle sx={{ fontSize: 16 }} />}
+                    iconPosition="start"
+                    label={`Recent Results (${recentResults.length})`}
+                    sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
+                  />
+                  {Object.keys(standingsMap).length > 0 && (
+                    <Tab
+                      icon={<EmojiEvents sx={{ fontSize: 16 }} />}
+                      iconPosition="start"
+                      label="Standings"
+                      sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
+                    />
                   )}
-                </Paper>
-              </Fade>
+                </Tabs>
+              </Box>
+
+              {/* Recent Results tab */}
+              {resultsTab === 0 && (
+                recentResults.length === 0 ? (
+                  <Typography color="text.secondary">No recent results available.</Typography>
+                ) : (
+                  <Grid container spacing={2}>
+                    {recentResults.map(r => (
+                      <Grid item xs={12} sm={6} md={4} key={r.matchId}>
+                        <ResultCard r={r} onSummary={() => openSummary(r.matchId)} />
+                      </Grid>
+                    ))}
+                  </Grid>
+                )
+              )}
+
+              {/* Standings tab */}
+              {resultsTab === 1 && Object.keys(standingsMap).length > 0 && (
+                <>
+                  {/* Tournament selector when multiple live tournaments */}
+                  {liveTournaments.length > 1 && (
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2.5 }}>
+                      {liveTournaments.map(t => (
+                        <Chip
+                          key={t.tournamentId}
+                          label={t.name}
+                          onClick={() => setSelectedStandingsTournament(t.tournamentId!)}
+                          color={selectedStandingsTournament === t.tournamentId ? 'primary' : 'default'}
+                          variant={selectedStandingsTournament === t.tournamentId ? 'filled' : 'outlined'}
+                          size="small"
+                        />
+                      ))}
+                    </Box>
+                  )}
+                  <StandingsTable pools={selectedStandingsTournament ? (standingsMap[selectedStandingsTournament] ?? []) : []} />
+                </>
+              )}
             </Container>
           </Box>
+        </>
       )}
 
-      {/* Footer */}
+      {/* ── Upcoming (Tournaments + Matches combined) ───────────────────── */}
+      {(upcomingTournaments.length > 0 || upcomingMatches.length > 0) && (
+        <>
+          <Divider />
+          <Box ref={upcomingRef} sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
+            <Container maxWidth="lg">
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.5,
+                  pl: 2, borderLeft: '4px solid', borderColor: 'primary.main', mb: 2,
+                }}>
+                  <CalendarMonth color="primary" />
+                  <Typography variant="h5" fontWeight="bold" color="primary">Upcoming</Typography>
+                </Box>
+                <Tabs
+                  value={upcomingTab}
+                  onChange={(_, v) => setUpcomingTab(v)}
+                  sx={{ borderBottom: 1, borderColor: 'divider' }}
+                >
+                  <Tab
+                    icon={<SportsCricket sx={{ fontSize: 16 }} />}
+                    iconPosition="start"
+                    label={`Matches (${upcomingMatches.length})`}
+                    sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
+                  />
+                  {upcomingTournaments.length > 0 && (
+                    <Tab
+                      icon={<EmojiEvents sx={{ fontSize: 16 }} />}
+                      iconPosition="start"
+                      label={`Tournaments (${upcomingTournaments.length})`}
+                      sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
+                    />
+                  )}
+                </Tabs>
+              </Box>
+
+              {/* Matches tab */}
+              {upcomingTab === 0 && (
+                upcomingMatches.length === 0 ? (
+                  <Typography color="text.secondary">No upcoming matches scheduled at this time.</Typography>
+                ) : (
+                  <Grid container spacing={2}>
+                    {upcomingMatches.map(m => (
+                      <Grid item xs={12} sm={6} md={4} key={m.matchId}>
+                        <MatchCard m={m} />
+                      </Grid>
+                    ))}
+                  </Grid>
+                )
+              )}
+
+              {/* Tournaments tab */}
+              {upcomingTournaments.length > 0 && upcomingTab === 1 && (
+                <Grid container spacing={2}>
+                  {upcomingTournaments.map(t => (
+                    <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
+                      <Card variant="outlined" sx={{ borderRadius: 2, bgcolor: 'background.paper' }}>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                            <CountdownDisplay matchDate={t.startDate} />
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                            <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>{t.name.charAt(0)}</Avatar>
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{t.name}</Typography>
+                              {t.cricketFormat && <Chip label={t.cricketFormat} size="small" variant="outlined" sx={{ mt: 0.5 }} />}
+                            </Box>
+                          </Box>
+                          {(t.startDate || t.endDate) && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                              <CalendarMonth sx={{ fontSize: 15, color: 'text.secondary' }} />
+                              <Typography variant="body2" color="text.secondary">{t.startDate ?? '?'} — {t.endDate ?? '?'}</Typography>
+                            </Box>
+                          )}
+                          {(t.websiteLink || t.facebookLink || t.instagramLink || t.youtubeLink || t.registrationPageUrl) && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                              {t.websiteLink && (
+                                <IconButton size="small" component="a" href={t.websiteLink} target="_blank" rel="noopener noreferrer" title="Website">
+                                  <OpenInNew sx={{ fontSize: 18, color: 'text.secondary' }} />
+                                </IconButton>
+                              )}
+                              {t.facebookLink && (
+                                <IconButton size="small" component="a" href={t.facebookLink} target="_blank" rel="noopener noreferrer" title="Facebook">
+                                  <Facebook sx={{ fontSize: 18, color: '#1877F2' }} />
+                                </IconButton>
+                              )}
+                              {t.instagramLink && (
+                                <IconButton size="small" component="a" href={t.instagramLink} target="_blank" rel="noopener noreferrer" title="Instagram">
+                                  <Instagram sx={{ fontSize: 18, color: '#E1306C' }} />
+                                </IconButton>
+                              )}
+                              {t.youtubeLink && (
+                                <IconButton size="small" component="a" href={t.youtubeLink} target="_blank" rel="noopener noreferrer" title="YouTube">
+                                  <YouTube sx={{ fontSize: 18, color: '#FF0000' }} />
+                                </IconButton>
+                              )}
+                            </Box>
+                          )}
+                        </CardContent>
+                        <Divider />
+                        <Box sx={{ px: 1.5, py: 1, display: 'flex', gap: 1 }}>
+                          <Button size="small" startIcon={<EventNote />} onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}>
+                            View Schedule
+                          </Button>
+                          {t.registrationPageUrl && (
+                            <Button size="small" startIcon={<AppRegistration />} component="a" href={t.registrationPageUrl} target="_blank" rel="noopener noreferrer">
+                              Register
+                            </Button>
+                          )}
+                        </Box>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+
+            </Container>
+          </Box>
+        </>
+      )}
+
+      {/* ── Media Gallery ───────────────────────────────────────────────── */}
+      {allMedia.length > 0 && (
+        <>
+          <Divider />
+          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.paper' }}>
+            <Container maxWidth="lg">
+              <SectionHeader
+                icon={<PhotoLibrary color="primary" />}
+                title="Media Gallery"
+                subtitle="Photos and highlights from our matches and tournaments."
+              />
+              <MediaCarousel items={allMedia} height={480} />
+            </Container>
+          </Box>
+        </>
+      )}
+
+      {/* ── Social Media ────────────────────────────────────────────────── */}
+      {socialMediaPages.length > 0 && (
+        <>
+          <Divider />
+          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
+            <Container maxWidth="lg">
+              <SectionHeader
+                icon={<Facebook sx={{ color: '#1877F2' }} />}
+                title="Follow Us"
+                subtitle="Stay connected on social media."
+              />
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 3 }}>
+                {socialMediaPages.map(page => (
+                  <SocialMediaPageEmbed key={page.id} url={page.url} label={page.label} />
+                ))}
+              </Box>
+            </Container>
+          </Box>
+        </>
+      )}
+
+      {/* ── Sponsors ────────────────────────────────────────────────────── */}
+      {sponsors.length > 0 && (
+        <>
+          <Divider />
+          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.paper' }}>
+            <Container maxWidth="lg">
+              <SectionHeader
+                icon={<Handshake color="primary" />}
+                title="Our Sponsors"
+                subtitle="Thank you to the partners who make Cricket Legend possible."
+              />
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', gap: { xs: 4, sm: 6 } }}>
+                {sponsors.map(s => (
+                  <Box key={s.sponsorId} sx={{ textAlign: 'center', maxWidth: 140 }}>
+                    <Avatar
+                      src={s.brandLogoUrl}
+                      variant="rounded"
+                      sx={{ width: 80, height: 80, mx: 'auto', mb: 1.25, boxShadow: 1 }}
+                    >
+                      {s.name.charAt(0)}
+                    </Avatar>
+                    <Typography variant="subtitle2" fontWeight="bold">{s.name}</Typography>
+                    {s.brandWebsite && (
+                      <Typography
+                        component="a"
+                        href={s.brandWebsite}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="caption"
+                        sx={{
+                          color: 'primary.main', textDecoration: 'none',
+                          display: 'flex', alignItems: 'center', gap: 0.3, justifyContent: 'center',
+                          mt: 0.25, '&:hover': { textDecoration: 'underline' },
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <Language sx={{ fontSize: 11, flexShrink: 0 }} />
+                        {s.brandWebsite.replace(/^https?:\/\//, '')}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            </Container>
+          </Box>
+        </>
+      )}
+
+      {/* ── Match summary dialog ────────────────────────────────────────── */}
+      <Dialog open={summaryLoading || !!summaryMatch} onClose={() => { setSummaryMatch(null); setSummaryLoading(false); }} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          Match Summary
+          <IconButton size="small" onClick={() => { setSummaryMatch(null); setSummaryLoading(false); }}>
+            <Close fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {summaryLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          )}
+          {summaryMatch && (
+            <MatchSummaryView
+              match={summaryMatch}
+              view="whatsapp"
+              onBack={() => setSummaryMatch(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Feature info dialog ─────────────────────────────────────────── */}
+      <Dialog open={!!featureDialog} onClose={() => setFeatureDialog(null)} maxWidth="xs" fullWidth>
+        {featureDialog && (
+          <>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pr: 6 }}>
+              <Box sx={{ color: 'primary.main' }}>{featureDialog.icon}</Box>
+              {featureDialog.title}
+              <IconButton onClick={() => setFeatureDialog(null)} size="small" sx={{ position: 'absolute', right: 8, top: 8 }}>
+                <Close fontSize="small" />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent>
+              <Typography variant="body2" color="text.secondary">{featureDialog.desc}</Typography>
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
+
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
       <Box sx={{
         background: isDark
-          ? 'linear-gradient(135deg, #0e1f0e 0%, #1a3a1a 100%)'
-          : 'linear-gradient(135deg, #1a5276 0%, #1a5276 60%, #28b463 100%)',
-        color: 'rgba(255,255,255,0.7)',
-        py: 3,
-        textAlign: 'center',
+          ? 'linear-gradient(160deg, #0a160a 0%, #0e2a0e 100%)'
+          : 'linear-gradient(160deg, #0d3349 0%, #1a5276 100%)',
+        color: 'rgba(255,255,255,0.85)',
+        pt: 6, pb: 3,
       }}>
-        <Typography variant="body2">
-          © {new Date().getFullYear()} Cricket Legend. All rights reserved.
-        </Typography>
+        <Container maxWidth="lg">
+          <Grid container spacing={4} sx={{ mb: 4 }}>
+
+            {/* Brand column */}
+            <Grid item xs={12} sm={5}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mb: 1.5 }}>
+                <SportsCricket sx={{ fontSize: 28 }} />
+                <Typography variant="h6" fontWeight="bold">Cricket Legend</Typography>
+              </Box>
+              <Typography variant="body2" sx={{ opacity: 0.65, maxWidth: 290, lineHeight: 1.75 }}>
+                Complete cricket management for clubs, tournaments and players. Built for South African cricket communities.
+              </Typography>
+            </Grid>
+
+            {/* Quick links */}
+            <Grid item xs={6} sm={3.5}>
+              <Typography variant="overline" sx={{ letterSpacing: 2.5, opacity: 0.45, display: 'block', mb: 1.5, fontSize: '0.65rem' }}>
+                Quick Links
+              </Typography>
+              {[
+                { label: 'Login to Dashboard', action: () => keycloak.login() },
+                { label: 'View Tournaments',   action: () => tournamentsRef.current?.scrollIntoView({ behavior: 'smooth' }) },
+                { label: 'Upcoming',           action: () => upcomingRef.current?.scrollIntoView({ behavior: 'smooth' }) },
+              ].map(link => (
+                <Typography
+                  key={link.label}
+                  variant="body2"
+                  onClick={link.action}
+                  sx={{ opacity: 0.7, cursor: 'pointer', mb: 1, '&:hover': { opacity: 1 }, transition: 'opacity 0.2s' }}
+                >
+                  {link.label}
+                </Typography>
+              ))}
+            </Grid>
+
+            {/* Social / Follow */}
+            {socialMediaPages.length > 0 && (
+              <Grid item xs={6} sm={3.5}>
+                <Typography variant="overline" sx={{ letterSpacing: 2.5, opacity: 0.45, display: 'block', mb: 1.5, fontSize: '0.65rem' }}>
+                  Follow Us
+                </Typography>
+                {socialMediaPages.map(page => (
+                  <Typography
+                    key={page.id}
+                    component="a"
+                    href={page.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="body2"
+                    sx={{
+                      opacity: 0.7, display: 'flex', alignItems: 'center', gap: 0.75, mb: 1,
+                      textDecoration: 'none', color: 'inherit',
+                      '&:hover': { opacity: 1 }, transition: 'opacity 0.2s',
+                    }}
+                  >
+                    <Facebook sx={{ fontSize: 16, color: '#1877F2' }} />
+                    {page.label}
+                  </Typography>
+                ))}
+              </Grid>
+            )}
+          </Grid>
+
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', mb: 3 }} />
+
+          {/* Features strip */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {[
+              { icon: <EmojiEvents sx={{ fontSize: 22 }} />,    title: 'Tournaments',         desc: 'Create and manage tournaments with pools, standings and results.' },
+              { icon: <CalendarMonth  sx={{ fontSize: 22 }} />, title: 'Fixtures',             desc: 'Schedule matches, assign grounds and umpires, track upcoming games.' },
+              { icon: <SportsCricket  sx={{ fontSize: 22 }} />, title: 'Scorecards',           desc: 'Full match results, scorecards and player statistics.' },
+              { icon: <AccountBalance sx={{ fontSize: 22 }} />, title: 'Financials',           desc: 'Track match fees, payments and wallet balances.' },
+              { icon: <Groups         sx={{ fontSize: 22 }} />, title: 'Team Management',      desc: 'Manage squads, select teamsheets and organise player roles.' },
+              { icon: <HowToVote      sx={{ fontSize: 22 }} />, title: 'Availability Polls',   desc: 'Send availability polls and build your squad with confidence.' },
+            ].map(f => (
+              <Grid item xs={6} sm={4} md={2} key={f.title}>
+                <Box
+                  onClick={() => setFeatureDialog(f)}
+                  sx={{
+                    display: 'flex', alignItems: 'center', gap: 0.75,
+                    cursor: 'pointer', opacity: 0.55,
+                    transition: 'opacity 0.2s',
+                    '&:hover': { opacity: 1 },
+                  }}
+                >
+                  {f.icon}
+                  <Typography variant="caption" sx={{ lineHeight: 1.3 }}>{f.title}</Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', mb: 2.5 }} />
+          <Typography variant="caption" sx={{ opacity: 0.45 }}>
+            © {new Date().getFullYear()} Cricket Legend. All rights reserved.
+          </Typography>
+        </Container>
       </Box>
     </Box>
   );
