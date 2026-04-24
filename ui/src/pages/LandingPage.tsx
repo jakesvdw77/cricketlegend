@@ -66,8 +66,6 @@ const CountdownDisplay: React.FC<{ matchDate?: string; startTime?: string }> = (
     : [{ v: left.hours, l: 'h' }, { v: left.minutes, l: 'm' }, { v: left.seconds, l: 's' }];
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-      <AccessTime sx={{ fontSize: 13, color: 'text.secondary' }} />
-      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.25 }}>Starts in</Typography>
       {units.map(({ v, l }, i) => (
         <React.Fragment key={l}>
           {i > 0 && <Typography variant="caption" color="text.secondary">:</Typography>}
@@ -87,9 +85,65 @@ const CountdownDisplay: React.FC<{ matchDate?: string; startTime?: string }> = (
   );
 };
 
+// ── Weather ──────────────────────────────────────────────────────────────────
+
+const WMO_ICON: Record<number, string> = {
+  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+  45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌦️', 55: '🌧️',
+  61: '🌧️', 63: '🌧️', 65: '🌧️',
+  71: '🌨️', 73: '🌨️', 75: '❄️', 77: '🌨️',
+  80: '🌦️', 81: '🌦️', 82: '⛈️',
+  85: '🌨️', 86: '❄️',
+  95: '⛈️', 96: '⛈️', 99: '⛈️',
+};
+
+function parseCoords(url?: string): { lat: number; lng: number } | null {
+  if (!url) return null;
+  const at = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (at) return { lat: parseFloat(at[1]), lng: parseFloat(at[2]) };
+  const q = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (q) return { lat: parseFloat(q[1]), lng: parseFloat(q[2]) };
+  return null;
+}
+
+interface WeatherDay { icon: string; maxTemp: number; minTemp: number; precipProb: number; }
+
+function useWeather(coords: { lat: number; lng: number } | null, date?: string): WeatherDay | null {
+  const [data, setData] = useState<WeatherDay | null>(null);
+  useEffect(() => {
+    if (!coords || !date) return;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = Math.floor((new Date(date).getTime() - today.getTime()) / 86_400_000);
+    if (diff < 0 || diff > 5) return;
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lng}` +
+      `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
+      `&timezone=auto&forecast_days=7`
+    )
+      .then(r => r.json())
+      .then(json => {
+        const idx = (json.daily.time as string[]).indexOf(date);
+        if (idx === -1) return;
+        const code: number = json.daily.weathercode[idx];
+        setData({
+          icon: WMO_ICON[code] ?? '🌡️',
+          maxTemp: Math.round(json.daily.temperature_2m_max[idx]),
+          minTemp: Math.round(json.daily.temperature_2m_min[idx]),
+          precipProb: json.daily.precipitation_probability_max[idx],
+        });
+      })
+      .catch(() => {});
+  }, [coords?.lat, coords?.lng, date]);
+  return data;
+}
+
 // ── MatchCard ────────────────────────────────────────────────────────────────
 
-const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
+const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => {
+  const coords = useMemo(() => parseCoords(m.fieldGoogleMapsUrl), [m.fieldGoogleMapsUrl]);
+  const weather = useWeather(coords, m.matchDate);
+  return (
   <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column' }}>
     {live && (
       <Box sx={{
@@ -103,11 +157,16 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
       </Box>
     )}
     <CardContent>
-      {!live && (
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-          <CountdownDisplay matchDate={m.matchDate} startTime={m.scheduledStartTime} />
-        </Box>
-      )}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        {!live
+          ? <CountdownDisplay matchDate={m.matchDate} startTime={m.scheduledStartTime} />
+          : <Box />}
+        {weather && (
+          <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 0.75, py: 0.25, whiteSpace: 'nowrap' }}>
+            <Typography variant="body2">{weather.icon} {weather.maxTemp}°/{weather.minTemp}° · 💧{weather.precipProb}%</Typography>
+          </Box>
+        )}
+      </Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Chip label={m.tournamentName} size="small" icon={<EmojiEvents />} color="primary" variant="outlined" />
         {m.matchStage && <Chip label={STAGE_LABEL[m.matchStage] ?? m.matchStage} size="small" variant="outlined" />}
@@ -176,7 +235,8 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => (
       </>
     )}
   </Card>
-);
+  );
+};
 
 // ── ResultCard ───────────────────────────────────────────────────────────────
 
@@ -425,6 +485,7 @@ export const LandingPage: React.FC = () => {
       .catch(() => setSummaryLoading(false))
       .finally(() => setSummaryLoading(false));
   };
+  const [liveTab, setLiveTab] = useState(0);
   const [upcomingTab, setUpcomingTab] = useState(0);
   const [resultsTab, setResultsTab] = useState(0);
   const [standingsMap, setStandingsMap] = useState<Record<number, PoolStandings[]>>({});
@@ -581,80 +642,98 @@ export const LandingPage: React.FC = () => {
 
       </Box>
 
-      {/* ── Live Tournaments ────────────────────────────────────────────── */}
-      {liveTournaments.length > 0 && (
+      {/* ── Live (Matches + Tournaments combined) ───────────────────────── */}
+      {(liveMatches.length > 0 || liveTournaments.length > 0) && (
         <>
           <Divider />
           <Box ref={tournamentsRef} sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
             <Container maxWidth="lg">
-              <SectionHeader
-                icon={<EmojiEvents color="primary" />}
-                title="Live Tournaments"
-                subtitle="Tournaments currently in progress."
-                live
-              />
-              <Grid container spacing={2}>
-                {liveTournaments.map(t => (
-                  <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
-                    <Card variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper' }}>
-                      <Box sx={{
-                        position: 'absolute', top: -10, right: 12,
-                        bgcolor: '#e53935', color: 'white', borderRadius: 1, px: 1, py: 0.25,
-                        display: 'flex', alignItems: 'center', gap: 0.4,
-                        fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.5,
-                      }}>
-                        <FiberManualRecord sx={{ fontSize: 8 }} /> LIVE
-                      </Box>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                          <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>{t.name.charAt(0)}</Avatar>
-                          <Box>
-                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{t.name}</Typography>
-                            {t.cricketFormat && <Chip label={t.cricketFormat} size="small" variant="outlined" sx={{ mt: 0.5 }} />}
-                          </Box>
+              <Box sx={{ mb: 3 }}>
+                <Box sx={{
+                  display: 'flex', alignItems: 'center', gap: 1.5,
+                  pl: 2, borderLeft: '4px solid', borderColor: '#e53935', mb: 2,
+                }}>
+                  <Chip
+                    icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
+                    label="LIVE"
+                    size="small"
+                    sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
+                  />
+                  <Typography variant="h5" fontWeight="bold" color="primary">Live</Typography>
+                </Box>
+                <Tabs value={liveTab} onChange={(_, v) => setLiveTab(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                  <Tab
+                    icon={<SportsCricket sx={{ fontSize: 16 }} />}
+                    iconPosition="start"
+                    label={`Matches (${liveMatches.length})`}
+                    sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
+                  />
+                  {liveTournaments.length > 0 && (
+                    <Tab
+                      icon={<EmojiEvents sx={{ fontSize: 16 }} />}
+                      iconPosition="start"
+                      label={`Tournaments (${liveTournaments.length})`}
+                      sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
+                    />
+                  )}
+                </Tabs>
+              </Box>
+
+              {/* Matches tab */}
+              {liveTab === 0 && (
+                liveMatches.length === 0 ? (
+                  <Typography color="text.secondary">No live matches right now.</Typography>
+                ) : (
+                  <Grid container spacing={2}>
+                    {liveMatches.map(m => (
+                      <Grid item xs={12} sm={6} md={4} key={m.matchId}>
+                        <MatchCard m={m} live />
+                      </Grid>
+                    ))}
+                  </Grid>
+                )
+              )}
+
+              {/* Tournaments tab */}
+              {liveTab === 1 && liveTournaments.length > 0 && (
+                <Grid container spacing={2}>
+                  {liveTournaments.map(t => (
+                    <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
+                      <Card variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper' }}>
+                        <Box sx={{
+                          position: 'absolute', top: -10, right: 12,
+                          bgcolor: '#e53935', color: 'white', borderRadius: 1, px: 1, py: 0.25,
+                          display: 'flex', alignItems: 'center', gap: 0.4,
+                          fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.5,
+                        }}>
+                          <FiberManualRecord sx={{ fontSize: 8 }} /> LIVE
                         </Box>
-                        {(t.startDate || t.endDate) && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <CalendarMonth sx={{ fontSize: 15, color: 'text.secondary' }} />
-                            <Typography variant="body2" color="text.secondary">{t.startDate ?? '?'} — {t.endDate ?? '?'}</Typography>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                            <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>{t.name.charAt(0)}</Avatar>
+                            <Box>
+                              <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{t.name}</Typography>
+                              {t.cricketFormat && <Chip label={t.cricketFormat} size="small" variant="outlined" sx={{ mt: 0.5 }} />}
+                            </Box>
                           </Box>
-                        )}
-                      </CardContent>
-                      <Divider />
-                      <Box sx={{ px: 1.5, py: 1 }}>
-                        <Button size="small" startIcon={<EventNote />} onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}>
-                          View Schedule
-                        </Button>
-                      </Box>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Container>
-          </Box>
-        </>
-      )}
-
-
-      {/* ── Live Matches ────────────────────────────────────────────────── */}
-      {liveMatches.length > 0 && (
-        <>
-          <Divider />
-          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
-            <Container maxWidth="lg">
-              <SectionHeader
-                icon={<SportsCricket color="primary" />}
-                title="Live Matches"
-                subtitle="Matches happening right now."
-                live
-              />
-              <Grid container spacing={2}>
-                {liveMatches.map(m => (
-                  <Grid item xs={12} sm={6} md={4} key={m.matchId}>
-                    <MatchCard m={m} live />
-                  </Grid>
-                ))}
-              </Grid>
+                          {(t.startDate || t.endDate) && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <CalendarMonth sx={{ fontSize: 15, color: 'text.secondary' }} />
+                              <Typography variant="body2" color="text.secondary">{t.startDate ?? '?'} — {t.endDate ?? '?'}</Typography>
+                            </Box>
+                          )}
+                        </CardContent>
+                        <Divider />
+                        <Box sx={{ px: 1.5, py: 1 }}>
+                          <Button size="small" startIcon={<EventNote />} onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}>
+                            View Schedule
+                          </Button>
+                        </Box>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
             </Container>
           </Box>
         </>

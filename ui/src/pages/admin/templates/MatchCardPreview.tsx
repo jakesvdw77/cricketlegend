@@ -86,7 +86,7 @@ const MatchCardPreview: React.FC<TemplateProps> = ({
       ].filter(Boolean).join('  ');
       return (
         <div key={i} style={s.row}>
-          <span style={s.icon}>🎯</span>
+          <span style={s.icon}>🔴</span>
           <span style={s.name}>{b.playerName}</span>
           <span style={s.stat}>{stat}</span>
         </div>

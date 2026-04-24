@@ -136,7 +136,7 @@ export const MySchedule: React.FC = () => {
       <Dialog open={!!selected} onClose={() => setSelected(null)} maxWidth="sm" fullWidth>
         {selected && (
           <>
-            <DialogTitle sx={{ bgcolor: 'primary.main', color: '#fff', pb: 1 }}>
+            <DialogTitle sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', pb: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <SportsCricket />
                 <Typography variant="h6">Match Details</Typography>
@@ -191,9 +191,16 @@ export const MySchedule: React.FC = () => {
                       <Typography variant="body2">
                         <strong>Venue:</strong>&nbsp;
                         {selected.fieldGoogleMapsUrl ? (
-                          <a href={selected.fieldGoogleMapsUrl} target="_blank" rel="noopener noreferrer">
+                          <Typography
+                            component="a"
+                            href={selected.fieldGoogleMapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            variant="body2"
+                            sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                          >
                             {selected.fieldName}
-                          </a>
+                          </Typography>
                         ) : selected.fieldName}
                       </Typography>
                       {selected.fieldAddress && (
