@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, AppBar, Toolbar, Avatar, Card, CardContent,
   Chip, Divider, Grid, Container, Paper, Fade, Collapse, IconButton, useTheme,
@@ -6,7 +7,7 @@ import {
 import {
   EmojiEvents, CalendarMonth, LocationOn, AccessTime, Login, SportsCricket,
   PhotoLibrary, FiberManualRecord, Handshake, Language, ExpandMore, CheckCircle, Facebook,
-  AccountBalance, Groups, HowToVote,
+  AccountBalance, Groups, HowToVote, EventNote,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { sponsorApi } from '../api/sponsorApi';
@@ -321,12 +322,15 @@ const TournamentCountdown: React.FC<{ tournament: Tournament; outlineSx: object 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [liveMatches, setLiveMatches] = useState<Match[]>([]);
   const [recentResults, setRecentResults] = useState<MatchResultSummary[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [allMedia, setAllMedia] = useState<MediaContent[]>([]);
   const [nextTournament, setNextTournament] = useState<Tournament | null>(null);
+  const [liveTournaments, setLiveTournaments] = useState<Tournament[]>([]);
+  const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([]);
   const [socialMediaPages, setSocialMediaPages] = useState<SocialMediaPage[]>([]);
   const [sponsorIndex, setSponsorIndex] = useState(0);
   const [sponsorVisible, setSponsorVisible] = useState(true);
@@ -340,6 +344,7 @@ export const LandingPage: React.FC = () => {
     socialMediaPageApi.findEnabled().then(setSocialMediaPages).catch(() => {});
     tournamentApi.findAll().then(async all => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().slice(0, 10);
 
       // Active or upcoming tournaments (not yet ended)
       const relevant = all.filter(t => {
@@ -361,6 +366,19 @@ export const LandingPage: React.FC = () => {
         .filter(t => t.startDate && new Date(`${t.startDate}T00:00:00`) > today)
         .sort((a, b) => a.startDate!.localeCompare(b.startDate!));
       setNextTournament(next[0] ?? null);
+
+      // Live tournaments: started but not yet ended
+      setLiveTournaments(all.filter(t =>
+        t.startDate && t.startDate <= todayStr &&
+        (!t.endDate || t.endDate >= todayStr)
+      ));
+
+      // Upcoming tournaments: not yet started, sorted soonest first
+      setUpcomingTournaments(
+        all
+          .filter(t => t.startDate && t.startDate > todayStr)
+          .sort((a, b) => a.startDate!.localeCompare(b.startDate!))
+      );
     }).catch(() => {});
   }, []);
 
@@ -477,6 +495,134 @@ export const LandingPage: React.FC = () => {
 
       {/* Tournament Countdown */}
       {nextTournament && <TournamentCountdown tournament={nextTournament} outlineSx={outlineSx} />}
+
+      {/* Live Tournaments */}
+      {liveTournaments.length > 0 && (
+        <>
+          <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
+          <Box sx={{ py: 6, bgcolor: 'background.paper' }}>
+            <Container maxWidth="lg">
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 1 }}>
+                <Chip
+                  icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
+                  label="LIVE"
+                  size="small"
+                  sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
+                />
+                <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
+                  Live Tournaments
+                </Typography>
+              </Box>
+              <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
+                Tournaments currently in progress.
+              </Typography>
+              <Grid container spacing={2} justifyContent="center">
+                {liveTournaments.map(t => (
+                  <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.default' }}>
+                      <Box sx={{
+                        position: 'absolute', top: -10, right: 12,
+                        bgcolor: '#e53935', color: 'white',
+                        borderRadius: 1, px: 1, py: 0.25,
+                        display: 'flex', alignItems: 'center', gap: 0.4,
+                        fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.5,
+                      }}>
+                        <FiberManualRecord sx={{ fontSize: 8 }} /> LIVE
+                      </Box>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                          <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>
+                            {t.name.charAt(0)}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{t.name}</Typography>
+                            {t.cricketFormat && <Chip label={t.cricketFormat} size="small" variant="outlined" sx={{ mt: 0.5 }} />}
+                          </Box>
+                        </Box>
+                        {(t.startDate || t.endDate) && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                            <CalendarMonth sx={{ fontSize: 15, color: 'text.secondary' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              {t.startDate ?? '?'} — {t.endDate ?? '?'}
+                            </Typography>
+                          </Box>
+                        )}
+                      </CardContent>
+                      <Divider />
+                      <Box sx={{ px: 1.5, py: 1 }}>
+                        <Button
+                          size="small"
+                          startIcon={<EventNote />}
+                          onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}
+                        >
+                          View Schedule
+                        </Button>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Container>
+          </Box>
+        </>
+      )}
+
+      {/* Upcoming Tournaments */}
+      {upcomingTournaments.length > 0 && (
+        <>
+          <Divider sx={{ borderColor: 'primary.main', opacity: 0.25 }} />
+          <Box sx={{ py: 6, bgcolor: 'background.default' }}>
+            <Container maxWidth="lg">
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+                <EmojiEvents color="primary" />
+                <Typography variant="h4" fontWeight="bold" color="primary" sx={outlineSx}>
+                  Upcoming Tournaments
+                </Typography>
+              </Box>
+              <Typography variant="body1" textAlign="center" color="text.secondary" sx={{ mb: 4 }}>
+                Tournaments starting soon.
+              </Typography>
+              <Grid container spacing={2} justifyContent="center">
+                {upcomingTournaments.map(t => (
+                  <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
+                    <Card variant="outlined" sx={{ borderRadius: 2, bgcolor: 'background.paper' }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                          <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>
+                            {t.name.charAt(0)}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{t.name}</Typography>
+                            {t.cricketFormat && <Chip label={t.cricketFormat} size="small" variant="outlined" sx={{ mt: 0.5 }} />}
+                          </Box>
+                        </Box>
+                        {(t.startDate || t.endDate) && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <CalendarMonth sx={{ fontSize: 15, color: 'text.secondary' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              {t.startDate ?? '?'} — {t.endDate ?? '?'}
+                            </Typography>
+                          </Box>
+                        )}
+                      </CardContent>
+                      <Divider />
+                      <Box sx={{ px: 1.5, py: 1 }}>
+                        <Button
+                          size="small"
+                          startIcon={<EventNote />}
+                          onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}
+                        >
+                          View Schedule
+                        </Button>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Container>
+          </Box>
+        </>
+      )}
 
       {/* Live Matches */}
       {liveMatches.length > 0 && (

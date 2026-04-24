@@ -266,6 +266,8 @@ export interface Match {
   oppositionTeamLogoUrl?: string;
   fieldId?: number;
   fieldName?: string;
+  fieldAddress?: string;
+  fieldIconUrl?: string;
   fieldGoogleMapsUrl?: string;
   scoringUrl?: string;
   youtubeUrl?: string;

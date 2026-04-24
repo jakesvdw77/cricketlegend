@@ -8,12 +8,28 @@ import {
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
   Tabs, Tab, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff, ReceiptLong } from '@mui/icons-material';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { tournamentApi } from '../../api/tournamentApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { teamApi } from '../../api/teamApi';
 import { paymentApi } from '../../api/paymentApi';
-import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender } from '../../types';
+import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender, Payment } from '../../types';
+
+const fmt = (v: number) =>
+  new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(v);
+
+const CATEGORY_LABELS: Record<string, string> = {
+  TOURNAMENT_FEE: 'Tournament Fee',
+  TOURNAMENT_REGISTRATION: 'Tournament Registration',
+  ANNUAL_SUBSCRIPTION: 'Annual Subscription',
+  SPONSORSHIP: 'Sponsorship',
+  AD_HOC: 'Ad Hoc',
+  OTHER: 'Other',
+};
+
+const VAT_RATE = 0.15;
 
 const FORMATS: CricketFormat[] = ['T20', 'T30', 'T45', 'T50'];
 
@@ -90,6 +106,7 @@ export const Tournaments: React.FC = () => {
   // Column visibility state
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
+  const [generatingPdfId, setGeneratingPdfId] = useState<number | null>(null);
 
   const col = (key: ColKey) => visibleCols.has(key);
 
@@ -235,6 +252,215 @@ export const Tournaments: React.FC = () => {
     setLocalPools(pools => pools.map((p, i) =>
       i !== poolIdx ? p : { ...p, teams: p.teams.filter(t => t.teamId !== teamId) }
     ));
+  };
+
+  const generateTournamentPdf = async (tournament: Tournament) => {
+    if (!tournament.tournamentId) return;
+    setGeneratingPdfId(tournament.tournamentId);
+    try {
+      const res = await paymentApi.findAll({ tournamentId: tournament.tournamentId, status: 'APPROVED', page: 0, size: 100000 });
+
+      const sortByDateDesc = (a: Payment, b: Payment) => b.paymentDate.localeCompare(a.paymentDate);
+      const playerPayments = res.content.filter(p => p.paymentType === 'PLAYER').sort(sortByDateDesc);
+      const sponsorPayments = res.content.filter(p => p.paymentType === 'SPONSOR').sort(sortByDateDesc);
+
+      const computeSectionTotals = (payments: Payment[]) => {
+        let subtotal = 0, vatTotal = 0, grandTotal = 0;
+        payments.forEach(p => {
+          const amt = Number(p.amount);
+          const base = p.vatInclusive ? amt * (1 - VAT_RATE) : amt;
+          const vat = p.taxable ? amt * VAT_RATE : 0;
+          subtotal += base;
+          vatTotal += vat;
+          grandTotal += p.vatInclusive ? amt : amt + vat;
+        });
+        return { subtotal, vatTotal, grandTotal };
+      };
+
+      const playerTotals = computeSectionTotals(playerPayments);
+      const sponsorTotals = computeSectionTotals(sponsorPayments);
+      const overallGrandTotal = playerTotals.grandTotal + sponsorTotals.grandTotal;
+
+      const fmtBase = (p: Payment) => fmt(p.vatInclusive ? Number(p.amount) * (1 - VAT_RATE) : Number(p.amount));
+      const fmtVat = (p: Payment) => p.taxable ? fmt(Number(p.amount) * VAT_RATE) : '—';
+      const fmtTotal = (p: Payment) => {
+        const amt = Number(p.amount);
+        return fmt(p.vatInclusive ? amt : amt + (p.taxable ? amt * VAT_RATE : 0));
+      };
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const now = new Date().toLocaleString('en-ZA');
+
+      const stampFooters = () => {
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.setTextColor(150);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Page ${i} of ${pageCount}`, pageW - 14, pageH - 6, { align: 'right' });
+          doc.text('Cricket Legend — Confidential', 14, pageH - 6);
+        }
+      };
+
+      // Header
+      doc.setFillColor(26, 82, 118);
+      doc.rect(0, 0, pageW, 24, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(tournament.name, 14, 10);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Tournament Financial Statement', 14, 18);
+      doc.setFontSize(9);
+      doc.text(`Generated: ${now}`, pageW - 14, 18, { align: 'right' });
+
+      // Filter line
+      doc.setTextColor(80, 80, 80);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Tournament: ${tournament.name}   |   Status: Approved`, 14, 30);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+
+      // Summary boxes
+      const summaryY = 34;
+      const margin = 14;
+      const totalVat = playerTotals.vatTotal + sponsorTotals.vatTotal;
+      const numBoxes = 6;
+      const gap = 4;
+      const boxW = (pageW - margin * 2 - gap * (numBoxes - 1)) / numBoxes;
+      const uniquePlayers = new Set(playerPayments.map(p => p.playerId)).size;
+      const uniqueSponsors = new Set(sponsorPayments.map(p => p.sponsorId)).size;
+      const boxes = [
+        { label: 'Players', value: String(uniquePlayers), highlight: false },
+        { label: 'Sponsors', value: String(uniqueSponsors), highlight: false },
+        { label: 'Player Contributions', value: fmt(playerTotals.grandTotal), highlight: false },
+        { label: 'Sponsor Contributions', value: fmt(sponsorTotals.grandTotal), highlight: false },
+        { label: 'VAT (15%)', value: fmt(totalVat), highlight: false },
+        { label: 'Grand Total', value: fmt(overallGrandTotal), highlight: true },
+      ];
+      boxes.forEach((b, i) => {
+        const x = margin + i * (boxW + gap);
+        doc.setDrawColor(200, 200, 200);
+        doc.setFillColor(245, 248, 250);
+        doc.roundedRect(x, summaryY, boxW, 18, 2, 2, 'FD');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(b.label, x + 4, summaryY + 6);
+        doc.setFontSize(b.highlight ? 13 : 11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(b.highlight ? 26 : 30, b.highlight ? 82 : 80, b.highlight ? 118 : 80);
+        doc.text(b.value, x + 4, summaryY + 14);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+      });
+
+      let startY = summaryY + 26;
+
+      // Player Contributions
+      if (playerPayments.length > 0) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(26, 82, 118);
+        doc.text('Player Contributions', 14, startY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        startY += 4;
+
+        autoTable(doc, {
+          startY,
+          head: [['Date', 'Player', 'Category', 'Description', 'Amount', 'VAT (15%)', 'Total']],
+          body: playerPayments.map(p => [
+            p.paymentDate,
+            p.playerName ?? `Player ${p.playerId}`,
+            CATEGORY_LABELS[p.paymentCategory ?? ''] ?? (p.paymentCategory ?? ''),
+            p.description ?? '',
+            fmtBase(p),
+            fmtVat(p),
+            fmtTotal(p),
+          ]),
+          foot: [
+            ['', '', '', 'Subtotal', '', '', fmt(playerTotals.subtotal)],
+            ['', '', '', 'VAT (15%)', '', '', fmt(playerTotals.vatTotal)],
+            ['', '', '', 'Player Grand Total', '', '', fmt(playerTotals.grandTotal)],
+          ],
+          headStyles: { fillColor: [26, 82, 118], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+          footStyles: { fillColor: [220, 230, 242], textColor: [30, 30, 30], fontStyle: 'bold', fontSize: 9 },
+          bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          columnStyles: {
+            4: { halign: 'right' },
+            5: { halign: 'right' },
+            6: { halign: 'right', fontStyle: 'bold' },
+          },
+          styles: { overflow: 'linebreak', cellPadding: 2 },
+        });
+        startY = (doc as any).lastAutoTable.finalY + 10;
+      }
+
+      // Sponsor Contributions
+      if (sponsorPayments.length > 0) {
+        if (startY > pageH - 60) { doc.addPage(); startY = 14; }
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(26, 82, 118);
+        doc.text('Sponsor Contributions', 14, startY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        startY += 4;
+
+        autoTable(doc, {
+          startY,
+          head: [['Date', 'Sponsor', 'Category', 'Description', 'Amount', 'VAT (15%)', 'Total']],
+          body: sponsorPayments.map(p => [
+            p.paymentDate,
+            p.sponsorName ?? `Sponsor ${p.sponsorId}`,
+            CATEGORY_LABELS[p.paymentCategory ?? ''] ?? (p.paymentCategory ?? ''),
+            p.description ?? '',
+            fmtBase(p),
+            fmtVat(p),
+            fmtTotal(p),
+          ]),
+          foot: [
+            ['', '', '', 'Subtotal', '', '', fmt(sponsorTotals.subtotal)],
+            ['', '', '', 'VAT (15%)', '', '', fmt(sponsorTotals.vatTotal)],
+            ['', '', '', 'Sponsor Grand Total', '', '', fmt(sponsorTotals.grandTotal)],
+          ],
+          headStyles: { fillColor: [26, 82, 118], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+          footStyles: { fillColor: [220, 230, 242], textColor: [30, 30, 30], fontStyle: 'bold', fontSize: 9 },
+          bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          columnStyles: {
+            4: { halign: 'right' },
+            5: { halign: 'right' },
+            6: { halign: 'right', fontStyle: 'bold' },
+          },
+          styles: { overflow: 'linebreak', cellPadding: 2 },
+        });
+        startY = (doc as any).lastAutoTable.finalY + 6;
+      }
+
+      // Grand total bar
+      if (startY > pageH - 20) { doc.addPage(); startY = 14; }
+      doc.setFillColor(26, 82, 118);
+      doc.roundedRect(14, startY, pageW - 28, 12, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Grand Total', 20, startY + 8);
+      doc.text(fmt(overallGrandTotal), pageW - 20, startY + 8, { align: 'right' });
+
+      stampFooters();
+      const safeName = tournament.name.replace(/[^a-zA-Z0-9]/g, '-');
+      doc.save(`tournament-financial-statement-${safeName}-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } finally {
+      setGeneratingPdfId(null);
+    }
   };
 
   // Filtered + sorted rows
@@ -439,6 +665,20 @@ export const Tournaments: React.FC = () => {
                   </TableCell>
                 )}
                 <TableCell>
+                  <Tooltip title="Generate Financial Statement">
+                    <span>
+                      <IconButton
+                        size="small"
+                        onClick={() => generateTournamentPdf(r)}
+                        disabled={generatingPdfId === r.tournamentId}
+                        color="primary"
+                      >
+                        {generatingPdfId === r.tournamentId
+                          ? <CircularProgress size={16} />
+                          : <ReceiptLong fontSize="small" />}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                   <IconButton size="small" title="Duplicate" onClick={() => duplicate(r)}><ContentCopy fontSize="small" /></IconButton>
                   <IconButton size="small" onClick={() => openDialog(r)}><Edit /></IconButton>
                   <IconButton size="small" color="error" onClick={() => remove(r.tournamentId!)}><Delete /></IconButton>

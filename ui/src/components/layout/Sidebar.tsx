@@ -101,6 +101,10 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         <ListItemIcon><AccountBalanceWallet/></ListItemIcon>
                         <ListItemText primary="My Wallet"/>
                     </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-schedule')}>
+                        <ListItemIcon><CalendarMonth/></ListItemIcon>
+                        <ListItemText primary="My Schedule"/>
+                    </ListItemButton>
                 </List>
             </Collapse>
             <Divider/>

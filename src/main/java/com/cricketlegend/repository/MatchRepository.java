@@ -24,4 +24,11 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
     @Query("SELECT m FROM Match m WHERE m.tournament.tournamentId = :tournamentId AND m.result IS NOT NULL AND m.result.matchCompleted = true ORDER BY m.matchDate DESC")
     List<Match> findCompletedByTournament(@Param("tournamentId") Long tournamentId);
+
+    @Query("SELECT DISTINCT m FROM Match m " +
+           "WHERE :playerId MEMBER OF m.homeTeam.squadPlayerIds " +
+           "OR :playerId MEMBER OF m.oppositionTeam.squadPlayerIds " +
+           "OR EXISTS (SELECT ms FROM MatchSide ms JOIN ms.playingXi pid WHERE ms.match = m AND pid = :playerId) " +
+           "ORDER BY m.matchDate ASC NULLS LAST")
+    List<Match> findByPlayerInSquadOrPlayingXi(@Param("playerId") Long playerId);
 }

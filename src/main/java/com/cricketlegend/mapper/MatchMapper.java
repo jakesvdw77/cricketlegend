@@ -15,6 +15,8 @@ public interface MatchMapper {
     @Mapping(source = "oppositionTeam.logoUrl", target = "oppositionTeamLogoUrl")
     @Mapping(source = "field.fieldId", target = "fieldId")
     @Mapping(source = "field.name", target = "fieldName")
+    @Mapping(source = "field.address", target = "fieldAddress")
+    @Mapping(source = "field.iconUrl", target = "fieldIconUrl")
     @Mapping(source = "field.googleMapsUrl", target = "fieldGoogleMapsUrl")
     @Mapping(source = "tournament.tournamentId", target = "tournamentId")
     @Mapping(source = "tournament.name", target = "tournamentName")

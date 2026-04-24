@@ -8,6 +8,7 @@ import com.cricketlegend.dto.MatchResultSummaryDTO;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.MatchMapper;
 import com.cricketlegend.mapper.MatchResultMapper;
+import com.cricketlegend.domain.Player;
 import com.cricketlegend.repository.*;
 import com.cricketlegend.service.MatchService;
 import lombok.RequiredArgsConstructor;
@@ -155,6 +156,16 @@ public class MatchServiceImpl implements MatchService {
         }
 
         return matchResultMapper.toDto(matchResultRepository.save(result));
+    }
+
+    @Override
+    public List<MatchDTO> findMySchedule(String email) {
+        Player player = playerRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new NotFoundException("Player not found for email: " + email));
+        return matchRepository.findByPlayerInSquadOrPlayingXi(player.getPlayerId())
+                .stream()
+                .map(matchMapper::toDto)
+                .toList();
     }
 
     private void resolveAssociations(Match match, MatchDTO dto) {

@@ -29,6 +29,8 @@ public class MatchDTO {
     private String oppositionTeamLogoUrl;
     private Long fieldId;
     private String fieldName;
+    private String fieldAddress;
+    private String fieldIconUrl;
     private String fieldGoogleMapsUrl;
     private Long tournamentId;
     private String tournamentName;

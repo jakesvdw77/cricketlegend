@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, SportsCricket, Language, Facebook, Instagram, YouTube,
-  PictureAsPdf, AppRegistration, Groups, Leaderboard, Assignment, Handshake,
+  PictureAsPdf, AppRegistration, Groups, Leaderboard, Assignment, Handshake, EventNote,
 } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { Tournament } from '../../types';
@@ -158,6 +158,9 @@ export const TournamentView: React.FC = () => {
                 </Box>
 
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Button size="small" startIcon={<EventNote />} onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}>
+                    Schedule
+                  </Button>
                   {(t.pools?.length ?? 0) > 0 && (
                     <Button size="small" startIcon={<Groups />} onClick={() => navigate(`/tournaments/${t.tournamentId}/pools`)}>
                       Pools

@@ -32,9 +32,11 @@ import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
 import { TournamentSponsors } from './pages/view/TournamentSponsors';
+import { TournamentSchedule } from './pages/view/TournamentSchedule';
 
 import { MyProfile } from './pages/MyProfile';
 import { MyWallet } from './pages/MyWallet';
+import { MySchedule } from './pages/MySchedule';
 
 // View pages
 import { PreviousMatches } from './pages/view/PreviousMatches';
@@ -72,14 +74,16 @@ function ThemedApp() {
   return (
     <ThemeProvider theme={mode === 'dark' ? darkTheme : lightTheme}>
       <CssBaseline />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
         <Routes>
           <Route path="/" element={<LandingRoute />} />
+          <Route path="tournaments/:tournamentId/schedule" element={<TournamentSchedule />} />
           <Route element={<ProtectedLayout />}>
             <Route path="matches/upcoming" element={<UpcomingMatches />} />
             <Route path="profile" element={<MyProfile />} />
             <Route path="my-payments" element={<Navigate to="/my-wallet" replace />} />
             <Route path="my-wallet" element={<MyWallet />} />
+            <Route path="my-schedule" element={<MySchedule />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />

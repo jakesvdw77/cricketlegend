@@ -20,4 +20,5 @@ public interface MatchService {
     MatchResultDTO saveResult(Long matchId, MatchResultDTO dto);
     List<MatchResultSummaryDTO> findResultsByTournament(Long tournamentId);
     List<MatchResultSummaryDTO> findRecentResults(int limit);
+    List<MatchDTO> findMySchedule(String email);
 }

@@ -24,6 +24,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 const ALLOCATION_CATEGORY_LABELS: Record<string, string> = {
   ANNUAL_SUBSCRIPTION: 'Annual Subscription',
   MATCH_FEE: 'Match Fee',
+  TOURNAMENT_FEE: 'Tournament Fee',
+  TOURNAMENT_REGISTRATION: 'Tournament Registration',
   OTHER: 'Other',
 };
 

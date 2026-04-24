@@ -28,8 +28,11 @@ public class SecurityConfig {
             "/api/v1/matches/upcoming",
             "/api/v1/matches/live",
             "/api/v1/matches/recent-results",
+            "/api/v1/matches/tournament/*",
+            "/api/v1/matches/tournament/*/results",
             "/api/v1/sponsors",
             "/api/v1/tournaments",
+            "/api/v1/tournaments/*",
             "/api/v1/media",
             "/api/v1/social-media-pages/enabled"
     };

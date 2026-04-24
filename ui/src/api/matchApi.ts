@@ -22,4 +22,5 @@ export const matchApi = {
   getTeamSheet: (id: number) => api.get<MatchSide[]>(`/matches/${id}/teamsheet`).then(r => r.data),
   saveTeamSheet: (id: number, dto: MatchSide) =>
     api.post<MatchSide>(`/matches/${id}/teamsheet`, dto).then(r => r.data),
+  getMySchedule: () => api.get<Match[]>('/matches/my-schedule').then(r => r.data),
 };
