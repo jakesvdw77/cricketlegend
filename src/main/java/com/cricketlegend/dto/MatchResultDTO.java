@@ -9,6 +9,7 @@ public class MatchResultDTO {
     private Long matchId;
     private Boolean matchCompleted;
     private Boolean matchDrawn;
+    private Boolean forfeited;
     private Boolean decidedOnDLS;
     private Boolean wonWithBonusPoint;
     private Long winningTeamId;

@@ -54,6 +54,16 @@ export const generateFacebookText = (
   const showFirst  = !teamFilter || teamFilter === 'both' || teamFilter === 'first';
   const showSecond = !teamFilter || teamFilter === 'both' || teamFilter === 'second';
 
+  if (result.forfeited) {
+    const lines: string[] = [];
+    lines.push(`🏏 ${match.homeTeamName} vs ${match.oppositionTeamName}`);
+    if (match.matchDate) lines.push(`📅 ${match.matchDate}`);
+    lines.push('');
+    lines.push('⚠️ Match Forfeited');
+    if (result.matchOutcomeDescription) lines.push(result.matchOutcomeDescription);
+    return lines.join('\n');
+  }
+
   const paras: string[] = [];
 
   // Headline

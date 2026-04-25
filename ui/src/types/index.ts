@@ -366,6 +366,7 @@ export interface MatchResult {
   matchId?: number;
   matchCompleted?: boolean;
   matchDrawn?: boolean;
+  forfeited?: boolean;
   decidedOnDLS?: boolean;
   decidedBySuperOver?: boolean;
   wonWithBonusPoint?: boolean;

@@ -230,18 +230,20 @@ public class TournamentServiceImpl implements TournamentService {
                 lost++;
             }
 
-            boolean battedFirst = r.getSideBattingFirst() != null
-                    && r.getSideBattingFirst().getTeamId().equals(teamId);
-            if (battedFirst) {
-                runsScored += r.getScoreBattingFirst() != null ? r.getScoreBattingFirst() : 0;
-                oversFaced += toDecimalOvers(r.getOversBattingFirst());
-                runsConceded += r.getScoreBattingSecond() != null ? r.getScoreBattingSecond() : 0;
-                oversBowled += toDecimalOvers(r.getOversBattingSecond());
-            } else {
-                runsScored += r.getScoreBattingSecond() != null ? r.getScoreBattingSecond() : 0;
-                oversFaced += toDecimalOvers(r.getOversBattingSecond());
-                runsConceded += r.getScoreBattingFirst() != null ? r.getScoreBattingFirst() : 0;
-                oversBowled += toDecimalOvers(r.getOversBattingFirst());
+            if (!Boolean.TRUE.equals(r.getForfeited())) {
+                boolean battedFirst = r.getSideBattingFirst() != null
+                        && r.getSideBattingFirst().getTeamId().equals(teamId);
+                if (battedFirst) {
+                    runsScored += r.getScoreBattingFirst() != null ? r.getScoreBattingFirst() : 0;
+                    oversFaced += toDecimalOvers(r.getOversBattingFirst());
+                    runsConceded += r.getScoreBattingSecond() != null ? r.getScoreBattingSecond() : 0;
+                    oversBowled += toDecimalOvers(r.getOversBattingSecond());
+                } else {
+                    runsScored += r.getScoreBattingSecond() != null ? r.getScoreBattingSecond() : 0;
+                    oversFaced += toDecimalOvers(r.getOversBattingSecond());
+                    runsConceded += r.getScoreBattingFirst() != null ? r.getScoreBattingFirst() : 0;
+                    oversBowled += toDecimalOvers(r.getOversBattingFirst());
+                }
             }
         }
 

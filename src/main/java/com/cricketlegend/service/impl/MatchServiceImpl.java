@@ -15,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Sort;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -35,7 +37,7 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDTO> findAll() {
-        return matchRepository.findAll().stream().map(matchMapper::toDto).toList();
+        return matchRepository.findAll(Sort.by(Sort.Direction.DESC, "matchDate")).stream().map(matchMapper::toDto).toList();
     }
 
     @Override

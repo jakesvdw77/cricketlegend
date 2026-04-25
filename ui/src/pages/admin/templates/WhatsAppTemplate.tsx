@@ -18,6 +18,25 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
     const lines: string[] = [];
     const add = (s = '') => lines.push(s);
 
+    if (result.forfeited) {
+      add(DIV);
+      add('🏏  MATCH RESULT');
+      add(DIV);
+      add();
+      add(`${match.homeTeamName ?? '?'}  vs  ${match.oppositionTeamName ?? '?'}`);
+      if (match.matchDate) add(`📅 ${match.matchDate}`);
+      if (match.fieldName) add(`📍 ${match.fieldName}`);
+      add();
+      add('⚠️  Match Forfeited');
+      if (result.matchOutcomeDescription) { add(); add(result.matchOutcomeDescription); }
+      add(); add(DIV);
+      const generated = lines.join('\n');
+      setText(generated);
+      setHtml(plainTextToHtml(generated));
+      setEditorKey(k => k + 1);
+      return;
+    }
+
     // Header
     add(DIV);
     add('🏏  MATCH SUMMARY');

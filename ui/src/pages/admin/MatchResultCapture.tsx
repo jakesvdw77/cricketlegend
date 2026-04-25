@@ -22,6 +22,7 @@ import { TemplateProps, TeamFilter } from './templates/types';
 const empty: MatchResult = {
   matchCompleted: false,
   matchDrawn: false,
+  forfeited: false,
   decidedOnDLS: false,
   decidedBySuperOver: false,
   wonWithBonusPoint: false,
@@ -210,10 +211,11 @@ export const MatchResultCapture: React.FC = () => {
           {match.homeTeamName} <Typography component="span" color="text.secondary">vs</Typography> {match.oppositionTeamName}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-          {match.tournamentName && <Chip icon={<EmojiEvents />}    label={match.tournamentName}            size="small" color="primary" variant="outlined" />}
-          {match.matchDate      && <Chip icon={<CalendarMonth />}  label={String(match.matchDate)}          size="small" variant="outlined" />}
-          {match.fieldName      && <Chip icon={<LocationOn />}     label={match.fieldName}                  size="small" variant="outlined" />}
-          {match.umpire         && <Chip icon={<SportsCricket />}  label={`Umpire: ${match.umpire}`}        size="small" variant="outlined" />}
+          {match.tournamentName      && <Chip icon={<EmojiEvents />}    label={match.tournamentName}            size="small" color="primary" variant="outlined" />}
+          {match.matchDate           && <Chip icon={<CalendarMonth />}  label={String(match.matchDate)}          size="small" variant="outlined" />}
+          {match.fieldName           && <Chip icon={<LocationOn />}     label={match.fieldName}                  size="small" variant="outlined" />}
+          {match.umpire              && <Chip icon={<SportsCricket />}  label={`Umpire: ${match.umpire}`}        size="small" variant="outlined" />}
+          {tournament?.cricketFormat && <Chip icon={<SportsCricket />}  label={tournament.cricketFormat}         size="small" variant="outlined" />}
         </Box>
       </Paper>
 
@@ -234,10 +236,52 @@ export const MatchResultCapture: React.FC = () => {
       {activeTab === 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
+          <Section title="Match Status">
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              <FormControlLabel
+                control={<Switch checked={!!result.matchCompleted} disabled={!!result.forfeited} onChange={e => set({ matchCompleted: e.target.checked })} color="success" />}
+                label="Match Completed"
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={!!result.forfeited}
+                    color="warning"
+                    onChange={e => {
+                      if (e.target.checked) {
+                        set({ forfeited: true, matchCompleted: true, matchDrawn: false, decidedOnDLS: false, decidedBySuperOver: false, wonWithBonusPoint: false, winningTeamId: undefined, matchOutcomeDescription: '' });
+                      } else {
+                        set({ forfeited: false });
+                      }
+                    }}
+                  />
+                }
+                label="Forfeited"
+              />
+              <FormControlLabel
+                control={<Switch checked={!!result.matchDrawn} disabled={!!result.forfeited || !result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ matchDrawn: e.target.checked, winningTeamId: undefined })} />}
+                label="Match Drawn"
+              />
+              <FormControlLabel
+                control={<Switch checked={!!result.decidedOnDLS} disabled={!!result.forfeited || !result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ decidedOnDLS: e.target.checked })} />}
+                label="Decided on DLS"
+              />
+              <FormControlLabel
+                control={<Switch checked={!!result.decidedBySuperOver} disabled={!!result.forfeited || !result.matchCompleted} onChange={e => set({ decidedBySuperOver: e.target.checked, wonWithBonusPoint: false, matchDrawn: false, decidedOnDLS: false })} />}
+                label="Super Over"
+              />
+              <FormControlLabel
+                control={<Switch checked={!!result.wonWithBonusPoint} disabled={!!result.forfeited || !result.matchCompleted || !!result.matchDrawn || !!result.decidedBySuperOver} onChange={e => set({ wonWithBonusPoint: e.target.checked })} />}
+                label="Won with Bonus Point"
+              />
+            </Box>
+          </Section>
+
           <Section title="Toss">
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <TextField
                 select label="Toss Won By" value={match.tossWonBy ?? ''}
+                disabled={!!result.forfeited}
                 onChange={e => patchMatch({ tossWonBy: e.target.value as TossWinner || undefined })}
                 sx={{ minWidth: 220 }}
               >
@@ -247,6 +291,7 @@ export const MatchResultCapture: React.FC = () => {
               </TextField>
               <TextField
                 select label="Toss Decision" value={match.tossDecision ?? ''}
+                disabled={!!result.forfeited}
                 onChange={e => patchMatch({ tossDecision: e.target.value as TossDecision || undefined })}
                 sx={{ minWidth: 220 }}
               >
@@ -254,31 +299,6 @@ export const MatchResultCapture: React.FC = () => {
                 <MenuItem value="BAT">Decided to bat first</MenuItem>
                 <MenuItem value="BOWL">Decided to bowl first</MenuItem>
               </TextField>
-            </Box>
-          </Section>
-
-          <Section title="Match Status">
-            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-              <FormControlLabel
-                control={<Switch checked={!!result.matchCompleted} onChange={e => set({ matchCompleted: e.target.checked })} color="success" />}
-                label="Match Completed"
-              />
-              <FormControlLabel
-                control={<Switch checked={!!result.matchDrawn} disabled={!result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ matchDrawn: e.target.checked, winningTeamId: undefined })} />}
-                label="Match Drawn"
-              />
-              <FormControlLabel
-                control={<Switch checked={!!result.decidedOnDLS} disabled={!result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ decidedOnDLS: e.target.checked })} />}
-                label="Decided on DLS"
-              />
-              <FormControlLabel
-                control={<Switch checked={!!result.decidedBySuperOver} disabled={!result.matchCompleted} onChange={e => set({ decidedBySuperOver: e.target.checked, wonWithBonusPoint: false, matchDrawn: false, decidedOnDLS: false })} />}
-                label="Super Over"
-              />
-              <FormControlLabel
-                control={<Switch checked={!!result.wonWithBonusPoint} disabled={!result.matchCompleted || !!result.matchDrawn || !!result.decidedBySuperOver} onChange={e => set({ wonWithBonusPoint: e.target.checked })} />}
-                label="Won with Bonus Point"
-              />
             </Box>
           </Section>
 
@@ -295,18 +315,18 @@ export const MatchResultCapture: React.FC = () => {
               1st Innings{firstInningsTeam ? ` — ${firstInningsTeam.name}` : ''}
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-              <TextField label="Score"   type="number" size="small" sx={{ width: 110 }} value={num(result.scoreBattingFirst)}          disabled={!result.matchCompleted} onChange={e => set({ scoreBattingFirst:          e.target.value ? +e.target.value : undefined })} />
-              <TextField label="Wickets" type="number" size="small" sx={{ width: 100 }} value={num(result.wicketsLostBattingFirst)}     disabled={!result.matchCompleted} inputProps={{ min: 0, max: 10 }} onChange={e => set({ wicketsLostBattingFirst:  e.target.value ? +e.target.value : undefined })} />
-              <TextField label="Overs"              size="small" sx={{ width: 100 }} value={result.oversBattingFirst ?? ''}          disabled={!result.matchCompleted} placeholder="e.g. 20.0" onChange={e => set({ oversBattingFirst: e.target.value })} />
+              <TextField label="Score"   type="number" size="small" sx={{ width: 110 }} value={num(result.scoreBattingFirst)}          disabled={!result.matchCompleted || !!result.forfeited} onChange={e => set({ scoreBattingFirst:          e.target.value ? +e.target.value : undefined })} />
+              <TextField label="Wickets" type="number" size="small" sx={{ width: 100 }} value={num(result.wicketsLostBattingFirst)}     disabled={!result.matchCompleted || !!result.forfeited} inputProps={{ min: 0, max: 10 }} onChange={e => set({ wicketsLostBattingFirst:  e.target.value ? +e.target.value : undefined })} />
+              <TextField label="Overs"              size="small" sx={{ width: 100 }} value={result.oversBattingFirst ?? ''}          disabled={!result.matchCompleted || !!result.forfeited} placeholder="e.g. 20.0" onChange={e => set({ oversBattingFirst: e.target.value })} />
             </Box>
 
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               2nd Innings{secondInningsTeam ? ` — ${secondInningsTeam.name}` : ''}
             </Typography>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <TextField label="Score"   type="number" size="small" sx={{ width: 110 }} value={num(result.scoreBattingSecond)}         disabled={!result.matchCompleted} onChange={e => set({ scoreBattingSecond:         e.target.value ? +e.target.value : undefined })} />
-              <TextField label="Wickets" type="number" size="small" sx={{ width: 100 }} value={num(result.wicketsLostBattingSecond)}    disabled={!result.matchCompleted} inputProps={{ min: 0, max: 10 }} onChange={e => set({ wicketsLostBattingSecond: e.target.value ? +e.target.value : undefined })} />
-              <TextField label="Overs"              size="small" sx={{ width: 100 }} value={result.oversBattingSecond ?? ''}         disabled={!result.matchCompleted} placeholder="e.g. 18.3" onChange={e => set({ oversBattingSecond: e.target.value })} />
+              <TextField label="Score"   type="number" size="small" sx={{ width: 110 }} value={num(result.scoreBattingSecond)}         disabled={!result.matchCompleted || !!result.forfeited} onChange={e => set({ scoreBattingSecond:         e.target.value ? +e.target.value : undefined })} />
+              <TextField label="Wickets" type="number" size="small" sx={{ width: 100 }} value={num(result.wicketsLostBattingSecond)}    disabled={!result.matchCompleted || !!result.forfeited} inputProps={{ min: 0, max: 10 }} onChange={e => set({ wicketsLostBattingSecond: e.target.value ? +e.target.value : undefined })} />
+              <TextField label="Overs"              size="small" sx={{ width: 100 }} value={result.oversBattingSecond ?? ''}         disabled={!result.matchCompleted || !!result.forfeited} placeholder="e.g. 18.3" onChange={e => set({ oversBattingSecond: e.target.value })} />
             </Box>
           </Section>
 
@@ -315,8 +335,16 @@ export const MatchResultCapture: React.FC = () => {
               <TextField
                 select label="Winning Team" value={result.winningTeamId ?? ''}
                 disabled={!result.matchCompleted || !!result.matchDrawn}
-                onChange={e => set({ winningTeamId: e.target.value ? +e.target.value : undefined })}
-                helperText={result.matchDrawn ? 'Not applicable for a draw' : ''}
+                onChange={e => {
+                  const id = e.target.value ? +e.target.value : undefined;
+                  if (result.forfeited) {
+                    const name = teams.find(t => t.id === id)?.name ?? '';
+                    set({ winningTeamId: id, matchOutcomeDescription: id ? `${name} won` : '' });
+                  } else {
+                    set({ winningTeamId: id });
+                  }
+                }}
+                helperText={result.matchDrawn ? 'Not applicable for a draw' : result.forfeited ? 'Select the team that was awarded the win' : ''}
                 sx={{ maxWidth: 300 }}
               >
                 <MenuItem value=""><em>— No result / abandoned —</em></MenuItem>
@@ -344,7 +372,7 @@ export const MatchResultCapture: React.FC = () => {
                 <TextField
                   label="Match Outcome Description" multiline rows={2}
                   value={result.matchOutcomeDescription ?? ''}
-                  disabled={!result.matchCompleted}
+                  disabled={!result.matchCompleted || !!result.forfeited}
                   onChange={e => set({ matchOutcomeDescription: e.target.value })}
                   placeholder="e.g. Team A won by 32 runs"
                 />
@@ -352,6 +380,7 @@ export const MatchResultCapture: React.FC = () => {
                   variant="outlined"
                   size="small"
                   startIcon={<AutoFixHigh />}
+                  disabled={!!result.forfeited}
                   onClick={() => {
                     const { scoreBattingFirst, scoreBattingSecond, wicketsLostBattingSecond } = result;
 
@@ -435,7 +464,7 @@ export const MatchResultCapture: React.FC = () => {
             bowlerOptions={secondInningsPlayers}
             onBattersChange={batting => setScoreCard({ teamA: { ...firstCard, batting } })}
             onBowlersChange={bowling => setScoreCard({ teamA: { ...firstCard, bowling } })}
-            disabled={!result.sideBattingFirstId}
+            disabled={!result.sideBattingFirstId || !!result.forfeited}
           />
           <InningsPerformersPanel
             inningsLabel={`2nd Innings${secondInningsTeam ? ` — ${secondInningsTeam.name} batting` : ''}`}
@@ -445,7 +474,7 @@ export const MatchResultCapture: React.FC = () => {
             bowlerOptions={firstInningsPlayers}
             onBattersChange={batting => setScoreCard({ teamB: { ...secondCard, batting } })}
             onBowlersChange={bowling => setScoreCard({ teamB: { ...secondCard, bowling } })}
-            disabled={!result.sideBattingFirstId}
+            disabled={!result.sideBattingFirstId || !!result.forfeited}
           />
 
           <Section title="Man of the Match">
@@ -453,7 +482,7 @@ export const MatchResultCapture: React.FC = () => {
               select
               label="Man of the Match"
               value={result.manOfTheMatchId ?? ''}
-              disabled={!result.matchCompleted}
+              disabled={!result.matchCompleted || !!result.forfeited}
               onChange={e => set({ manOfTheMatchId: e.target.value ? +e.target.value : undefined })}
               sx={{ minWidth: 280 }}
             >

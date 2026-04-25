@@ -12,6 +12,15 @@ const BroadcastScorecardTemplate: React.FC<TemplateProps> = (props) => {
     const lines: string[] = [];
     const col = (s: string, w: number) => s.padEnd(w).slice(0, w);
 
+    if (result.forfeited) {
+      lines.push(`${match.homeTeamName?.toUpperCase()} vs ${match.oppositionTeamName?.toUpperCase()}`);
+      if (match.matchDate) lines.push(String(match.matchDate));
+      lines.push('');
+      lines.push('MATCH FORFEITED');
+      if (result.matchOutcomeDescription) lines.push(result.matchOutcomeDescription);
+      return lines.join('\n');
+    }
+
     lines.push(`${match.homeTeamName?.toUpperCase()} vs ${match.oppositionTeamName?.toUpperCase()}`);
     lines.push('MATCH SUMMARY');
     lines.push('');
