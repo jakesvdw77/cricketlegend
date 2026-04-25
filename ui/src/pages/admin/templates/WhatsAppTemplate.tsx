@@ -110,11 +110,12 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
           const sr = (b.score != null && b.ballsFaced != null && b.ballsFaced > 0)
             ? Math.round(b.score / b.ballsFaced * 100) : null;
           const stats = [
-            b.score      != null && `${b.score} runs`,
+            b.score      != null && `${b.score}${b.dismissed === false ? '*' : ''} runs`,
             b.ballsFaced != null && `${b.ballsFaced} balls`,
             b.fours      != null && `${b.fours} fours`,
             b.sixes      != null && `${b.sixes} sixes`,
             sr != null && sr >= 100 && `SR: ${sr}`,
+            b.dismissed === false && 'not out',
           ].filter(Boolean).join(' | ');
           add(`  • ${b.playerName}${stats ? `  —  ${stats}` : ''}`);
         });

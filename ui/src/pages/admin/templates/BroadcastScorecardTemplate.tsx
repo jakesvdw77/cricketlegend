@@ -41,7 +41,8 @@ const BroadcastScorecardTemplate: React.FC<TemplateProps> = (props) => {
       for (let i = 0; i < rows; i++) {
         const bat  = (batters ?? [])[i];
         const bowl = (bowlers ?? [])[i];
-        const batStr  = bat?.playerName  ? `${col(bat.playerName.toUpperCase(), 24)}  ${col(`${bat.score ?? ''}${bat.ballsFaced != null ? `(${bat.ballsFaced})` : ''}`, 8)}` : `${col('', 34)}`;
+        const batName = bat?.playerName ? `${bat.playerName.toUpperCase()}${bat.dismissed === false ? '*' : ''}` : '';
+        const batStr  = batName ? `${col(batName, 24)}  ${col(`${bat.score ?? ''}${bat.ballsFaced != null ? `(${bat.ballsFaced})` : ''}`, 8)}` : `${col('', 34)}`;
         const bowlStr = bowl?.playerName ? `${col(bowl.playerName.toUpperCase(), 24)}  ${bowl.wickets ?? 0}-${bowl.runs ?? 0}` : '';
         lines.push(`${batStr}  ${bowlStr}`);
       }

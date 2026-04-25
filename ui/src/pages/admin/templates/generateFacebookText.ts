@@ -14,7 +14,7 @@ const battingHighlights = (card: TeamScorecard): string => {
   if (!batters.length) return '';
   return batters.map(b => {
     const parts: string[] = [];
-    if (b.score      != null) parts.push(`${b.score} run${b.score !== 1 ? 's' : ''}`);
+    if (b.score      != null) parts.push(`${b.score}${b.dismissed === false ? '*' : ''} run${b.score !== 1 ? 's' : ''}${b.dismissed === false ? ' (not out)' : ''}`);
     if (b.ballsFaced != null) parts.push(`off ${b.ballsFaced} ball${b.ballsFaced !== 1 ? 's' : ''}`);
     const boundaries: string[] = [];
     if (b.fours != null && b.fours > 0) boundaries.push(`${b.fours} four${b.fours !== 1 ? 's' : ''}`);

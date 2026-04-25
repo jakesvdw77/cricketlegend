@@ -494,11 +494,9 @@ export const LandingPage: React.FC = () => {
       .catch(() => setSummaryLoading(false))
       .finally(() => setSummaryLoading(false));
   };
-  const [liveTab, setLiveTab] = useState(0);
   const [upcomingTab, setUpcomingTab] = useState(0);
-  const [resultsTab, setResultsTab] = useState(0);
   const [standingsMap, setStandingsMap] = useState<Record<number, PoolStandings[]>>({});
-  const [selectedStandingsTournament, setSelectedStandingsTournament] = useState<number | null>(null);
+  const [standingsTab, setStandingsTab] = useState(0);
   const tournamentsRef = useRef<HTMLDivElement | null>(null);
   const upcomingRef = useRef<HTMLDivElement | null>(null);
 
@@ -510,10 +508,11 @@ export const LandingPage: React.FC = () => {
     socialMediaPageApi.findEnabled().then(setSocialMediaPages).catch(() => {});
     tournamentApi.findAll().then(async all => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().slice(0, 10);
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const nd = (d?: string) => d?.replace(/\//g, '-');
       const relevant = all.filter(t => {
         if (!t.startDate) return false;
-        const end = t.endDate ? new Date(`${t.endDate}T23:59:59`) : null;
+        const end = t.endDate ? new Date(`${nd(t.endDate)}T23:59:59`) : null;
         return end === null || end >= today;
       });
       if (relevant.length > 0) {
@@ -523,11 +522,11 @@ export const LandingPage: React.FC = () => {
         setAllMedia(results.flat());
       }
       const next = all
-        .filter(t => t.startDate && new Date(`${t.startDate}T00:00:00`) > today)
-        .sort((a, b) => a.startDate!.localeCompare(b.startDate!));
+        .filter(t => t.startDate && new Date(`${nd(t.startDate)}T00:00:00`) > today)
+        .sort((a, b) => nd(a.startDate)!.localeCompare(nd(b.startDate)!));
       setNextTournament(next[0] ?? null);
       const live = all.filter(t =>
-        t.startDate && t.startDate <= todayStr && (!t.endDate || t.endDate >= todayStr)
+        t.startDate && nd(t.startDate)! <= todayStr && (!t.endDate || nd(t.endDate)! >= todayStr)
       );
       setLiveTournaments(live);
       if (live.length > 0) {
@@ -537,12 +536,11 @@ export const LandingPage: React.FC = () => {
             .catch(() => [t.tournamentId!, []] as [number, PoolStandings[]]))
         );
         setStandingsMap(Object.fromEntries(entries));
-        setSelectedStandingsTournament(live[0].tournamentId!);
       }
       setUpcomingTournaments(
         all
-          .filter(t => t.startDate && t.startDate > todayStr)
-          .sort((a, b) => a.startDate!.localeCompare(b.startDate!))
+          .filter(t => t.startDate && nd(t.startDate)! > todayStr)
+          .sort((a, b) => nd(a.startDate)!.localeCompare(nd(b.startDate)!))
       );
     }).catch(() => {});
   }, []);
@@ -653,175 +651,92 @@ export const LandingPage: React.FC = () => {
 
       </Box>}
 
-      {/* ── Live (Matches + Tournaments combined) ───────────────────────── */}
-      {(liveMatches.length > 0 || liveTournaments.length > 0) && (
+      {/* ── Live Matches ────────────────────────────────────────────────── */}
+      {liveMatches.length > 0 && (
         <>
           <Divider />
           <Box ref={tournamentsRef} sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
             <Container maxWidth="lg">
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{
-                  display: 'flex', alignItems: 'center', gap: 1.5,
-                  pl: 2, borderLeft: '4px solid', borderColor: '#e53935', mb: 2,
-                }}>
-                  <Chip
-                    icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
-                    label="LIVE"
-                    size="small"
-                    sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
-                  />
-                  <Typography variant="h5" fontWeight="bold" color="primary">Live</Typography>
-                </Box>
-                <Tabs value={liveTab} onChange={(_, v) => setLiveTab(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                  <Tab
-                    icon={<SportsCricket sx={{ fontSize: 16 }} />}
-                    iconPosition="start"
-                    label={`Matches (${liveMatches.length})`}
-                    sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
-                  />
-                  {liveTournaments.length > 0 && (
-                    <Tab
-                      icon={<EmojiEvents sx={{ fontSize: 16 }} />}
-                      iconPosition="start"
-                      label={`Tournaments (${liveTournaments.length})`}
-                      sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
-                    />
-                  )}
-                </Tabs>
+              <Box sx={{
+                display: 'flex', alignItems: 'center', gap: 1.5,
+                pl: 2, borderLeft: '4px solid', borderColor: '#e53935', mb: 3,
+              }}>
+                <Chip
+                  icon={<FiberManualRecord sx={{ fontSize: '10px !important' }} />}
+                  label="LIVE"
+                  size="small"
+                  sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, '& .MuiChip-icon': { color: 'white' } }}
+                />
+                <Typography variant="h5" fontWeight="bold" color="primary">Live Matches</Typography>
               </Box>
-
-              {/* Matches tab */}
-              {liveTab === 0 && (
-                liveMatches.length === 0 ? (
-                  <Typography color="text.secondary">No live matches right now.</Typography>
-                ) : (
-                  <Grid container spacing={2}>
-                    {liveMatches.map(m => (
-                      <Grid item xs={12} sm={6} md={4} key={m.matchId}>
-                        <MatchCard m={m} live />
-                      </Grid>
-                    ))}
+              <Grid container spacing={2}>
+                {liveMatches.map(m => (
+                  <Grid item xs={12} sm={6} md={4} key={m.matchId}>
+                    <MatchCard m={m} live />
                   </Grid>
-                )
-              )}
-
-              {/* Tournaments tab */}
-              {liveTab === 1 && liveTournaments.length > 0 && (
-                <Grid container spacing={2}>
-                  {liveTournaments.map(t => (
-                    <Grid item xs={12} sm={6} md={4} key={t.tournamentId} sx={{ display: 'flex' }}>
-                      <Card variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column', width: '100%' }}>
-                        <Box sx={{
-                          position: 'absolute', top: -10, right: 12,
-                          bgcolor: '#e53935', color: 'white', borderRadius: 1, px: 1, py: 0.25,
-                          display: 'flex', alignItems: 'center', gap: 0.4,
-                          fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.5,
-                        }}>
-                          <FiberManualRecord sx={{ fontSize: 8 }} /> LIVE
-                        </Box>
-                        <CardContent sx={{ flex: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-                            <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>{t.name.charAt(0)}</Avatar>
-                            <Box>
-                              <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{t.name}</Typography>
-                              {t.cricketFormat && <Chip label={t.cricketFormat} size="small" variant="outlined" sx={{ mt: 0.5 }} />}
-                            </Box>
-                          </Box>
-                          {(t.startDate || t.endDate) && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <CalendarMonth sx={{ fontSize: 15, color: 'text.secondary' }} />
-                              <Typography variant="body2" color="text.secondary">{t.startDate ?? '?'} — {t.endDate ?? '?'}</Typography>
-                            </Box>
-                          )}
-                        </CardContent>
-                        <Divider />
-                        <Box sx={{ px: 1.5, py: 1 }}>
-                          <Button size="small" startIcon={<EventNote />} onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}>
-                            View Schedule
-                          </Button>
-                        </Box>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
+                ))}
+              </Grid>
             </Container>
           </Box>
         </>
       )}
 
-      {/* ── Results & Standings ─────────────────────────────────────────── */}
-      {(recentResults.length > 0 || Object.keys(standingsMap).length > 0) && (
+      {/* ── Standings ───────────────────────────────────────────────────── */}
+      {liveTournaments.length > 0 && Object.keys(standingsMap).length > 0 && (
+        <>
+          <Divider />
+          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
+            <Container maxWidth="lg">
+              <Box sx={{
+                display: 'flex', alignItems: 'center', gap: 1.5,
+                pl: 2, borderLeft: '4px solid', borderColor: '#e53935', mb: 3,
+              }}>
+                <EmojiEvents sx={{ color: '#e53935' }} />
+                <Typography variant="h5" fontWeight="bold" color="primary">Log Standings</Typography>
+              </Box>
+              <Tabs
+                value={standingsTab}
+                onChange={(_, v) => setStandingsTab(v)}
+                sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
+              >
+                {liveTournaments.map(t => (
+                  <Tab
+                    key={t.tournamentId}
+                    label={t.name}
+                    sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
+                  />
+                ))}
+              </Tabs>
+              <StandingsTable pools={standingsMap[liveTournaments[standingsTab]?.tournamentId!] ?? []} />
+            </Container>
+          </Box>
+        </>
+      )}
+
+      {/* ── Results ─────────────────────────────────────────────────────── */}
+      {recentResults.length > 0 && (
         <>
           <Divider sx={{ borderColor: 'divider', opacity: 0.5 }} />
           <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
             <Container maxWidth="lg">
-              <Box sx={{ mb: 3 }}>
-                <Box sx={{
-                  display: 'flex', alignItems: 'center', gap: 1.5,
-                  pl: 2, borderLeft: '4px solid', borderColor: 'primary.main', mb: 2,
-                }}>
-                  <CheckCircle color="primary" />
-                  <Typography variant="h5" fontWeight="bold" color="primary">Results</Typography>
-                </Box>
-                <Tabs value={resultsTab} onChange={(_, v) => setResultsTab(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                  <Tab
-                    icon={<CheckCircle sx={{ fontSize: 16 }} />}
-                    iconPosition="start"
-                    label={`Recent Results (${recentResults.length})`}
-                    sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
-                  />
-                  {Object.keys(standingsMap).length > 0 && (
-                    <Tab
-                      icon={<EmojiEvents sx={{ fontSize: 16 }} />}
-                      iconPosition="start"
-                      label="Standings"
-                      sx={{ minHeight: 40, textTransform: 'none', fontWeight: 600 }}
-                    />
-                  )}
-                </Tabs>
+              <Box sx={{
+                display: 'flex', alignItems: 'center', gap: 1.5,
+                pl: 2, borderLeft: '4px solid', borderColor: 'primary.main', mb: 3,
+              }}>
+                <CheckCircle color="primary" />
+                <Typography variant="h5" fontWeight="bold" color="primary">Match Results</Typography>
               </Box>
-
-              {/* Recent Results tab */}
-              {resultsTab === 0 && (
-                recentResults.length === 0 ? (
-                  <Typography color="text.secondary">No recent results available.</Typography>
-                ) : (
-                  <Grid container spacing={2}>
-                    {recentResults.map(r => (
-                      <Grid item xs={12} sm={6} md={4} key={r.matchId}>
-                        <ResultCard
-                          r={r}
-                          onSummary={() => openSummary(r.matchId, 'facebook')}
-                          onScorecard={() => openSummary(r.matchId, 'whatsapp')}
-                        />
-                      </Grid>
-                    ))}
+              <Grid container spacing={2}>
+                {recentResults.map(r => (
+                  <Grid item xs={12} sm={6} md={4} key={r.matchId}>
+                    <ResultCard
+                      r={r}
+                      onSummary={() => openSummary(r.matchId, 'facebook')}
+                      onScorecard={() => openSummary(r.matchId, 'whatsapp')}
+                    />
                   </Grid>
-                )
-              )}
-
-              {/* Standings tab */}
-              {resultsTab === 1 && Object.keys(standingsMap).length > 0 && (
-                <>
-                  {/* Tournament selector when multiple live tournaments */}
-                  {liveTournaments.length > 1 && (
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2.5 }}>
-                      {liveTournaments.map(t => (
-                        <Chip
-                          key={t.tournamentId}
-                          label={t.name}
-                          onClick={() => setSelectedStandingsTournament(t.tournamentId!)}
-                          color={selectedStandingsTournament === t.tournamentId ? 'primary' : 'default'}
-                          variant={selectedStandingsTournament === t.tournamentId ? 'filled' : 'outlined'}
-                          size="small"
-                        />
-                      ))}
-                    </Box>
-                  )}
-                  <StandingsTable pools={selectedStandingsTournament ? (standingsMap[selectedStandingsTournament] ?? []) : []} />
-                </>
-              )}
+                ))}
+              </Grid>
             </Container>
           </Box>
         </>

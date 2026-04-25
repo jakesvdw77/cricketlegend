@@ -43,8 +43,9 @@ const ScorecardTemplate: React.FC<TemplateProps> = (props) => {
       for (let i = 0; i < rows; i++) {
         const bat  = (batters ?? [])[i];
         const bowl = (bowlers ?? [])[i];
-        const batStr  = bat?.playerName
-          ? `${col(bat.playerName, 22)}  ${col(bat.score != null ? `${bat.score}(${bat.ballsFaced ?? '?'})` : '', 12)}`
+        const batName = bat?.playerName ? `${bat.playerName}${bat.dismissed === false ? '*' : ''}` : '';
+        const batStr  = batName
+          ? `${col(batName, 22)}  ${col(bat.score != null ? `${bat.score}(${bat.ballsFaced ?? '?'})` : '', 12)}`
           : `${col('', 22)}  ${col('', 12)}`;
         const bowlStr = bowl?.playerName
           ? `${col(bowl.playerName, 20)}  ${bowl.wickets ?? 0}-${bowl.runs ?? 0}`

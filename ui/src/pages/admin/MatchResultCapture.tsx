@@ -645,6 +645,18 @@ const InningsPerformersPanel: React.FC<InningsPerformersPanelProps> = ({
             <NumField label="Balls" value={b.ballsFaced} disabled={disabled} onChange={v => updateBatter(i, { ballsFaced: v })} />
             <NumField label="4s"   value={b.fours}      disabled={disabled} onChange={v => updateBatter(i, { fours: v })} width={70} />
             <NumField label="6s"   value={b.sixes}      disabled={disabled} onChange={v => updateBatter(i, { sixes: v })} width={70} />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={b.dismissed === false}
+                  disabled={disabled}
+                  onChange={e => updateBatter(i, { dismissed: e.target.checked ? false : true })}
+                />
+              }
+              label={<Typography variant="caption">{b.dismissed === false ? 'Not Out' : 'Out'}</Typography>}
+              sx={{ mx: 0 }}
+            />
             {b.score != null && b.ballsFaced != null && b.ballsFaced > 0 && (
               <Chip size="small" label={`SR: ${Math.round(b.score / b.ballsFaced * 100)}`} variant="outlined" color="info" />
             )}
