@@ -54,12 +54,12 @@ export const generateFacebookText = (
   const showFirst  = !teamFilter || teamFilter === 'both' || teamFilter === 'first';
   const showSecond = !teamFilter || teamFilter === 'both' || teamFilter === 'second';
 
-  if (result.forfeited) {
+  if (result.forfeited || result.noResult) {
     const lines: string[] = [];
     lines.push(`🏏 ${match.homeTeamName} vs ${match.oppositionTeamName}`);
     if (match.matchDate) lines.push(`📅 ${match.matchDate}`);
     lines.push('');
-    lines.push('⚠️ Match Forfeited');
+    lines.push(result.forfeited ? '⚠️ Match Forfeited' : '🚫 No Result — Match Abandoned');
     if (result.matchOutcomeDescription) lines.push(result.matchOutcomeDescription);
     return lines.join('\n');
   }
@@ -72,7 +72,7 @@ export const generateFacebookText = (
   // Introduction
   const venueClause    = match.fieldName ? `at ${match.fieldName}` : '';
   const dateClause     = match.matchDate ? `on ${match.matchDate}` : '';
-  const stageMap: Record<string, string> = { POOL: 'Pool Stage', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
+  const stageMap: Record<string, string> = { FRIENDLY: 'Friendly', POOL: 'Pool Stage', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
   let tournamentClause = '';
   if (tournament) {
     const stage = match.matchStage ? ` in the ${stageMap[match.matchStage] ?? match.matchStage}` : '';

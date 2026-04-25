@@ -9,7 +9,7 @@ export type AgeGroup = 'UNDER_9' | 'UNDER_10' | 'UNDER_11' | 'UNDER_12' | 'UNDER
 export type TournamentGender = 'MEN' | 'WOMEN' | 'BOYS' | 'GIRLS';
 export type DismissalType = 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' | 'HIT_WICKET' | 'NOT_OUT';
 
-export type MatchStage = 'POOL' | 'SEMI_FINAL' | 'FINAL';
+export type MatchStage = 'FRIENDLY' | 'POOL' | 'QUARTER_FINAL' | 'SEMI_FINAL' | 'FINAL';
 export type TossWinner = 'HOME' | 'OPPOSITION';
 export type TossDecision = 'BAT' | 'BOWL';
 
@@ -367,6 +367,7 @@ export interface MatchResult {
   matchCompleted?: boolean;
   matchDrawn?: boolean;
   forfeited?: boolean;
+  noResult?: boolean;
   decidedOnDLS?: boolean;
   decidedBySuperOver?: boolean;
   wonWithBonusPoint?: boolean;

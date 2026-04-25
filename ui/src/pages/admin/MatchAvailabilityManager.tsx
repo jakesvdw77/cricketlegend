@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box, Typography, Paper, CircularProgress, Alert,
+  Box, Typography, Paper, CircularProgress, Alert, Button,
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
   Chip, MenuItem, TextField, Switch, FormControlLabel,
   IconButton, Tooltip,
 } from '@mui/material';
-import { CheckCircle, Cancel, HelpOutline, Edit } from '@mui/icons-material';
-import { useParams } from 'react-router-dom';
+import { ArrowBack, CheckCircle, Cancel, HelpOutline, Edit } from '@mui/icons-material';
+import { useParams, useNavigate } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
 import { matchApi } from '../../api/matchApi';
 import { MatchPoll, PlayerAvailabilityEntry, AvailabilityStatus, Match } from '../../types';
@@ -26,6 +26,7 @@ const STATUS_COLOR: Record<AvailabilityStatus, 'success' | 'error' | 'warning'> 
 
 export const MatchAvailabilityManager: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
+  const navigate = useNavigate();
   const { teamIds: managerTeamIds, restrictByTeam } = useManagerTeams();
   const [match, setMatch] = useState<Match | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<number | ''>('');
@@ -84,7 +85,12 @@ export const MatchAvailabilityManager: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Match Availability</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+        <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate('/admin/matches')}>
+          Back
+        </Button>
+        <Typography variant="h5">Match Availability</Typography>
+      </Box>
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>

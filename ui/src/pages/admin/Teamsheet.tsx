@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Button, Snackbar, Alert, CircularProgress } from '@mui/material';
-import { Print, Sync } from '@mui/icons-material';
+import { Box, Typography, Button, Snackbar, Alert, CircularProgress, Tabs, Tab } from '@mui/material';
+import { ArrowBack, Print, Sync } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
-import { playerApi } from '../../api/playerApi';
+import { teamApi } from '../../api/teamApi';
 import { Match, Player } from '../../types';
 import { TeamSidePanel } from '../../components/match/TeamSidePanel';
 
@@ -12,18 +12,29 @@ export const Teamsheet: React.FC = () => {
   const navigate = useNavigate();
   const id = Number(matchId);
   const [match, setMatch] = useState<Match | null>(null);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [squadsByTeam, setSquadsByTeam] = useState<Record<number, Player[]>>({});
+  const [activeTab, setActiveTab] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
 
   useEffect(() => {
-    matchApi.findById(id).then(setMatch);
-    playerApi.findAll().then(setPlayers);
+    matchApi.findById(id).then(m => {
+      setMatch(m);
+      const teamIds = [m.homeTeamId, m.oppositionTeamId].filter(Boolean) as number[];
+      Promise.all(teamIds.map(tid => teamApi.getSquad(tid).then(squad => ({ tid, squad }))))
+        .then(results => {
+          const map: Record<number, Player[]> = {};
+          results.forEach(({ tid, squad }) => { map[tid] = squad; });
+          setSquadsByTeam(map);
+        });
+    });
   }, [id]);
 
   const teamIds = match
     ? [match.homeTeamId, match.oppositionTeamId].filter(Boolean) as number[]
     : [];
+
+  const getSquad = (teamId: number) => squadsByTeam[teamId] ?? [];
 
   const getTeamName = (teamId: number) =>
     teamId === match?.homeTeamId ? match?.homeTeamName ?? '' : match?.oppositionTeamName ?? '';
@@ -58,6 +69,13 @@ export const Teamsheet: React.FC = () => {
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             variant="outlined"
+            startIcon={<ArrowBack />}
+            onClick={() => navigate('/admin/matches')}
+          >
+            Back
+          </Button>
+          <Button
+            variant="outlined"
             startIcon={syncing ? <CircularProgress size={16} /> : <Sync />}
             onClick={refreshCalendar}
             disabled={syncing}
@@ -73,17 +91,21 @@ export const Teamsheet: React.FC = () => {
           </Button>
         </Box>
       </Box>
-      <Box sx={{ display: 'flex', gap: 3, mt: 2, flexWrap: 'wrap' }}>
+      <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mt: 2, mb: 2 }}>
         {teamIds.map(teamId => (
+          <Tab key={teamId} label={getTeamName(teamId)} />
+        ))}
+      </Tabs>
+      {teamIds.map((teamId, idx) => (
+        <Box key={teamId} hidden={activeTab !== idx}>
           <TeamSidePanel
-            key={teamId}
             matchId={id}
             teamId={teamId}
             teamName={getTeamName(teamId)}
-            players={players}
+            players={getSquad(teamId)}
           />
-        ))}
-      </Box>
+        </Box>
+      ))}
 
       <Snackbar
         open={snackbar.open}

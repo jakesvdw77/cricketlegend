@@ -133,6 +133,8 @@ public class MatchServiceImpl implements MatchService {
 
         result.setMatchCompleted(dto.getMatchCompleted());
         result.setMatchDrawn(dto.getMatchDrawn());
+        result.setForfeited(Boolean.TRUE.equals(dto.getForfeited()));
+        result.setNoResult(Boolean.TRUE.equals(dto.getNoResult()));
         result.setDecidedOnDLS(dto.getDecidedOnDLS());
         result.setWonWithBonusPoint(dto.getWonWithBonusPoint());
         result.setScoreBattingFirst(dto.getScoreBattingFirst());

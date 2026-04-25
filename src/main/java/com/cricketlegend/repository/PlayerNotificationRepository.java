@@ -1,6 +1,7 @@
 package com.cricketlegend.repository;
 
 import com.cricketlegend.domain.PlayerNotification;
+import com.cricketlegend.domain.enums.NotificationType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -9,4 +10,5 @@ public interface PlayerNotificationRepository extends JpaRepository<PlayerNotifi
     List<PlayerNotification> findByPlayerPlayerIdOrderByCreatedAtDesc(Long playerId);
     List<PlayerNotification> findByPlayerPlayerIdAndReadFalse(Long playerId);
     long countByPlayerPlayerIdAndReadFalse(Long playerId);
+    void deleteByMatchIdAndTeamIdAndType(Long matchId, Long teamId, NotificationType type);
 }

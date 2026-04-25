@@ -22,6 +22,7 @@ public class MatchResult {
     private Boolean matchCompleted;
     private Boolean matchDrawn;
     private Boolean forfeited;
+    private Boolean noResult;
 
     @Column(name = "decided_on_dls")
     private Boolean decidedOnDLS;

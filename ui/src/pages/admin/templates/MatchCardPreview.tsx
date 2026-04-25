@@ -59,7 +59,7 @@ const MatchCardPreview: React.FC<TemplateProps> = ({
     footerText: { color: '#4a7a99', fontSize: 11 },
   };
 
-  const stageMap: Record<string, string> = { POOL: 'Pool Stage', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
+  const stageMap: Record<string, string> = { FRIENDLY: 'Friendly', POOL: 'Pool Stage', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
 
   const renderBatting = (card: TeamScorecard) =>
     (card.batting ?? []).filter(b => b.playerName).map((b, i) => {

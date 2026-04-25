@@ -9,9 +9,12 @@ import {
 } from '@mui/material';
 import {
   SportsCricket, LocationOn, EmojiEvents, AccessTime, CalendarMonth,
+  CheckCircle, Cancel, HelpOutline, Groups,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
-import { Match } from '../types';
+import { pollApi } from '../api/pollApi';
+import { playerApi } from '../api/playerApi';
+import { Match, MatchSide, Player, PlayerAvailabilityEntry, AvailabilityStatus } from '../types';
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales: { 'en-US': enUS } });
 
@@ -24,7 +27,15 @@ interface CalendarEvent {
 }
 
 const STAGE_LABELS: Record<string, string> = {
-  POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final',
+  FRIENDLY: 'Friendly', POOL: 'Pool', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final',
+};
+
+const AVAILABILITY_LABEL: Record<AvailabilityStatus, string> = {
+  YES: 'Available', NO: 'Not Available', UNSURE: 'Unsure',
+};
+
+const AVAILABILITY_COLOR: Record<AvailabilityStatus, 'success' | 'error' | 'warning'> = {
+  YES: 'success', NO: 'error', UNSURE: 'warning',
 };
 
 const toDate = (match: Match): Date => {
@@ -45,11 +56,22 @@ export const MySchedule: React.FC = () => {
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
 
+  // Detail state
+  const [me, setMe] = useState<Player | null>(null);
+  const [teamSides, setTeamSides] = useState<MatchSide[]>([]);
+  const [myAvailability, setMyAvailability] = useState<PlayerAvailabilityEntry | null | undefined>(undefined);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   useEffect(() => {
     matchApi.getMySchedule()
       .then(setMatches)
       .catch(() => setMatches([]))
       .finally(() => setLoading(false));
+  }, []);
+
+  // Fetch current player once
+  useEffect(() => {
+    playerApi.findMe().then(setMe).catch(() => {});
   }, []);
 
   const events: CalendarEvent[] = matches.map(m => ({
@@ -60,7 +82,45 @@ export const MySchedule: React.FC = () => {
     resource: m,
   }));
 
-  const onSelectEvent = useCallback((event: CalendarEvent) => setSelected(event.resource), []);
+  const onSelectEvent = useCallback((event: CalendarEvent) => {
+    setSelected(event.resource);
+    setTeamSides([]);
+    setMyAvailability(undefined);
+  }, []);
+
+  // Fetch team sheet + poll when a match is selected
+  useEffect(() => {
+    if (!selected?.matchId) return;
+    setDetailLoading(true);
+
+    const fetchDetails = async () => {
+      const matchId = selected.matchId!;
+
+      // Team sheet
+      const sides = await matchApi.getTeamSheet(matchId).catch(() => [] as MatchSide[]);
+      setTeamSides(sides);
+
+      // Polls — try both teams, find the one with my entry
+      const teamIds = [selected.homeTeamId, selected.oppositionTeamId].filter(Boolean) as number[];
+      const pollResults = await Promise.allSettled(
+        teamIds.map(tid => pollApi.getPoll(matchId, tid))
+      );
+      const myId = me?.playerId;
+      let found: PlayerAvailabilityEntry | null = null;
+      for (const r of pollResults) {
+        if (r.status === 'fulfilled' && r.value.open) {
+          const entry = r.value.availability?.find(a => a.playerId === myId);
+          if (entry) { found = entry; break; }
+        }
+      }
+      setMyAvailability(found); // null = poll exists but no entry; undefined = no open poll
+    };
+
+    fetchDetails()
+      .catch(() => {})
+      .finally(() => setDetailLoading(false));
+  }, [selected, me]);
+
   const onNavigate = useCallback((d: Date) => setDate(d), []);
   const onView = useCallback((v: View) => setView(v), []);
 
@@ -74,6 +134,15 @@ export const MySchedule: React.FC = () => {
       padding: '2px 6px',
     },
   });
+
+  // Derive selection status from team sheets
+  const myId = me?.playerId;
+  const selectionSide = myId != null
+    ? teamSides.find(s => s.playingXi?.includes(myId) || s.twelfthManPlayerId === myId)
+    : undefined;
+  const isSelected = myId != null && selectionSide != null && selectionSide.playingXi?.includes(myId);
+  const isTwelfthMan = myId != null && selectionSide?.twelfthManPlayerId === myId;
+  const isAnnounced = teamSides.some(s => s.teamAnnounced);
 
   if (loading) {
     return (
@@ -227,6 +296,55 @@ export const MySchedule: React.FC = () => {
                   </Box>
                 )}
               </Stack>
+
+              {/* Availability & Selection */}
+              <Divider sx={{ my: 2 }} />
+              {detailLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+                  <CircularProgress size={20} />
+                </Box>
+              ) : (
+                <Stack spacing={1.5}>
+                  {/* Availability */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {myAvailability?.status === 'YES' && <CheckCircle fontSize="small" color="success" />}
+                      {myAvailability?.status === 'NO' && <Cancel fontSize="small" color="error" />}
+                      {myAvailability?.status === 'UNSURE' && <HelpOutline fontSize="small" color="warning" />}
+                      {!myAvailability?.status && <HelpOutline fontSize="small" color="action" />}
+                      <Typography variant="body2"><strong>Your Availability</strong></Typography>
+                    </Box>
+                    {myAvailability === undefined ? (
+                      <Chip label="No poll" size="small" variant="outlined" />
+                    ) : myAvailability?.status ? (
+                      <Chip
+                        label={AVAILABILITY_LABEL[myAvailability.status]}
+                        color={AVAILABILITY_COLOR[myAvailability.status]}
+                        size="small"
+                      />
+                    ) : (
+                      <Chip label="No response" size="small" variant="outlined" />
+                    )}
+                  </Box>
+
+                  {/* Selection */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Groups fontSize="small" color="action" />
+                      <Typography variant="body2"><strong>Team Selection</strong></Typography>
+                    </Box>
+                    {!isAnnounced ? (
+                      <Chip label="Not yet announced" size="small" variant="outlined" />
+                    ) : isSelected ? (
+                      <Chip label="Selected" color="success" size="small" />
+                    ) : isTwelfthMan ? (
+                      <Chip label="12th Man" color="info" size="small" />
+                    ) : (
+                      <Chip label="Not selected" size="small" variant="outlined" />
+                    )}
+                  </Box>
+                </Stack>
+              )}
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setSelected(null)}>Close</Button>
@@ -237,3 +355,4 @@ export const MySchedule: React.FC = () => {
     </Box>
   );
 };
+

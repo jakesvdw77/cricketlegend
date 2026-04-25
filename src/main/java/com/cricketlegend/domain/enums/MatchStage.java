@@ -1,5 +1,5 @@
 package com.cricketlegend.domain.enums;
 
 public enum MatchStage {
-    POOL, SEMI_FINAL, FINAL
+    FRIENDLY, POOL, QUARTER_FINAL, SEMI_FINAL, FINAL
 }

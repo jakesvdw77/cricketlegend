@@ -58,5 +58,6 @@
     <include file="db/changelog/v1/051-rename-facebook-page-to-social-media-page.sql"/>
     <include file="db/changelog/v1/052-user-login-events.sql"/>
     <include file="db/changelog/v1/053-match-result-forfeited.sql"/>
+    <include file="db/changelog/v1/054-match-result-no-result.sql"/>
 
 </databaseChangeLog>

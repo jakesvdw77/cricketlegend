@@ -230,7 +230,7 @@ public class TournamentServiceImpl implements TournamentService {
                 lost++;
             }
 
-            if (!Boolean.TRUE.equals(r.getForfeited())) {
+            if (!Boolean.TRUE.equals(r.getForfeited()) && !Boolean.TRUE.equals(r.getNoResult())) {
                 boolean battedFirst = r.getSideBattingFirst() != null
                         && r.getSideBattingFirst().getTeamId().equals(teamId);
                 if (battedFirst) {

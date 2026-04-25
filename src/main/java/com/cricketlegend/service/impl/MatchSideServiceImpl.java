@@ -81,6 +81,12 @@ public class MatchSideServiceImpl implements MatchSideService {
     }
 
     private void sendTeamAnnouncedNotifications(MatchSide matchSide) {
+        Long matchId = matchSide.getMatch().getMatchId();
+        Long teamId = matchSide.getTeam().getTeamId();
+
+        // Remove any prior TEAM_ANNOUNCED notifications for this match/team
+        notificationRepository.deleteByMatchIdAndTeamIdAndType(matchId, teamId, NotificationType.TEAM_ANNOUNCED);
+
         List<Long> playerIds = new ArrayList<>(matchSide.getPlayingXi() != null ? matchSide.getPlayingXi() : List.of());
         if (matchSide.getTwelfthManPlayerId() != null) {
             playerIds.add(matchSide.getTwelfthManPlayerId());
@@ -92,8 +98,8 @@ public class MatchSideServiceImpl implements MatchSideService {
                 .map(p -> PlayerNotification.builder()
                         .player(p)
                         .type(NotificationType.TEAM_ANNOUNCED)
-                        .matchId(matchSide.getMatch().getMatchId())
-                        .teamId(matchSide.getTeam().getTeamId())
+                        .matchId(matchId)
+                        .teamId(teamId)
                         .read(false)
                         .createdAt(LocalDateTime.now())
                         .build())

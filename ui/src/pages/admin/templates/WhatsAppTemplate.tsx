@@ -18,7 +18,7 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
     const lines: string[] = [];
     const add = (s = '') => lines.push(s);
 
-    if (result.forfeited) {
+    if (result.forfeited || result.noResult) {
       add(DIV);
       add('🏏  MATCH RESULT');
       add(DIV);
@@ -27,7 +27,7 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
       if (match.matchDate) add(`📅 ${match.matchDate}`);
       if (match.fieldName) add(`📍 ${match.fieldName}`);
       add();
-      add('⚠️  Match Forfeited');
+      add(result.forfeited ? '⚠️  Match Forfeited' : '🚫  No Result — Match Abandoned');
       if (result.matchOutcomeDescription) { add(); add(result.matchOutcomeDescription); }
       add(); add(DIV);
       const generated = lines.join('\n');
@@ -63,7 +63,7 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
         tournament.ageGroup         && `Age Group: ${tournament.ageGroup.replace(/_/g, ' ')}`,
         tournament.tournamentGender && `Category: ${tournament.tournamentGender}`,
       ].filter(Boolean).forEach(d => add(d as string));
-      const stageMap: Record<string, string> = { POOL: 'Pool Stage', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
+      const stageMap: Record<string, string> = { FRIENDLY: 'Friendly', POOL: 'Pool Stage', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
       if (match.matchStage) add(`Stage: ${stageMap[match.matchStage] ?? match.matchStage}`);
       const dates = [
         tournament.startDate && `From: ${tournament.startDate}`,

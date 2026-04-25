@@ -220,7 +220,7 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
     },
   };
 
-  const stageMap: Record<string, string> = { POOL: 'Pool Stage', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
+  const stageMap: Record<string, string> = { FRIENDLY: 'Friendly', POOL: 'Pool Stage', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
 
   const titleParts = [
     match.homeTeamName,

@@ -22,7 +22,7 @@ import { MediaCarousel } from '../components/media/MediaCarousel';
 import { SocialMediaPageEmbed } from '../components/SocialMediaPageEmbed';
 import keycloak from '../keycloak';
 
-const STAGE_LABEL: Record<string, string> = { POOL: 'Pool', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
+const STAGE_LABEL: Record<string, string> = { FRIENDLY: 'Friendly', POOL: 'Pool', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
 
 // ── Countdown hook ───────────────────────────────────────────────────────────
 
@@ -709,8 +709,8 @@ export const LandingPage: React.FC = () => {
               {liveTab === 1 && liveTournaments.length > 0 && (
                 <Grid container spacing={2}>
                   {liveTournaments.map(t => (
-                    <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
-                      <Card variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper' }}>
+                    <Grid item xs={12} sm={6} md={4} key={t.tournamentId} sx={{ display: 'flex' }}>
+                      <Card variant="outlined" sx={{ borderRadius: 2, position: 'relative', overflow: 'visible', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column', width: '100%' }}>
                         <Box sx={{
                           position: 'absolute', top: -10, right: 12,
                           bgcolor: '#e53935', color: 'white', borderRadius: 1, px: 1, py: 0.25,
@@ -719,7 +719,7 @@ export const LandingPage: React.FC = () => {
                         }}>
                           <FiberManualRecord sx={{ fontSize: 8 }} /> LIVE
                         </Box>
-                        <CardContent>
+                        <CardContent sx={{ flex: 1 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
                             <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 44, height: 44, flexShrink: 0 }}>{t.name.charAt(0)}</Avatar>
                             <Box>
@@ -882,9 +882,9 @@ export const LandingPage: React.FC = () => {
               {upcomingTournaments.length > 0 && upcomingTab === 1 && (
                 <Grid container spacing={2}>
                   {upcomingTournaments.map(t => (
-                    <Grid item xs={12} sm={6} md={4} key={t.tournamentId}>
-                      <Card variant="outlined" sx={{ borderRadius: 2, bgcolor: 'background.paper' }}>
-                        <CardContent>
+                    <Grid item xs={12} sm={6} md={4} key={t.tournamentId} sx={{ display: 'flex' }}>
+                      <Card variant="outlined" sx={{ borderRadius: 2, bgcolor: 'background.paper', display: 'flex', flexDirection: 'column', width: '100%' }}>
+                        <CardContent sx={{ flex: 1 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
                             <CountdownDisplay matchDate={t.startDate} />
                           </Box>

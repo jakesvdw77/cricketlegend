@@ -16,9 +16,9 @@ import { tournamentApi } from '../../api/tournamentApi';
 import { Match, MatchResultSummary, Tournament } from '../../types';
 
 const STAGE_LABELS: Record<string, string> = {
-  POOL: 'Pool Matches', SEMI_FINAL: 'Semi-Finals', FINAL: 'Final',
+  FRIENDLY: 'Friendlies', POOL: 'Pool Matches', QUARTER_FINAL: 'Quarter-Finals', SEMI_FINAL: 'Semi-Finals', FINAL: 'Final',
 };
-const STAGE_ORDER = ['POOL', 'SEMI_FINAL', 'FINAL'];
+const STAGE_ORDER = ['FRIENDLY', 'POOL', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'];
 
 const fmtDate = (d?: string) =>
   d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '—';

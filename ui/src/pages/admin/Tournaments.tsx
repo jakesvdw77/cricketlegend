@@ -91,6 +91,9 @@ export const Tournaments: React.FC = () => {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
+  const [nameError, setNameError] = useState('');
+  const [dateError, setDateError] = useState('');
+
   // Tab state
   const [activeTab, setActiveTab] = useState(0);
 
@@ -139,53 +142,75 @@ export const Tournaments: React.FC = () => {
     setLocalPools(pools);
     setOriginalPools(JSON.parse(JSON.stringify(pools)));
     setNewPoolName('');
+    setNameError('');
+    setDateError('');
     setActiveTab(0);
     setOpen(true);
   };
 
   const save = async () => {
-    let saved: Tournament;
-    if (editing.tournamentId) {
-      saved = await tournamentApi.update(editing.tournamentId, editing);
-    } else {
-      saved = await tournamentApi.create(editing);
+    const duplicate = rows.find(r =>
+      r.name.trim().toLowerCase() === editing.name.trim().toLowerCase() &&
+      r.tournamentId !== editing.tournamentId
+    );
+    if (duplicate) {
+      setNameError('A tournament with this name already exists.');
+      setActiveTab(0);
+      return;
     }
-    const tournamentId = saved.tournamentId!;
+    setNameError('');
 
-    // Delete removed pools
-    for (const orig of originalPools) {
-      if (orig.poolId && !localPools.find(p => p.poolId === orig.poolId)) {
-        await tournamentApi.deletePool(orig.poolId);
-      }
+    if (editing.startDate && editing.endDate && editing.startDate > editing.endDate) {
+      setDateError('Start date cannot be after end date.');
+      setActiveTab(0);
+      return;
     }
+    setDateError('');
 
-    // Sync each pool
-    for (const pool of localPools) {
-      let poolId = pool.poolId;
-
-      if (!poolId) {
-        const created = await tournamentApi.addPool(tournamentId, { poolName: pool.poolName } as TournamentPool);
-        poolId = created.poolId!;
+    try {
+      let saved: Tournament;
+      if (editing.tournamentId) {
+        saved = await tournamentApi.update(editing.tournamentId, editing);
+      } else {
+        saved = await tournamentApi.create(editing);
       }
+      const tournamentId = saved.tournamentId!;
 
-      const origPool = originalPools.find(p => p.poolId === poolId);
-      const origTeamIds = new Set(origPool?.teams.map(t => t.teamId) ?? []);
-      const currTeamIds = new Set(pool.teams.map(t => t.teamId));
-
-      for (const orig of origPool?.teams ?? []) {
-        if (!currTeamIds.has(orig.teamId)) {
-          await tournamentApi.removeTeamFromPool(poolId, orig.teamId);
+      // Delete removed pools
+      for (const orig of originalPools) {
+        if (orig.poolId && !localPools.find(p => p.poolId === orig.poolId)) {
+          await tournamentApi.deletePool(orig.poolId);
         }
       }
-      for (const team of pool.teams) {
-        if (!origTeamIds.has(team.teamId)) {
-          await tournamentApi.addTeamToPool(poolId, team.teamId);
+
+      // Sync each pool
+      for (const pool of localPools) {
+        let poolId = pool.poolId;
+
+        if (!poolId) {
+          const created = await tournamentApi.addPool(tournamentId, { poolName: pool.poolName } as TournamentPool);
+          poolId = created.poolId!;
+        }
+
+        const origPool = originalPools.find(p => p.poolId === poolId);
+        const origTeamIds = new Set(origPool?.teams.map(t => t.teamId) ?? []);
+        const currTeamIds = new Set(pool.teams.map(t => t.teamId));
+
+        for (const orig of origPool?.teams ?? []) {
+          if (!currTeamIds.has(orig.teamId)) {
+            await tournamentApi.removeTeamFromPool(poolId, orig.teamId);
+          }
+        }
+        for (const team of pool.teams) {
+          if (!origTeamIds.has(team.teamId)) {
+            await tournamentApi.addTeamToPool(poolId, team.teamId);
+          }
         }
       }
+    } finally {
+      setOpen(false);
+      load();
     }
-
-    setOpen(false);
-    load();
   };
 
   const remove = async (id: number) => {
@@ -699,15 +724,17 @@ export const Tournaments: React.FC = () => {
       </TableContainer>
 
       {/* Add / Edit dialog */}
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') setOpen(false); }} maxWidth="md" fullWidth>
         <DialogTitle>{editing.tournamentId ? 'Edit' : 'New'} Tournament</DialogTitle>
         <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}>
           <Tab label="General Info" />
           <Tab label="Pools" />
           <Tab label="Media & Links" />
           <Tab label="Sponsors" />
+          <Tab label="Cost" />
+          {editing.tournamentId && <Tab label="Result" />}
         </Tabs>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2, minHeight: 520, overflowY: 'auto' }}>
 
           {/* Tab 0: General Info */}
           {activeTab === 0 && (
@@ -747,7 +774,14 @@ export const Tournaments: React.FC = () => {
                 </Box>
               </Box>
 
-              <TextField label="Name" value={editing.name} onChange={e => set({ name: e.target.value })} required />
+              <TextField
+                label="Name"
+                value={editing.name}
+                onChange={e => { set({ name: e.target.value }); setNameError(''); }}
+                required
+                error={!!nameError}
+                helperText={nameError}
+              />
               <TextField label="Description" value={editing.description ?? ''} multiline rows={2}
                 onChange={e => set({ description: e.target.value })} />
               <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
@@ -780,10 +814,21 @@ export const Tournaments: React.FC = () => {
                 <MenuItem value="OVER_60">Over 60</MenuItem>
               </TextField>
               <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField label="Start Date" type="date" value={editing.startDate ?? ''} InputLabelProps={{ shrink: true }}
-                  onChange={e => set({ startDate: e.target.value })} fullWidth />
-                <TextField label="End Date" type="date" value={editing.endDate ?? ''} InputLabelProps={{ shrink: true }}
-                  onChange={e => set({ endDate: e.target.value })} fullWidth />
+                <TextField
+                  label="Start Date" type="date" value={editing.startDate ?? ''} fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  inputProps={{ max: editing.endDate || undefined }}
+                  error={!!dateError}
+                  onChange={e => { set({ startDate: e.target.value }); setDateError(''); }}
+                />
+                <TextField
+                  label="End Date" type="date" value={editing.endDate ?? ''} fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  inputProps={{ min: editing.startDate || undefined }}
+                  error={!!dateError}
+                  helperText={dateError}
+                  onChange={e => { set({ endDate: e.target.value }); setDateError(''); }}
+                />
               </Box>
 
               <Divider />
@@ -799,47 +844,6 @@ export const Tournaments: React.FC = () => {
                   onChange={e => set({ pointsForBonus: +e.target.value })} />
               </Box>
 
-              <Divider />
-              <Typography variant="subtitle2" color="text.secondary">Fees</Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField
-                  label="Entry Fee"
-                  type="number"
-                  value={editing.entryFee ?? ''}
-                  onChange={e => set({ entryFee: e.target.value ? +e.target.value : undefined })}
-                  InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-                  fullWidth
-                />
-                <TextField
-                  label="Registration Fee"
-                  type="number"
-                  value={editing.registrationFee ?? ''}
-                  onChange={e => set({ registrationFee: e.target.value ? +e.target.value : undefined })}
-                  InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-                  fullWidth
-                />
-                <TextField
-                  label="Match Fee"
-                  type="number"
-                  value={editing.matchFee ?? ''}
-                  onChange={e => set({ matchFee: e.target.value ? +e.target.value : undefined })}
-                  InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-                  fullWidth
-                />
-              </Box>
-
-              <Divider />
-              <Typography variant="subtitle2" color="text.secondary">Winner</Typography>
-              <Autocomplete
-                options={allTeams}
-                getOptionLabel={t => t.teamName}
-                value={allTeams.find(t => t.teamId === editing.winningTeamId) ?? null}
-                onChange={(_, team) => set({ winningTeamId: team?.teamId ?? undefined, winningTeamName: team?.teamName ?? undefined })}
-                isOptionEqualToValue={(o, v) => o.teamId === v.teamId}
-                renderInput={params => (
-                  <TextField {...params} label="Winning Team" InputProps={{ ...params.InputProps, startAdornment: <><EmojiEvents sx={{ color: 'warning.main', mr: 0.5, fontSize: 20 }} />{params.InputProps.startAdornment}</> }} />
-                )}
-              />
             </>
           )}
 
@@ -873,7 +877,7 @@ export const Tournaments: React.FC = () => {
                     ))}
                   </Box>
                   <Autocomplete
-                    options={allTeams.filter(t => !pool.teams.find(pt => pt.teamId === t.teamId))}
+                    options={allTeams.filter(t => !localPools.some(p => p.teams.find(pt => pt.teamId === t.teamId)))}
                     getOptionLabel={t => t.teamName}
                     onChange={(_, team) => { if (team) addTeamToLocalPool(poolIdx, team); }}
                     value={null}
@@ -966,6 +970,50 @@ export const Tournaments: React.FC = () => {
                 ))
               }
               renderInput={params => <TextField {...params} label="Sponsors" />}
+            />
+          )}
+
+          {/* Tab 4: Cost */}
+          {activeTab === 4 && (
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+              <TextField
+                label="Entry Fee"
+                type="number"
+                value={editing.entryFee ?? ''}
+                onChange={e => set({ entryFee: e.target.value ? +e.target.value : undefined })}
+                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
+                fullWidth
+              />
+              <TextField
+                label="Registration Fee"
+                type="number"
+                value={editing.registrationFee ?? ''}
+                onChange={e => set({ registrationFee: e.target.value ? +e.target.value : undefined })}
+                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
+                fullWidth
+              />
+              <TextField
+                label="Match Fee"
+                type="number"
+                value={editing.matchFee ?? ''}
+                onChange={e => set({ matchFee: e.target.value ? +e.target.value : undefined })}
+                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
+                fullWidth
+              />
+            </Box>
+          )}
+
+          {/* Tab 5: Result */}
+          {activeTab === 5 && (
+            <Autocomplete
+              options={allTeams}
+              getOptionLabel={t => t.teamName}
+              value={allTeams.find(t => t.teamId === editing.winningTeamId) ?? null}
+              onChange={(_, team) => set({ winningTeamId: team?.teamId ?? undefined, winningTeamName: team?.teamName ?? undefined })}
+              isOptionEqualToValue={(o, v) => o.teamId === v.teamId}
+              renderInput={params => (
+                <TextField {...params} label="Winning Team" InputProps={{ ...params.InputProps, startAdornment: <><EmojiEvents sx={{ color: 'warning.main', mr: 0.5, fontSize: 20 }} />{params.InputProps.startAdornment}</> }} />
+              )}
             />
           )}
 

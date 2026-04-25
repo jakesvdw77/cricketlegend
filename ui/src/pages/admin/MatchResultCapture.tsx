@@ -23,6 +23,7 @@ const empty: MatchResult = {
   matchCompleted: false,
   matchDrawn: false,
   forfeited: false,
+  noResult: false,
   decidedOnDLS: false,
   decidedBySuperOver: false,
   wonWithBonusPoint: false,
@@ -239,7 +240,7 @@ export const MatchResultCapture: React.FC = () => {
           <Section title="Match Status">
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
               <FormControlLabel
-                control={<Switch checked={!!result.matchCompleted} disabled={!!result.forfeited} onChange={e => set({ matchCompleted: e.target.checked })} color="success" />}
+                control={<Switch checked={!!result.matchCompleted} disabled={!!result.forfeited || !!result.noResult} onChange={e => set({ matchCompleted: e.target.checked })} color="success" />}
                 label="Match Completed"
               />
               <FormControlLabel
@@ -249,7 +250,7 @@ export const MatchResultCapture: React.FC = () => {
                     color="warning"
                     onChange={e => {
                       if (e.target.checked) {
-                        set({ forfeited: true, matchCompleted: true, matchDrawn: false, decidedOnDLS: false, decidedBySuperOver: false, wonWithBonusPoint: false, winningTeamId: undefined, matchOutcomeDescription: '' });
+                        set({ forfeited: true, noResult: false, matchCompleted: true, matchDrawn: false, decidedOnDLS: false, decidedBySuperOver: false, wonWithBonusPoint: false, winningTeamId: undefined, matchOutcomeDescription: '' });
                       } else {
                         set({ forfeited: false });
                       }
@@ -259,19 +260,35 @@ export const MatchResultCapture: React.FC = () => {
                 label="Forfeited"
               />
               <FormControlLabel
-                control={<Switch checked={!!result.matchDrawn} disabled={!!result.forfeited || !result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ matchDrawn: e.target.checked, winningTeamId: undefined })} />}
+                control={
+                  <Switch
+                    checked={!!result.noResult}
+                    color="warning"
+                    onChange={e => {
+                      if (e.target.checked) {
+                        set({ noResult: true, forfeited: false, matchCompleted: true, matchDrawn: false, decidedOnDLS: false, decidedBySuperOver: false, wonWithBonusPoint: false, winningTeamId: undefined, matchOutcomeDescription: 'Match Abandoned' });
+                      } else {
+                        set({ noResult: false, matchCompleted: false, matchOutcomeDescription: '' });
+                      }
+                    }}
+                  />
+                }
+                label="No Result"
+              />
+              <FormControlLabel
+                control={<Switch checked={!!result.matchDrawn} disabled={!!result.forfeited || !!result.noResult || !result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ matchDrawn: e.target.checked, winningTeamId: undefined })} />}
                 label="Match Drawn"
               />
               <FormControlLabel
-                control={<Switch checked={!!result.decidedOnDLS} disabled={!!result.forfeited || !result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ decidedOnDLS: e.target.checked })} />}
+                control={<Switch checked={!!result.decidedOnDLS} disabled={!!result.forfeited || !!result.noResult || !result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ decidedOnDLS: e.target.checked })} />}
                 label="Decided on DLS"
               />
               <FormControlLabel
-                control={<Switch checked={!!result.decidedBySuperOver} disabled={!!result.forfeited || !result.matchCompleted} onChange={e => set({ decidedBySuperOver: e.target.checked, wonWithBonusPoint: false, matchDrawn: false, decidedOnDLS: false })} />}
+                control={<Switch checked={!!result.decidedBySuperOver} disabled={!!result.forfeited || !!result.noResult || !result.matchCompleted} onChange={e => set({ decidedBySuperOver: e.target.checked, wonWithBonusPoint: false, matchDrawn: false, decidedOnDLS: false })} />}
                 label="Super Over"
               />
               <FormControlLabel
-                control={<Switch checked={!!result.wonWithBonusPoint} disabled={!!result.forfeited || !result.matchCompleted || !!result.matchDrawn || !!result.decidedBySuperOver} onChange={e => set({ wonWithBonusPoint: e.target.checked })} />}
+                control={<Switch checked={!!result.wonWithBonusPoint} disabled={!!result.forfeited || !!result.noResult || !result.matchCompleted || !!result.matchDrawn || !!result.decidedBySuperOver} onChange={e => set({ wonWithBonusPoint: e.target.checked })} />}
                 label="Won with Bonus Point"
               />
             </Box>
@@ -281,7 +298,7 @@ export const MatchResultCapture: React.FC = () => {
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <TextField
                 select label="Toss Won By" value={match.tossWonBy ?? ''}
-                disabled={!!result.forfeited}
+                disabled={!!result.forfeited || !!result.noResult}
                 onChange={e => patchMatch({ tossWonBy: e.target.value as TossWinner || undefined })}
                 sx={{ minWidth: 220 }}
               >
@@ -291,7 +308,7 @@ export const MatchResultCapture: React.FC = () => {
               </TextField>
               <TextField
                 select label="Toss Decision" value={match.tossDecision ?? ''}
-                disabled={!!result.forfeited}
+                disabled={!!result.forfeited || !!result.noResult}
                 onChange={e => patchMatch({ tossDecision: e.target.value as TossDecision || undefined })}
                 sx={{ minWidth: 220 }}
               >
@@ -380,7 +397,7 @@ export const MatchResultCapture: React.FC = () => {
                   variant="outlined"
                   size="small"
                   startIcon={<AutoFixHigh />}
-                  disabled={!!result.forfeited}
+                  disabled={!!result.forfeited || !!result.noResult}
                   onClick={() => {
                     const { scoreBattingFirst, scoreBattingSecond, wicketsLostBattingSecond } = result;
 
@@ -629,7 +646,7 @@ const InningsPerformersPanel: React.FC<InningsPerformersPanelProps> = ({
             <NumField label="4s"   value={b.fours}      disabled={disabled} onChange={v => updateBatter(i, { fours: v })} width={70} />
             <NumField label="6s"   value={b.sixes}      disabled={disabled} onChange={v => updateBatter(i, { sixes: v })} width={70} />
             {b.score != null && b.ballsFaced != null && b.ballsFaced > 0 && (
-              <Chip size="small" label={`SR: ${(b.score / b.ballsFaced * 100).toFixed(1)}`} variant="outlined" color="info" />
+              <Chip size="small" label={`SR: ${Math.round(b.score / b.ballsFaced * 100)}`} variant="outlined" color="info" />
             )}
             <IconButton size="small" color="error" disabled={disabled} onClick={() => onBattersChange(batters.filter((_, idx) => idx !== i))}>
               <Delete fontSize="small" />
