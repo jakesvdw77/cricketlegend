@@ -89,6 +89,12 @@ public class TeamServiceImpl implements TeamService {
     }
 
     @Override
+    public List<TeamDTO> findByPlayerId(Long playerId) {
+        return teamRepository.findBySquadPlayerIdsContaining(playerId)
+                .stream().map(teamMapper::toDto).toList();
+    }
+
+    @Override
     public List<PlayerDTO> getSquad(Long teamId) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> NotFoundException.of("Team", teamId));

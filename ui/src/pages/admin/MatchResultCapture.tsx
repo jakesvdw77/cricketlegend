@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
   ArrowBack, Save, EmojiEvents, SportsCricket, CalendarMonth, LocationOn, Leaderboard,
-  Add, Delete,
+  Add, Delete, AutoFixHigh,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
@@ -23,6 +23,7 @@ const empty: MatchResult = {
   matchCompleted: false,
   matchDrawn: false,
   decidedOnDLS: false,
+  decidedBySuperOver: false,
   wonWithBonusPoint: false,
   scoreBattingFirst: undefined,
   wicketsLostBattingFirst: undefined,
@@ -69,6 +70,16 @@ export const MatchResultCapture: React.FC = () => {
     }).catch(() => setError('Failed to load match data.'))
       .finally(() => setLoading(false));
   }, [matchId]);
+
+  // Derive side batting first from toss whenever toss data changes
+  useEffect(() => {
+    if (!match?.tossWonBy || !match?.tossDecision) return;
+    const { tossWonBy, tossDecision, homeTeamId, oppositionTeamId } = match;
+    const derived = tossWonBy === 'HOME'
+      ? (tossDecision === 'BAT' ? homeTeamId : oppositionTeamId)
+      : (tossDecision === 'BAT' ? oppositionTeamId : homeTeamId);
+    if (derived) setResult(r => ({ ...r, sideBattingFirstId: derived }));
+  }, [match?.tossWonBy, match?.tossDecision]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (patch: Partial<MatchResult>) => {
     setSaved(false);
@@ -142,6 +153,34 @@ export const MatchResultCapture: React.FC = () => {
     firstTeamName, secondTeamName,
     firstCard, secondCard, motmName,
     teamFilter,
+  };
+
+  // DLS par score: assumes team 1 completed their innings and team 2 got reduced overs
+  const dlsPar: number | null = (() => {
+    if (!result.decidedOnDLS || result.scoreBattingFirst == null) return null;
+    const n1 = parseOvers(result.oversBattingFirst);
+    const n2 = parseOvers(result.oversBattingSecond);
+    if (!n1 || !n2) return null;
+    return Math.round(result.scoreBattingFirst * dlsResourcePct(n2, 0) / dlsResourcePct(n1, 0));
+  })();
+
+  const calculateOutcome = (): string | null => {
+    if (!result.matchCompleted) return 'Match Abandoned';
+    if (result.matchDrawn) return 'Match drawn';
+    const { scoreBattingFirst, scoreBattingSecond, wicketsLostBattingSecond, sideBattingFirstId, winningTeamId, decidedOnDLS, decidedBySuperOver } = result;
+    if (!winningTeamId || scoreBattingFirst == null || scoreBattingSecond == null) return null;
+    const winnerName = teams.find(t => t.id === winningTeamId)?.name ?? 'Unknown';
+    let description: string;
+    if (decidedBySuperOver) {
+      description = `${winnerName} won (Super Over)`;
+    } else if (winningTeamId === sideBattingFirstId) {
+      const margin = scoreBattingFirst - scoreBattingSecond;
+      description = `${winnerName} won by ${margin} run${margin !== 1 ? 's' : ''}`;
+    } else {
+      const wicketsLeft = 10 - (wicketsLostBattingSecond ?? 0);
+      description = `${winnerName} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}`;
+    }
+    return decidedOnDLS ? `${description} (DLS)` : description;
   };
 
   const num = (val: number | undefined) => val ?? '';
@@ -225,29 +264,32 @@ export const MatchResultCapture: React.FC = () => {
                 label="Match Completed"
               />
               <FormControlLabel
-                control={<Switch checked={!!result.matchDrawn} disabled={!result.matchCompleted} onChange={e => set({ matchDrawn: e.target.checked, winningTeamId: undefined })} />}
+                control={<Switch checked={!!result.matchDrawn} disabled={!result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ matchDrawn: e.target.checked, winningTeamId: undefined })} />}
                 label="Match Drawn"
               />
               <FormControlLabel
-                control={<Switch checked={!!result.decidedOnDLS} disabled={!result.matchCompleted} onChange={e => set({ decidedOnDLS: e.target.checked })} />}
+                control={<Switch checked={!!result.decidedOnDLS} disabled={!result.matchCompleted || !!result.decidedBySuperOver} onChange={e => set({ decidedOnDLS: e.target.checked })} />}
                 label="Decided on DLS"
               />
               <FormControlLabel
-                control={<Switch checked={!!result.wonWithBonusPoint} disabled={!result.matchCompleted || !!result.matchDrawn} onChange={e => set({ wonWithBonusPoint: e.target.checked })} />}
+                control={<Switch checked={!!result.decidedBySuperOver} disabled={!result.matchCompleted} onChange={e => set({ decidedBySuperOver: e.target.checked, wonWithBonusPoint: false, matchDrawn: false, decidedOnDLS: false })} />}
+                label="Super Over"
+              />
+              <FormControlLabel
+                control={<Switch checked={!!result.wonWithBonusPoint} disabled={!result.matchCompleted || !!result.matchDrawn || !!result.decidedBySuperOver} onChange={e => set({ wonWithBonusPoint: e.target.checked })} />}
                 label="Won with Bonus Point"
               />
             </Box>
           </Section>
 
           <Section title="Innings">
-            <TextField
-              select label="Side Batting First" value={result.sideBattingFirstId ?? ''}
-              onChange={e => set({ sideBattingFirstId: +e.target.value })}
-              disabled={!result.matchCompleted}
-              sx={{ minWidth: 220, mb: 2 }}
-            >
-              {teams.map(t => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
-            </TextField>
+            {result.sideBattingFirstId
+              ? <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                  <Chip label={`Batting first: ${teams.find(t => t.id === result.sideBattingFirstId)?.name ?? '—'}`} color="primary" variant="outlined" />
+                  <Chip label={`Batting second: ${teams.find(t => t.id !== result.sideBattingFirstId)?.name ?? '—'}`} color="secondary" variant="outlined" />
+                </Box>
+              : <Alert severity="warning" sx={{ mb: 2, maxWidth: 420 }}>Set the toss in the Toss section to determine who bats first.</Alert>
+            }
 
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               1st Innings{firstInningsTeam ? ` — ${firstInningsTeam.name}` : ''}
@@ -281,14 +323,88 @@ export const MatchResultCapture: React.FC = () => {
                 {teams.map(t => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
               </TextField>
 
-              <TextField
-                label="Match Outcome Description" multiline rows={2}
-                value={result.matchOutcomeDescription ?? ''}
-                disabled={!result.matchCompleted}
-                onChange={e => set({ matchOutcomeDescription: e.target.value })}
-                placeholder="e.g. Team A won by 32 runs"
-                sx={{ maxWidth: 500 }}
-              />
+              {result.decidedOnDLS && (
+                <Alert
+                  severity={dlsPar == null ? 'warning' : 'info'}
+                  sx={{ maxWidth: 500 }}
+                >
+                  {dlsPar == null
+                    ? 'Enter 1st and 2nd innings overs to calculate the DLS par score.'
+                    : (() => {
+                        const s2 = result.scoreBattingSecond;
+                        const margin = s2 != null ? s2 - dlsPar : null;
+                        const verdict = margin == null ? '' : margin > 0 ? ` — surpassed par by ${margin}` : margin === 0 ? ' — level on par' : ` — fell ${Math.abs(margin)} short of par`;
+                        return <>DLS Par Score: <strong>{dlsPar}</strong>{verdict}</>;
+                      })()
+                  }
+                </Alert>
+              )}
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: 500 }}>
+                <TextField
+                  label="Match Outcome Description" multiline rows={2}
+                  value={result.matchOutcomeDescription ?? ''}
+                  disabled={!result.matchCompleted}
+                  onChange={e => set({ matchOutcomeDescription: e.target.value })}
+                  placeholder="e.g. Team A won by 32 runs"
+                />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AutoFixHigh />}
+                  onClick={() => {
+                    const { scoreBattingFirst, scoreBattingSecond, wicketsLostBattingSecond } = result;
+
+                    // DLS: determine winner from par score
+                    if (result.decidedOnDLS && dlsPar != null && scoreBattingSecond != null) {
+                      const firstTeam  = teams.find(t => t.id === result.sideBattingFirstId);
+                      const secondTeam = teams.find(t => t.id !== result.sideBattingFirstId);
+                      if (scoreBattingSecond > dlsPar) {
+                        const wicketsLeft = 10 - (wicketsLostBattingSecond ?? 0);
+                        const runMargin   = scoreBattingSecond - dlsPar;
+                        // Still had wickets in hand when match was stopped → win by wickets
+                        const desc = (wicketsLeft > 0 && (wicketsLostBattingSecond ?? 0) < 10)
+                          ? `${secondTeam?.name} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''} (DLS)`
+                          : `${secondTeam?.name} won by ${runMargin} run${runMargin !== 1 ? 's' : ''} (DLS)`;
+                        set({ winningTeamId: secondTeam?.id, matchOutcomeDescription: desc });
+                      } else if (scoreBattingSecond < dlsPar) {
+                        const margin = dlsPar - scoreBattingSecond;
+                        set({ winningTeamId: firstTeam?.id, matchOutcomeDescription: `${firstTeam?.name} won by ${margin} run${margin !== 1 ? 's' : ''} (DLS)` });
+                      } else {
+                        set({ matchDrawn: true, winningTeamId: undefined, matchOutcomeDescription: 'Match drawn (DLS)' });
+                      }
+                      return;
+                    }
+
+                    // Non-DLS: derive winner from scores
+                    if (scoreBattingFirst == null || scoreBattingSecond == null) {
+                      const outcome = calculateOutcome();
+                      if (outcome) set({ matchOutcomeDescription: outcome });
+                      return;
+                    }
+
+                    const firstTeam  = teams.find(t => t.id === result.sideBattingFirstId);
+                    const secondTeam = teams.find(t => t.id !== result.sideBattingFirstId);
+                    const superOver  = result.decidedBySuperOver ? ' (Super Over)' : '';
+                    const bonusEligible = !result.decidedBySuperOver;
+                    const hasBonusPoint = (winnerScore: number, loserScore: number) =>
+                      bonusEligible && loserScore > 0 && (winnerScore - loserScore) > 0.8 * loserScore;
+
+                    if (scoreBattingFirst === scoreBattingSecond) {
+                      set({ matchDrawn: true, winningTeamId: undefined, matchOutcomeDescription: 'Match drawn' });
+                    } else if (scoreBattingFirst > scoreBattingSecond) {
+                      const margin = scoreBattingFirst - scoreBattingSecond;
+                      set({ winningTeamId: firstTeam?.id, wonWithBonusPoint: hasBonusPoint(scoreBattingFirst, scoreBattingSecond), matchOutcomeDescription: `${firstTeam?.name} won by ${margin} run${margin !== 1 ? 's' : ''}${superOver}` });
+                    } else {
+                      const wicketsLeft = 10 - (wicketsLostBattingSecond ?? 0);
+                      set({ winningTeamId: secondTeam?.id, wonWithBonusPoint: hasBonusPoint(scoreBattingSecond, scoreBattingFirst), matchOutcomeDescription: `${secondTeam?.name} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}${superOver}` });
+                    }
+                  }}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  Auto-calculate result
+                </Button>
+              </Box>
             </Box>
           </Section>
 
@@ -422,8 +538,8 @@ const PlayerAutocomplete: React.FC<PlayerAutoProps> = ({ playerList, value, onSe
         const player = playerList.find(p => `${p.name} ${p.surname}` === name);
         onSelect(name, player?.playerId);
       }}
-      renderInput={params => <TextField {...params} label="Player" size="small" sx={{ minWidth: 200 }} />}
-      sx={{ minWidth: 200 }}
+      renderInput={params => <TextField {...params} label="Player" size="small" sx={{ minWidth: 260 }} />}
+      sx={{ minWidth: 260 }}
     />
   );
 };
@@ -483,6 +599,9 @@ const InningsPerformersPanel: React.FC<InningsPerformersPanelProps> = ({
             <NumField label="Balls" value={b.ballsFaced} disabled={disabled} onChange={v => updateBatter(i, { ballsFaced: v })} />
             <NumField label="4s"   value={b.fours}      disabled={disabled} onChange={v => updateBatter(i, { fours: v })} width={70} />
             <NumField label="6s"   value={b.sixes}      disabled={disabled} onChange={v => updateBatter(i, { sixes: v })} width={70} />
+            {b.score != null && b.ballsFaced != null && b.ballsFaced > 0 && (
+              <Chip size="small" label={`SR: ${(b.score / b.ballsFaced * 100).toFixed(1)}`} variant="outlined" color="info" />
+            )}
             <IconButton size="small" color="error" disabled={disabled} onClick={() => onBattersChange(batters.filter((_, idx) => idx !== i))}>
               <Delete fontSize="small" />
             </IconButton>
@@ -517,6 +636,38 @@ const InningsPerformersPanel: React.FC<InningsPerformersPanelProps> = ({
     </Paper>
   );
 };
+
+// ── DLS calculation ──────────────────────────────────────────────────────────
+
+// Standard DLS resource parameters (published approximation)
+const DLS_PARAMS = [
+  { z0: 100.0, b: 0.07645 }, // 0 wickets lost
+  { z0: 93.4,  b: 0.08717 }, // 1
+  { z0: 85.1,  b: 0.10558 }, // 2
+  { z0: 74.9,  b: 0.13145 }, // 3
+  { z0: 62.4,  b: 0.17185 }, // 4
+  { z0: 49.0,  b: 0.20612 }, // 5
+  { z0: 34.9,  b: 0.26954 }, // 6
+  { z0: 22.8,  b: 0.34006 }, // 7
+  { z0: 11.9,  b: 0.46341 }, // 8
+  { z0: 4.7,   b: 0.68813 }, // 9
+];
+
+function dlsResourcePct(overs: number, wicketsLost: number): number {
+  const w = Math.min(Math.max(Math.floor(wicketsLost), 0), 9);
+  const { z0, b } = DLS_PARAMS[w];
+  return z0 * (1 - Math.exp(-b * overs));
+}
+
+// Cricket overs notation: "18.3" = 18 overs + 3 balls = 18.5 decimal overs
+function parseOvers(s: string | undefined): number | null {
+  if (!s) return null;
+  const [whole, balls = '0'] = s.split('.');
+  const w = parseInt(whole, 10);
+  const b = parseInt(balls, 10);
+  if (isNaN(w) || isNaN(b) || b > 5) return null;
+  return w + b / 6;
+}
 
 // ── Section ──────────────────────────────────────────────────────────────────
 

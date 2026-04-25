@@ -12,7 +12,7 @@ import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
 import { fieldApi } from '../../api/fieldApi';
 import { tournamentApi } from '../../api/tournamentApi';
-import { Match, Team, Field, Tournament, Player, MatchStage, TossWinner, TossDecision } from '../../types';
+import { Match, Team, Field, Tournament, Player, MatchStage } from '../../types';
 import { TeamSidePanel } from '../../components/match/TeamSidePanel';
 
 const STEPS = ['Match Details', 'Playing Teams'];
@@ -58,6 +58,7 @@ export const Matches: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
+  const [errors, setErrors] = useState<{ matchDate?: string; homeTeam?: string; oppTeam?: string; startTime?: string }>({});
 
   const load = () => matchApi.findAll().then(setRows);
   useEffect(() => {
@@ -70,6 +71,7 @@ export const Matches: React.FC = () => {
   const openCreate = () => {
     setEditing(empty);
     setSavedMatchId(null);
+    setErrors({});
     setStep(0);
     setOpen(true);
   };
@@ -77,6 +79,7 @@ export const Matches: React.FC = () => {
   const openEdit = (match: Match) => {
     setEditing(match);
     setSavedMatchId(match.matchId ?? null);
+    setErrors({});
     setStep(0);
     setOpen(true);
   };
@@ -87,6 +90,16 @@ export const Matches: React.FC = () => {
   };
 
   const saveMatchDetails = async () => {
+    const newErrors: typeof errors = {};
+    if (!editing.matchDate) newErrors.matchDate = 'Match date is required';
+    if (!editing.homeTeamId) newErrors.homeTeam = 'Home team is required';
+    if (!editing.oppositionTeamId) newErrors.oppTeam = 'Opposition team is required';
+    else if (editing.homeTeamId && editing.homeTeamId === editing.oppositionTeamId)
+      newErrors.oppTeam = 'Opposition team must be different from home team';
+    if (!editing.scheduledStartTime) newErrors.startTime = 'Start time is required';
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+    setErrors({});
+
     let matchId: number;
     if (editing.matchId) {
       await matchApi.update(editing.matchId, editing);
@@ -282,24 +295,50 @@ export const Matches: React.FC = () => {
           {step === 0 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField label="Match Date" type="date" value={editing.matchDate ?? ''} fullWidth
-                  InputLabelProps={{ shrink: true }} onChange={e => setEditing({ ...editing, matchDate: e.target.value })} />
+                <TextField label="Match Date" type="date" value={editing.matchDate ?? ''} fullWidth required
+                  InputLabelProps={{ shrink: true }}
+                  error={!!errors.matchDate} helperText={errors.matchDate}
+                  onChange={e => setEditing({ ...editing, matchDate: e.target.value })} />
                 <TextField label="Arrival Time" type="time" value={editing.arrivalTime ?? ''} fullWidth
                   InputLabelProps={{ shrink: true }} onChange={e => setEditing({ ...editing, arrivalTime: e.target.value })} />
                 <TextField label="Toss Time" type="time" value={editing.tossTime ?? ''} fullWidth
                   InputLabelProps={{ shrink: true }} onChange={e => setEditing({ ...editing, tossTime: e.target.value })} />
-                <TextField label="Start Time" type="time" value={editing.scheduledStartTime ?? ''} fullWidth
-                  InputLabelProps={{ shrink: true }} onChange={e => setEditing({ ...editing, scheduledStartTime: e.target.value })} />
+                <TextField label="Start Time" type="time" value={editing.scheduledStartTime ?? ''} fullWidth required
+                  InputLabelProps={{ shrink: true }}
+                  error={!!errors.startTime} helperText={errors.startTime}
+                  onChange={e => {
+                    const startTime = e.target.value;
+                    const patch: Partial<Match> = { scheduledStartTime: startTime };
+                    if (startTime) {
+                      const [h, m] = startTime.split(':').map(Number);
+                      const minsFromMidnight = h * 60 + m;
+                      const offset = (mins: number) => {
+                        const t = ((minsFromMidnight - mins) % 1440 + 1440) % 1440;
+                        return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+                      };
+                      if (!editing.arrivalTime) patch.arrivalTime = offset(45);
+                      if (!editing.tossTime) patch.tossTime = offset(15);
+                    }
+                    setEditing({ ...editing, ...patch });
+                  }} />
               </Box>
               <TextField select label="Tournament" value={editing.tournamentId ?? ''}
                 onChange={e => setEditing({ ...editing, tournamentId: +e.target.value })}>
                 {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
               </TextField>
-              <TextField select label="Home Team" value={editing.homeTeamId ?? ''}
+              <TextField select label="Stage" value={editing.matchStage ?? ''}
+                onChange={e => setEditing({ ...editing, matchStage: e.target.value as MatchStage })}>
+                <MenuItem value="POOL">Pool</MenuItem>
+                <MenuItem value="SEMI_FINAL">Semi-Final</MenuItem>
+                <MenuItem value="FINAL">Final</MenuItem>
+              </TextField>
+              <TextField select label="Home Team" value={editing.homeTeamId ?? ''} required
+                error={!!errors.homeTeam} helperText={errors.homeTeam}
                 onChange={e => setEditing({ ...editing, homeTeamId: +e.target.value })}>
                 {teams.map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>)}
               </TextField>
-              <TextField select label="Opposition Team" value={editing.oppositionTeamId ?? ''}
+              <TextField select label="Opposition Team" value={editing.oppositionTeamId ?? ''} required
+                error={!!errors.oppTeam} helperText={errors.oppTeam}
                 onChange={e => setEditing({ ...editing, oppositionTeamId: +e.target.value })}>
                 {teams.map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>)}
               </TextField>
@@ -314,26 +353,6 @@ export const Matches: React.FC = () => {
               <TextField label="YouTube Stream URL" value={editing.youtubeUrl ?? ''}
                 onChange={e => setEditing({ ...editing, youtubeUrl: e.target.value })}
                 InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField select label="Stage" value={editing.matchStage ?? ''}
-                onChange={e => setEditing({ ...editing, matchStage: e.target.value as MatchStage })}>
-                <MenuItem value="POOL">Pool</MenuItem>
-                <MenuItem value="SEMI_FINAL">Semi-Final</MenuItem>
-                <MenuItem value="FINAL">Final</MenuItem>
-              </TextField>
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField select label="Toss Won By" value={editing.tossWonBy ?? ''} fullWidth
-                  onChange={e => setEditing({ ...editing, tossWonBy: e.target.value as TossWinner || undefined })}>
-                  <MenuItem value="">Unknown</MenuItem>
-                  <MenuItem value="HOME">{editing.homeTeamId ? (teams.find(t => t.teamId === editing.homeTeamId)?.teamName ?? 'Home Team') : 'Home Team'}</MenuItem>
-                  <MenuItem value="OPPOSITION">{editing.oppositionTeamId ? (teams.find(t => t.teamId === editing.oppositionTeamId)?.teamName ?? 'Opposition') : 'Opposition'}</MenuItem>
-                </TextField>
-                <TextField select label="Toss Decision" value={editing.tossDecision ?? ''} fullWidth
-                  onChange={e => setEditing({ ...editing, tossDecision: e.target.value as TossDecision || undefined })}>
-                  <MenuItem value="">Unknown</MenuItem>
-                  <MenuItem value="BAT">Decided to bat first</MenuItem>
-                  <MenuItem value="BOWL">Decided to bowl first</MenuItem>
-                </TextField>
-              </Box>
             </Box>
           )}
 

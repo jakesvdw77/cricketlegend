@@ -28,6 +28,7 @@ import { Managers } from './pages/admin/Managers';
 import { MediaLibrary } from './pages/admin/MediaLibrary';
 import { SocialMediaPages } from './pages/admin/SocialMediaPages';
 import { SendNotification } from './pages/admin/SendNotification';
+import { LoginHistory } from './pages/admin/LoginHistory';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
@@ -48,11 +49,14 @@ import { MatchTeamSheet } from './pages/view/MatchTeamSheet';
 import { MatchAvailabilityPoll } from './pages/view/MatchAvailabilityPoll';
 import { MyAvailability } from './pages/view/MyAvailability';
 import { TeamsView } from './pages/view/TeamsView';
+import { MyClubView } from './pages/view/MyClubView';
 
 const LandingRoute: React.FC = () => {
-  if (keycloak.authenticated) return <Navigate to="/matches/upcoming" replace />;
+  if (keycloak.authenticated) return <Navigate to="/home" replace />;
   return <LandingPage />;
 };
+
+const HomeLandingRoute: React.FC = () => <LandingPage />;
 
 const ProtectedLayout: React.FC = () => {
   if (!keycloak.authenticated) return <Navigate to="/" replace />;
@@ -79,6 +83,7 @@ function ThemedApp() {
           <Route path="/" element={<LandingRoute />} />
           <Route path="tournaments/:tournamentId/schedule" element={<TournamentSchedule />} />
           <Route element={<ProtectedLayout />}>
+            <Route path="home" element={<HomeLandingRoute />} />
             <Route path="matches/upcoming" element={<UpcomingMatches />} />
             <Route path="profile" element={<MyProfile />} />
             <Route path="my-payments" element={<Navigate to="/my-wallet" replace />} />
@@ -104,6 +109,7 @@ function ThemedApp() {
             <Route path="admin/payments" element={<AdminRoute element={<Payments />} />} />
             <Route path="admin/reports" element={<AdminRoute element={<Reports />} />} />
             <Route path="admin/fund-allocation" element={<AdminRoute element={<FundAllocation />} />} />
+            <Route path="admin/login-history" element={<AdminRoute element={<LoginHistory />} />} />
             <Route path="admin/tournaments/:tournamentId/pools" element={<ManagerRoute element={<TournamentPools />} />} />
 
             {/* View routes (all authenticated users) */}
@@ -115,6 +121,7 @@ function ThemedApp() {
             <Route path="poll/:matchId/:teamId" element={<MatchAvailabilityPoll />} />
             <Route path="my-availability" element={<MyAvailability />} />
             <Route path="teams" element={<TeamsView />} />
+            <Route path="my-club" element={<MyClubView />} />
             <Route path="tournaments" element={<TournamentView />} />
             <Route path="tournaments/:tournamentId/pools" element={<TournamentPools />} />
             <Route path="tournaments/:tournamentId/standings" element={<TournamentStandings />} />

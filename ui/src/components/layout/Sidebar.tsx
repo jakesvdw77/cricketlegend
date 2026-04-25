@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft, SportsCricket,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Facebook,
+    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Facebook, Login,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -25,14 +25,15 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const {isAdmin, isManager} = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    type Section = 'capture' | 'financials' | 'access' | 'view';
+    type Section = 'capture' | 'financials' | 'access' | 'view' | 'matchCentre';
     const [openSection, setOpenSection] = useState<Section>('view');
     const toggle = (s: Section) => setOpenSection(prev => prev === s ? 'view' : s);
 
-    const captureOpen   = openSection === 'capture';
-    const financialsOpen = openSection === 'financials';
-    const accessOpen    = openSection === 'access';
-    const viewOpen      = openSection === 'view';
+    const captureOpen      = openSection === 'capture';
+    const financialsOpen   = openSection === 'financials';
+    const accessOpen       = openSection === 'access';
+    const viewOpen         = openSection === 'view';
+    const matchCentreOpen  = openSection === 'matchCentre';
 
     const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
     const goCollapse = (path: string) => { navigate(path); onClose(); };
@@ -57,41 +58,23 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
             <Box sx={{overflowY: 'auto', flex: 1}}>
 
             <List disablePadding>
-                <ListItemButton onClick={() => toggle('view')}>
+                <ListItemButton onClick={() => go('/home')}>
                     <ListItemIcon><Home/></ListItemIcon>
                     <ListItemText primary="Home" primaryTypographyProps={{fontWeight: 'bold'}}/>
-                    {viewOpen ? <ExpandLess/> : <ExpandMore/>}
+                    <IconButton size="small" onClick={e => { e.stopPropagation(); toggle('view'); }}>
+                        {viewOpen ? <ExpandLess/> : <ExpandMore/>}
+                    </IconButton>
                 </ListItemButton>
             </List>
             <Collapse in={viewOpen} timeout="auto" unmountOnExit>
                 <List disablePadding>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-club')}>
+                        <ListItemIcon><Shield/></ListItemIcon>
+                        <ListItemText primary="My Club"/>
+                    </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/teams')}>
                         <ListItemIcon><Groups/></ListItemIcon>
-                        <ListItemText primary="Teams"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/tournaments')}>
-                        <ListItemIcon><EmojiEvents/></ListItemIcon>
-                        <ListItemText primary="Tournaments"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/live')}>
-                        <ListItemIcon><Sensors /></ListItemIcon>
-                        <ListItemText primary="Live Matches"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/previous')}>
-                        <ListItemIcon><History/></ListItemIcon>
-                        <ListItemText primary="Results"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/scorecards')}>
-                        <ListItemIcon><Assignment/></ListItemIcon>
-                        <ListItemText primary="Scorecards"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/player/statistics')}>
-                        <ListItemIcon><Leaderboard/></ListItemIcon>
-                        <ListItemText primary="Player Statistics"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/upcoming')}>
-                        <ListItemIcon><CalendarMonth/></ListItemIcon>
-                        <ListItemText primary="Upcoming Matches"/>
+                        <ListItemText primary="My Teams"/>
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/my-availability')}>
                         <ListItemIcon><HowToVote/></ListItemIcon>
@@ -104,6 +87,43 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/my-schedule')}>
                         <ListItemIcon><CalendarMonth/></ListItemIcon>
                         <ListItemText primary="My Schedule"/>
+                    </ListItemButton>
+                </List>
+            </Collapse>
+            <Divider/>
+
+            <List disablePadding>
+                <ListItemButton onClick={() => toggle('matchCentre')}>
+                    <ListItemIcon><SportsScore/></ListItemIcon>
+                    <ListItemText primary="Match Centre" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                    {matchCentreOpen ? <ExpandLess/> : <ExpandMore/>}
+                </ListItemButton>
+            </List>
+            <Collapse in={matchCentreOpen} timeout="auto" unmountOnExit>
+                <List disablePadding>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/tournaments')}>
+                        <ListItemIcon><EmojiEvents/></ListItemIcon>
+                        <ListItemText primary="Tournaments"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/live')}>
+                        <ListItemIcon><Sensors/></ListItemIcon>
+                        <ListItemText primary="Live Matches"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/upcoming')}>
+                        <ListItemIcon><CalendarMonth/></ListItemIcon>
+                        <ListItemText primary="Upcoming Matches"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/previous')}>
+                        <ListItemIcon><History/></ListItemIcon>
+                        <ListItemText primary="Results"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/scorecards')}>
+                        <ListItemIcon><Assignment/></ListItemIcon>
+                        <ListItemText primary="Scorecards"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/player/statistics')}>
+                        <ListItemIcon><Leaderboard/></ListItemIcon>
+                        <ListItemText primary="Player Statistics"/>
                     </ListItemButton>
                 </List>
             </Collapse>
@@ -160,6 +180,13 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemIcon><Campaign/></ListItemIcon>
                                 <ListItemText primary="Send Notification"/>
                             </ListItemButton>
+
+                            {isAdmin && (
+                                <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/login-history')}>
+                                    <ListItemIcon><Login/></ListItemIcon>
+                                    <ListItemText primary="Login History"/>
+                                </ListItemButton>
+                            )}
 
                         </List>
                     </Collapse>

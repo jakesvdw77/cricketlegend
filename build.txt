@@ -57,5 +57,5 @@ https://cricketlegend.co.za:81
   To apply, copy the keycloak/themes/cricketlegend folder into your Keycloak themes/ directory and restart Keycloak.
 
 
-sudo lsof -i :8081
+sudo lsof -i :8081I
 kill -9 [PID]

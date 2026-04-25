@@ -88,11 +88,14 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
         add();
         add('  🏏 Batting');
         batting.forEach(b => {
+          const sr = (b.score != null && b.ballsFaced != null && b.ballsFaced > 0)
+            ? Math.round(b.score / b.ballsFaced * 100) : null;
           const stats = [
             b.score      != null && `${b.score} runs`,
             b.ballsFaced != null && `${b.ballsFaced} balls`,
             b.fours      != null && `${b.fours} fours`,
             b.sixes      != null && `${b.sixes} sixes`,
+            sr != null && sr >= 100 && `SR: ${sr}`,
           ].filter(Boolean).join(' | ');
           add(`  • ${b.playerName}${stats ? `  —  ${stats}` : ''}`);
         });
@@ -119,16 +122,19 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
 
     // Result
     add(); add(DIV); add('🏆  RESULT'); add(DIV);
-    if (result.matchDrawn) {
-      add('Match Drawn');
+    if (!result.matchCompleted) {
+      add('❌ Match Abandoned');
+    } else if (result.matchDrawn) {
+      add('🤝 Match Drawn');
     } else {
       const winner = result.winningTeamName;
       if (winner) add(`🥇 Winner: ${winner}`);
+      if (result.decidedBySuperOver)  add('⚡ Decided by Super Over');
+      else if (result.decidedOnDLS)   add('🌧️ Decided by DLS method');
+      if (result.wonWithBonusPoint)   add('⭐ Won with Bonus Point');
     }
-    if (result.decidedOnDLS)      add('  (Decided on DLS method)');
-    if (result.wonWithBonusPoint)  add('  (Won with bonus point)');
     if (result.matchOutcomeDescription) { add(); add(result.matchOutcomeDescription); }
-    if (motmName) { add(); add(`🌟 Man of the Match: ${motmName}`); }
+    if (motmName && result.matchCompleted) { add(); add(`🌟 Man of the Match: ${motmName}`); }
     add(); add(DIV);
 
     const generated = lines.join('\n');

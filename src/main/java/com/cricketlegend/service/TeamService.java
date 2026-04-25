@@ -12,6 +12,7 @@ public interface TeamService {
     TeamDTO update(Long id, TeamDTO dto);
     void delete(Long id);
 
+    List<TeamDTO> findByPlayerId(Long playerId);
     List<PlayerDTO> getSquad(Long teamId);
     void addToSquad(Long teamId, Long playerId);
     void removeFromSquad(Long teamId, Long playerId);

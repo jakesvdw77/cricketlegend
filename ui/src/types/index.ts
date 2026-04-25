@@ -334,6 +334,7 @@ export interface MatchResultSummary {
   oversBattingSecond?: string;
   matchDrawn?: boolean;
   decidedOnDLS?: boolean;
+  decidedBySuperOver?: boolean;
   wonWithBonusPoint?: boolean;
   winningTeamName?: string;
   manOfTheMatchName?: string;
@@ -366,6 +367,7 @@ export interface MatchResult {
   matchCompleted?: boolean;
   matchDrawn?: boolean;
   decidedOnDLS?: boolean;
+  decidedBySuperOver?: boolean;
   wonWithBonusPoint?: boolean;
   winningTeamId?: number;
   winningTeamName?: string;
@@ -468,6 +470,20 @@ export interface ManagerTeamDTO {
   managerEmail: string;
   teamId: number;
   teamName: string;
+}
+
+export interface UserLoginEvent {
+  loginEventId: number;
+  firstName: string;
+  lastName: string;
+  role: string;
+  loginTime: string;
+}
+
+export interface PagedLoginEventResponse {
+  content: UserLoginEvent[];
+  totalElements: number;
+  totalPages: number;
 }
 
 export interface MatchSide {

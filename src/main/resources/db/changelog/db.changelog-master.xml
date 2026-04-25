@@ -56,5 +56,6 @@
     <include file="db/changelog/v1/049-payment-vat-inclusive.sql"/>
     <include file="db/changelog/v1/050-facebook-pages.sql"/>
     <include file="db/changelog/v1/051-rename-facebook-page-to-social-media-page.sql"/>
+    <include file="db/changelog/v1/052-user-login-events.sql"/>
 
 </databaseChangeLog>

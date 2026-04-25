@@ -1,6 +1,14 @@
 import { Match, MatchResult, Tournament, TeamScorecard } from '../../../types';
 import { TeamFilter } from './types';
 
+const srLabel = (sr: number): string | null => {
+  if (sr >= 175) return `an incredible strike rate of ${sr}`;
+  if (sr >= 150) return `an exceptional strike rate of ${sr}`;
+  if (sr >= 130) return `a very good strike rate of ${sr}`;
+  if (sr >= 100) return `a strike rate of ${sr}`;
+  return null;
+};
+
 const battingHighlights = (card: TeamScorecard): string => {
   const batters = (card.batting ?? []).filter(b => b.playerName);
   if (!batters.length) return '';
@@ -12,6 +20,10 @@ const battingHighlights = (card: TeamScorecard): string => {
     if (b.fours != null && b.fours > 0) boundaries.push(`${b.fours} four${b.fours !== 1 ? 's' : ''}`);
     if (b.sixes != null && b.sixes > 0) boundaries.push(`${b.sixes} six${b.sixes !== 1 ? 'es' : ''}`);
     if (boundaries.length) parts.push(`including ${boundaries.join(' and ')}`);
+    const sr = (b.score != null && b.ballsFaced != null && b.ballsFaced > 0)
+      ? Math.round(b.score / b.ballsFaced * 100) : null;
+    const srText = sr != null ? srLabel(sr) : null;
+    if (srText) parts.push(`at ${srText}`);
     return `${b.playerName} (${parts.join(', ')})`;
   }).join(', ');
 };
@@ -85,7 +97,7 @@ export const generateFacebookText = (
     if (bats) para += ` The batting was highlighted by fine contributions from ${bats}.`;
     paras.push(para);
     const bowls = bowlingHighlights(secondCard);
-    if (bowls) paras.push(`🎯 With the ball, ${secondTeamName} were led by ${bowls}.`);
+    if (bowls) paras.push(`🔴 With the ball, ${secondTeamName} were led by ${bowls}.`);
   }
 
   // 2nd innings
@@ -99,20 +111,26 @@ export const generateFacebookText = (
     if (bats) para += ` Standout performances with the bat came from ${bats}.`;
     paras.push(para);
     const bowls = bowlingHighlights(firstCard);
-    if (bowls) paras.push(`🎯 ${firstTeamName}'s bowling attack was led by ${bowls}.`);
+    if (bowls) paras.push(`🔴 ${firstTeamName}'s bowling attack was led by ${bowls}.`);
   }
 
   // Result
-  if (result.matchDrawn) {
-    paras.push('⚖️ After a closely contested match, the two sides were unable to be separated and the game ended in a draw.');
+  if (!result.matchCompleted) {
+    paras.push('❌ Unfortunately, this match was abandoned and could not be completed. We look forward to seeing both sides back on the field soon.');
+  } else if (result.matchDrawn) {
+    paras.push('🤝 After a closely contested match, the two sides were unable to be separated and the game ended in a draw.');
   } else {
     const winnerName = result.winningTeamName;
     if (winnerName) {
       let resultPara = result.matchOutcomeDescription
         ? `🏆 ${result.matchOutcomeDescription}`
         : `🏆 ${winnerName} claimed victory in what was a fantastic display of cricket.`;
-      if (result.decidedOnDLS)      resultPara += ' The result was determined by the DLS method.';
-      if (result.wonWithBonusPoint) resultPara += ' The win came with a bonus point.';
+      if (result.decidedBySuperOver)
+        resultPara += ' The match went to a Super Over after the scores were level at the end of regulation play — what a dramatic finish!';
+      else if (result.decidedOnDLS)
+        resultPara += ' The result was determined by the Duckworth-Lewis-Stern (DLS) method due to a weather interruption.';
+      if (result.wonWithBonusPoint)
+        resultPara += ' The commanding victory also earned them a valuable bonus point.';
       paras.push(resultPara);
     } else if (result.matchOutcomeDescription) {
       paras.push(`🏆 ${result.matchOutcomeDescription}`);
@@ -120,7 +138,7 @@ export const generateFacebookText = (
   }
 
   // MOTM
-  if (motmName) {
+  if (motmName && result.matchCompleted) {
     paras.push(`🌟 A special mention goes to ${motmName}, who was named Man of the Match for an outstanding performance on the day.`);
   }
 

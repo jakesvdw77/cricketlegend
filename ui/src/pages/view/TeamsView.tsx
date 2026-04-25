@@ -9,11 +9,10 @@ import {
   MoreVert, WhatsApp, Facebook, ContentCopy,
 } from '@mui/icons-material';
 import { teamApi } from '../../api/teamApi';
+import { playerApi } from '../../api/playerApi';
 import { playerDescription, isBatterOnly } from '../../utils/playerDescription';
 import { printSquad } from '../../utils/printSquad';
-import { tournamentApi } from '../../api/tournamentApi';
-import { clubApi } from '../../api/clubApi';
-import { Team, Player, Tournament, Club } from '../../types';
+import { Team, Player } from '../../types';
 
 // ── Role icons ─────────────────────────────────────────────────────────────
 
@@ -197,12 +196,6 @@ function SquadShareMenu({
 export const TeamsView: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [squads, setSquads] = useState<Record<number, Player[]>>({});
-  const [search, setSearch] = useState('');
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [selectedTournamentId, setSelectedTournamentId] = useState<number | ''>('');
-  const [tournamentTeamIds, setTournamentTeamIds] = useState<Set<number> | null>(null);
-  const [clubs, setClubs] = useState<Club[]>([]);
-  const [selectedClubId, setSelectedClubId] = useState<number | ''>('');
 
   // Share dialog
   const [shareText, setShareText] = useState('');
@@ -210,20 +203,8 @@ export const TeamsView: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    teamApi.findAll().then(setTeams);
-    tournamentApi.findAll().then(setTournaments);
-    clubApi.findAll().then(setClubs);
+    playerApi.findMyTeams().then(setTeams);
   }, []);
-
-  const handleTournamentChange = async (id: number | '') => {
-    setSelectedTournamentId(id);
-    if (!id) { setTournamentTeamIds(null); return; }
-    const t = await tournamentApi.findById(id);
-    const ids = new Set<number>(
-      (t.pools ?? []).flatMap(pool => (pool.teams ?? []).map(tt => tt.teamId!))
-    );
-    setTournamentTeamIds(ids);
-  };
 
   const handleExpand = async (teamId: number) => {
     if (squads[teamId]) return;
@@ -243,53 +224,18 @@ export const TeamsView: React.FC = () => {
     });
   };
 
-  const filtered = teams.filter(t => {
-    const matchesSearch = t.teamName.toLowerCase().includes(search.toLowerCase());
-    const matchesTournament = !tournamentTeamIds || tournamentTeamIds.has(t.teamId!);
-    const matchesClub = !selectedClubId || t.associatedClubId === selectedClubId;
-    return matchesSearch && matchesTournament && matchesClub;
-  });
-
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-        <Typography variant="h5">Teams</Typography>
-        <TextField
-          select
-          size="small"
-          label="Tournament"
-          value={selectedTournamentId}
-          onChange={e => handleTournamentChange(e.target.value === '' ? '' : Number(e.target.value))}
-          sx={{ width: 220 }}
-        >
-          <MenuItem value="">All tournaments</MenuItem>
-          {tournaments.map(t => (
-            <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label="Club"
-          value={selectedClubId}
-          onChange={e => setSelectedClubId(e.target.value === '' ? '' : Number(e.target.value))}
-          sx={{ width: 220 }}
-        >
-          <MenuItem value="">All clubs</MenuItem>
-          {clubs.map(c => (
-            <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          size="small"
-          placeholder="Search teams…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          sx={{ width: 220 }}
-        />
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+        <Typography variant="h5">My Teams</Typography>
       </Box>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {filtered.map(team => {
+        {teams.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            You are not in any team squad yet.
+          </Typography>
+        )}
+        {teams.map(team => {
           const squad = squads[team.teamId!] ?? [];
           // Display: sort by surname; share/print: sort by first name (handled in SquadShareMenu)
           const sortedBySurname = [...squad].sort((a, b) => a.surname.localeCompare(b.surname));

@@ -157,19 +157,19 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => {
       </Box>
     )}
     <CardContent>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        {!live
-          ? <CountdownDisplay matchDate={m.matchDate} startTime={m.scheduledStartTime} />
-          : <Box />}
-        {weather && (
-          <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 0.75, py: 0.25, whiteSpace: 'nowrap' }}>
-            <Typography variant="body2">{weather.icon} {weather.maxTemp}°/{weather.minTemp}° · 💧{weather.precipProb}%</Typography>
-          </Box>
-        )}
-      </Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Chip label={m.tournamentName} size="small" icon={<EmojiEvents />} color="primary" variant="outlined" />
-        {m.matchStage && <Chip label={STAGE_LABEL[m.matchStage] ?? m.matchStage} size="small" variant="outlined" />}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Chip label={m.tournamentName} size="small" icon={<EmojiEvents />} color="primary" variant="outlined" />
+          {m.matchStage && <Chip label={STAGE_LABEL[m.matchStage] ?? m.matchStage} size="small" variant="outlined" />}
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+          {!live && <CountdownDisplay matchDate={m.matchDate} startTime={m.scheduledStartTime} />}
+          {weather && (
+            <Box sx={{ bgcolor: 'action.hover', borderRadius: 1, px: 0.75, py: 0.25, whiteSpace: 'nowrap' }}>
+              <Typography variant="body2">{weather.icon} {weather.maxTemp}°/{weather.minTemp}° · 💧{weather.precipProb}%</Typography>
+            </Box>
+          )}
+        </Box>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, my: 1.5 }}>
         <Avatar src={m.homeTeamLogoUrl} sx={{ width: 40, height: 40 }}>{m.homeTeamName?.charAt(0)}</Avatar>
@@ -240,7 +240,7 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => {
 
 // ── ResultCard ───────────────────────────────────────────────────────────────
 
-const ResultCard: React.FC<{ r: MatchResultSummary; onSummary?: () => void }> = ({ r, onSummary }) => {
+const ResultCard: React.FC<{ r: MatchResultSummary; onSummary?: () => void; onScorecard?: () => void }> = ({ r, onSummary, onScorecard }) => {
   const scoreLine = (score?: number, wickets?: number, overs?: string) =>
     score != null ? `${score}/${wickets ?? 0}${overs ? ` (${overs})` : ''}` : null;
   const firstScore  = scoreLine(r.scoreBattingFirst,  r.wicketsLostBattingFirst,  r.oversBattingFirst);
@@ -288,13 +288,20 @@ const ResultCard: React.FC<{ r: MatchResultSummary; onSummary?: () => void }> = 
           </Typography>
         )}
       </CardContent>
-      {onSummary && (
+      {(onSummary || onScorecard) && (
         <>
           <Divider />
-          <Box sx={{ px: 1.5, py: 1 }}>
-            <Button size="small" startIcon={<Article />} onClick={onSummary}>
-              Summary
-            </Button>
+          <Box sx={{ px: 1.5, py: 1, display: 'flex', gap: 1 }}>
+            {onSummary && (
+              <Button size="small" startIcon={<Facebook />} onClick={onSummary}>
+                Summary
+              </Button>
+            )}
+            {onScorecard && (
+              <Button size="small" startIcon={<Article />} onClick={onScorecard}>
+                Scorecard
+              </Button>
+            )}
           </Box>
         </>
       )}
@@ -476,9 +483,11 @@ export const LandingPage: React.FC = () => {
   const [socialMediaPages, setSocialMediaPages] = useState<SocialMediaPage[]>([]);
   const [featureDialog, setFeatureDialog] = useState<{ title: string; desc: string; icon: React.ReactNode } | null>(null);
   const [summaryMatch, setSummaryMatch] = useState<Match | null>(null);
+  const [summaryView, setSummaryView] = useState<'whatsapp' | 'facebook'>('whatsapp');
   const [summaryLoading, setSummaryLoading] = useState(false);
 
-  const openSummary = (matchId: number) => {
+  const openSummary = (matchId: number, view: 'whatsapp' | 'facebook') => {
+    setSummaryView(view);
     setSummaryLoading(true);
     matchApi.findById(matchId)
       .then(setSummaryMatch)
@@ -563,20 +572,22 @@ export const LandingPage: React.FC = () => {
             Cricket Legend
           </Typography>
           {nextTournament && <NavCountdown tournament={nextTournament} />}
-          <Button
-            variant="contained"
-            disableElevation
-            startIcon={<Login />}
-            onClick={() => keycloak.login()}
-            sx={{ bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}
-          >
-            Login
-          </Button>
+          {!keycloak.authenticated && (
+            <Button
+              variant="contained"
+              disableElevation
+              startIcon={<Login />}
+              onClick={() => keycloak.login()}
+              sx={{ bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}
+            >
+              Login
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      <Box sx={{
+      {!keycloak.authenticated && <Box sx={{
         background: heroBg,
         color: 'white',
         minHeight: { xs: 'auto', md: 'auto' },
@@ -640,7 +651,7 @@ export const LandingPage: React.FC = () => {
           </Box>
         )}
 
-      </Box>
+      </Box>}
 
       {/* ── Live (Matches + Tournaments combined) ───────────────────────── */}
       {(liveMatches.length > 0 || liveTournaments.length > 0) && (
@@ -742,8 +753,8 @@ export const LandingPage: React.FC = () => {
       {/* ── Results & Standings ─────────────────────────────────────────── */}
       {(recentResults.length > 0 || Object.keys(standingsMap).length > 0) && (
         <>
-          <Divider />
-          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.paper' }}>
+          <Divider sx={{ borderColor: 'divider', opacity: 0.5 }} />
+          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
             <Container maxWidth="lg">
               <Box sx={{ mb: 3 }}>
                 <Box sx={{
@@ -779,7 +790,11 @@ export const LandingPage: React.FC = () => {
                   <Grid container spacing={2}>
                     {recentResults.map(r => (
                       <Grid item xs={12} sm={6} md={4} key={r.matchId}>
-                        <ResultCard r={r} onSummary={() => openSummary(r.matchId)} />
+                        <ResultCard
+                          r={r}
+                          onSummary={() => openSummary(r.matchId, 'facebook')}
+                          onScorecard={() => openSummary(r.matchId, 'whatsapp')}
+                        />
                       </Grid>
                     ))}
                   </Grid>
@@ -936,8 +951,8 @@ export const LandingPage: React.FC = () => {
       {/* ── Media Gallery ───────────────────────────────────────────────── */}
       {allMedia.length > 0 && (
         <>
-          <Divider />
-          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.paper' }}>
+          <Divider sx={{ borderColor: 'divider', opacity: 0.5 }} />
+          <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
             <Container maxWidth="lg">
               <SectionHeader
                 icon={<PhotoLibrary color="primary" />}
@@ -1036,7 +1051,7 @@ export const LandingPage: React.FC = () => {
           {summaryMatch && (
             <MatchSummaryView
               match={summaryMatch}
-              view="whatsapp"
+              view={summaryView}
               onBack={() => setSummaryMatch(null)}
             />
           )}
@@ -1089,7 +1104,7 @@ export const LandingPage: React.FC = () => {
                 Quick Links
               </Typography>
               {[
-                { label: 'Login to Dashboard', action: () => keycloak.login() },
+                ...(!keycloak.authenticated ? [{ label: 'Login to Dashboard', action: () => keycloak.login() }] : []),
                 { label: 'View Tournaments',   action: () => tournamentsRef.current?.scrollIntoView({ behavior: 'smooth' }) },
                 { label: 'Upcoming',           action: () => upcomingRef.current?.scrollIntoView({ behavior: 'smooth' }) },
               ].map(link => (
