@@ -23,6 +23,12 @@ export const pollApi = {
   markRead: (notificationId: number) =>
     api.put(`/notifications/${notificationId}/read`),
 
+  markAllRead: () =>
+    api.put('/notifications/read-all'),
+
+  clearAll: () =>
+    api.delete('/notifications'),
+
   sendNotification: (subject: string, message: string, teamId?: number) =>
     api.post('/notifications/send', { subject, message, teamId: teamId ?? null }),
 

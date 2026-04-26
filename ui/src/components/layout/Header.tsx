@@ -5,7 +5,7 @@ import {
   Accordion, AccordionSummary, AccordionDetails,
   Badge, Popover, List, ListItem, ListItemText, Divider,
 } from '@mui/material';
-import { Menu as MenuIcon, SportsCricket, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode } from '@mui/icons-material';
+import { Menu as MenuIcon, SportsCricket, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode, DoneAll, DeleteSweep } from '@mui/icons-material';
 import { useColorMode } from '../../context/ColorModeContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -171,6 +171,30 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
         <Box sx={{ width: 320, maxHeight: 400, overflow: 'auto' }}>
           <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography fontWeight="bold">Notifications</Typography>
+            {notifications.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                <Tooltip title="Mark all as read">
+                  <IconButton size="small" onClick={() => {
+                    pollApi.markAllRead().then(() => {
+                      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                      setUnreadCount(0);
+                    }).catch(() => {});
+                  }}>
+                    <DoneAll fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Clear all messages">
+                  <IconButton size="small" color="error" onClick={() => {
+                    pollApi.clearAll().then(() => {
+                      setNotifications([]);
+                      setUnreadCount(0);
+                    }).catch(() => {});
+                  }}>
+                    <DeleteSweep fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
           </Box>
           <Divider />
           {notifications.length === 0 ? (
@@ -184,24 +208,32 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
                   <ListItem
                     component="div"
                     onClick={() => handleNotifClick(n)}
-                    sx={{ bgcolor: n.read ? 'transparent' : 'action.hover', cursor: 'pointer', flexDirection: 'column', alignItems: 'flex-start' }}
+                    sx={{ bgcolor: n.read ? 'transparent' : 'action.hover', cursor: 'pointer', alignItems: 'flex-start' }}
                   >
-                    <ListItemText
-                      primary={notifLabel(n)}
-                      secondary={n.type === 'MANAGER_MESSAGE' ? undefined : (n.matchDate ?? '')}
-                      primaryTypographyProps={{ variant: 'body2', fontWeight: n.read ? 'normal' : 'bold' }}
-                      secondaryTypographyProps={{ variant: 'caption' }}
-                    />
-                    {n.type === 'MANAGER_MESSAGE' && n.message && (
-                      <Box
-                        sx={{
-                          mt: 0.5, fontSize: '0.75rem', color: 'text.secondary',
-                          maxHeight: 80, overflow: 'hidden',
-                          '& p': { m: 0 }, '& ul, & ol': { pl: 2, m: 0 },
-                        }}
-                        dangerouslySetInnerHTML={{ __html: n.message }}
+                    <Box sx={{
+                      width: 8, height: 8, borderRadius: '50%', flexShrink: 0, mt: '6px', mr: 1.5,
+                      bgcolor: n.read ? 'transparent' : 'primary.main',
+                      border: n.read ? '1.5px solid' : 'none',
+                      borderColor: 'divider',
+                    }} />
+                    <Box sx={{ flex: 1 }}>
+                      <ListItemText
+                        primary={notifLabel(n)}
+                        secondary={n.type === 'MANAGER_MESSAGE' ? undefined : (n.matchDate ?? '')}
+                        primaryTypographyProps={{ variant: 'body2', fontWeight: n.read ? 'normal' : 'bold' }}
+                        secondaryTypographyProps={{ variant: 'caption' }}
                       />
-                    )}
+                      {n.type === 'MANAGER_MESSAGE' && n.message && (
+                        <Box
+                          sx={{
+                            mt: 0.5, fontSize: '0.75rem', color: 'text.secondary',
+                            maxHeight: 80, overflow: 'hidden',
+                            '& p': { m: 0 }, '& ul, & ol': { pl: 2, m: 0 },
+                          }}
+                          dangerouslySetInnerHTML={{ __html: n.message }}
+                        />
+                      )}
+                    </Box>
                   </ListItem>
                   <Divider component="li" />
                 </React.Fragment>

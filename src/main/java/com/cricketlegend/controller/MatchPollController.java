@@ -108,6 +108,20 @@ public class MatchPollController {
         return ResponseEntity.ok().build();
     }
 
+    @PutMapping("/notifications/read-all")
+    @Operation(summary = "Mark all notifications as read")
+    public ResponseEntity<Void> markAllRead(@AuthenticationPrincipal Jwt jwt) {
+        pollService.markAllNotificationsRead(jwt.getClaimAsString("email"));
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/notifications")
+    @Operation(summary = "Delete all notifications for the current player")
+    public ResponseEntity<Void> clearAll(@AuthenticationPrincipal Jwt jwt) {
+        pollService.clearAllNotifications(jwt.getClaimAsString("email"));
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/notifications/send")
     @PreAuthorize("hasAnyRole('admin','manager')")
     @Operation(summary = "Send a message notification to managed players or all players (admin)")

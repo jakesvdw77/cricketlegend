@@ -11,4 +11,5 @@ public interface PlayerNotificationRepository extends JpaRepository<PlayerNotifi
     List<PlayerNotification> findByPlayerPlayerIdAndReadFalse(Long playerId);
     long countByPlayerPlayerIdAndReadFalse(Long playerId);
     void deleteByMatchIdAndTeamIdAndType(Long matchId, Long teamId, NotificationType type);
+    void deleteByPlayerPlayerId(Long playerId);
 }

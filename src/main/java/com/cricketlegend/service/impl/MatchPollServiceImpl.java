@@ -154,6 +154,22 @@ public class MatchPollServiceImpl implements MatchPollService {
     }
 
     @Override
+    public void markAllNotificationsRead(String email) {
+        Player player = playerRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new NotFoundException("Player not found for email: " + email));
+        List<PlayerNotification> unread = notificationRepository.findByPlayerPlayerIdAndReadFalse(player.getPlayerId());
+        unread.forEach(n -> n.setRead(true));
+        notificationRepository.saveAll(unread);
+    }
+
+    @Override
+    public void clearAllNotifications(String email) {
+        Player player = playerRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new NotFoundException("Player not found for email: " + email));
+        notificationRepository.deleteByPlayerPlayerId(player.getPlayerId());
+    }
+
+    @Override
     public void sendManagerNotification(String subject, String message, String managerEmail, boolean isAdmin, Long teamId) {
         List<Player> players;
         if (isAdmin) {

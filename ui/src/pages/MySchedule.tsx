@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer, View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
@@ -9,7 +10,7 @@ import {
 } from '@mui/material';
 import {
   SportsCricket, LocationOn, EmojiEvents, AccessTime, CalendarMonth,
-  CheckCircle, Cancel, HelpOutline, Groups,
+  CheckCircle, Cancel, HelpOutline, Groups, HowToVote, AssignmentInd,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { pollApi } from '../api/pollApi';
@@ -19,11 +20,13 @@ import { Match, MatchSide, Player, PlayerAvailabilityEntry, AvailabilityStatus }
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales: { 'en-US': enUS } });
 
 interface CalendarEvent {
-  id: number;
+  id: string;
   title: string;
   start: Date;
   end: Date;
-  resource: Match;
+  allDay?: boolean;
+  type: 'match' | 'birthday';
+  resource?: Match;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -50,6 +53,7 @@ const toEndDate = (match: Match): Date => {
 };
 
 export const MySchedule: React.FC = () => {
+  const navigate = useNavigate();
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Match | null>(null);
@@ -58,8 +62,10 @@ export const MySchedule: React.FC = () => {
 
   // Detail state
   const [me, setMe] = useState<Player | null>(null);
+  const [clubPlayers, setClubPlayers] = useState<Player[]>([]);
   const [teamSides, setTeamSides] = useState<MatchSide[]>([]);
   const [myAvailability, setMyAvailability] = useState<PlayerAvailabilityEntry | null | undefined>(undefined);
+  const [pollTeamId, setPollTeamId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
@@ -69,23 +75,51 @@ export const MySchedule: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Fetch current player once
+  // Fetch current player + club mates
   useEffect(() => {
-    playerApi.findMe().then(setMe).catch(() => {});
+    playerApi.findMe().then(player => {
+      setMe(player);
+      if (player.homeClubId) {
+        playerApi.findAll().then(all => {
+          setClubPlayers(all.filter(p => p.homeClubId === player.homeClubId && p.dateOfBirth));
+        }).catch(() => {});
+      }
+    }).catch(() => {});
   }, []);
 
-  const events: CalendarEvent[] = matches.map(m => ({
-    id: m.matchId!,
-    title: `${m.homeTeamName ?? '—'} vs ${m.oppositionTeamName ?? '—'}`,
+  const matchEvents: CalendarEvent[] = matches.map(m => ({
+    id: `match-${m.matchId}`,
+    title: `🏏 ${m.homeTeamName ?? '—'} vs ${m.oppositionTeamName ?? '—'}`,
     start: toDate(m),
     end: toEndDate(m),
+    type: 'match',
     resource: m,
   }));
 
+  const thisYear = new Date().getFullYear();
+  const birthdayEvents: CalendarEvent[] = clubPlayers.flatMap(p => {
+    const dob = new Date(p.dateOfBirth!);
+    return [thisYear, thisYear + 1].map(year => {
+      const bday = new Date(year, dob.getMonth(), dob.getDate());
+      return {
+        id: `birthday-${p.playerId}-${year}`,
+        title: `🎂 ${p.name} ${p.surname}`,
+        start: bday,
+        end: bday,
+        allDay: true,
+        type: 'birthday' as const,
+      };
+    });
+  });
+
+  const events: CalendarEvent[] = [...matchEvents, ...birthdayEvents];
+
   const onSelectEvent = useCallback((event: CalendarEvent) => {
+    if (event.type !== 'match' || !event.resource) return;
     setSelected(event.resource);
     setTeamSides([]);
     setMyAvailability(undefined);
+    setPollTeamId(null);
   }, []);
 
   // Fetch team sheet + poll when a match is selected
@@ -107,13 +141,16 @@ export const MySchedule: React.FC = () => {
       );
       const myId = me?.playerId;
       let found: PlayerAvailabilityEntry | null = null;
-      for (const r of pollResults) {
+      let foundTeamId: number | null = null;
+      for (let i = 0; i < pollResults.length; i++) {
+        const r = pollResults[i];
         if (r.status === 'fulfilled' && r.value.open) {
           const entry = r.value.availability?.find(a => a.playerId === myId);
-          if (entry) { found = entry; break; }
+          if (entry) { found = entry; foundTeamId = teamIds[i]; break; }
         }
       }
       setMyAvailability(found); // null = poll exists but no entry; undefined = no open poll
+      setPollTeamId(foundTeamId);
     };
 
     fetchDetails()
@@ -124,14 +161,15 @@ export const MySchedule: React.FC = () => {
   const onNavigate = useCallback((d: Date) => setDate(d), []);
   const onView = useCallback((v: View) => setView(v), []);
 
-  const eventStyleGetter = () => ({
+  const eventStyleGetter = (event: CalendarEvent) => ({
     style: {
-      backgroundColor: '#1a5276',
+      backgroundColor: event.type === 'birthday' ? '#7b1fa2' : '#1a5276',
       borderRadius: 4,
       color: '#fff',
       border: 'none',
       fontSize: 12,
       padding: '2px 6px',
+      cursor: event.type === 'birthday' ? 'default' : 'pointer',
     },
   });
 
@@ -348,6 +386,24 @@ export const MySchedule: React.FC = () => {
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setSelected(null)}>Close</Button>
+              {pollTeamId && selected?.matchId && (
+                <Button
+                  variant="contained"
+                  startIcon={<HowToVote />}
+                  onClick={() => { setSelected(null); navigate(`/poll/${selected.matchId}/${pollTeamId}`); }}
+                >
+                  View Poll
+                </Button>
+              )}
+              {isAnnounced && selected?.matchId && (
+                <Button
+                  variant="contained"
+                  startIcon={<AssignmentInd />}
+                  onClick={() => { setSelected(null); navigate(`/matches/${selected.matchId}/teamsheet`); }}
+                >
+                  Team Sheet
+                </Button>
+              )}
             </DialogActions>
           </>
         )}
