@@ -9,7 +9,8 @@ import {
 import { Add, Edit, Delete, OpenInNew, ViewColumn } from '@mui/icons-material';
 import { playerApi } from '../../api/playerApi';
 import { clubApi } from '../../api/clubApi';
-import { Player, Club } from '../../types';
+import { teamApi } from '../../api/teamApi';
+import { Player, Club, Team } from '../../types';
 import { formatEnum } from '../../utils/formatEnum';
 import { PlayerEditForm } from '../../components/player/PlayerEditForm';
 import { useAuth } from '../../hooks/useAuth';
@@ -45,6 +46,9 @@ export const Players: React.FC = () => {
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [clubs, setClubs] = useState<Club[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamFilter, setTeamFilter] = useState<number | ''>('');
+  const [teamSquadIds, setTeamSquadIds] = useState<Set<number> | null>(null);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Player>(empty);
   const [viewPhotoUrl, setViewPhotoUrl] = useState<string | null>(null);
@@ -58,7 +62,16 @@ export const Players: React.FC = () => {
   useEffect(() => {
     load();
     clubApi.findAll().then(setClubs);
+    teamApi.findAll().then(setTeams);
   }, []);
+
+  const handleTeamFilter = async (teamId: number | '') => {
+    setTeamFilter(teamId);
+    setPage(0);
+    if (!teamId) { setTeamSquadIds(null); return; }
+    const squad = await teamApi.getSquad(teamId as number);
+    setTeamSquadIds(new Set(squad.map(p => p.playerId!)));
+  };
 
   const save = async () => {
     const payload: Player = {
@@ -95,7 +108,8 @@ export const Players: React.FC = () => {
       || r.homeClubName?.toLowerCase().includes(q)
       || r.shirtNumber?.toString().includes(q);
     const matchesClub = !clubFilter || r.homeClubId === clubFilter;
-    return matchesSearch && matchesClub;
+    const matchesTeam = !teamSquadIds || teamSquadIds.has(r.playerId!);
+    return matchesSearch && matchesClub && matchesTeam;
   }).sort((a, b) => {
     const cmp = a.surname.localeCompare(b.surname) || a.name.localeCompare(b.name);
     return sortDir === 'asc' ? cmp : -cmp;
@@ -121,12 +135,33 @@ export const Players: React.FC = () => {
           size="small"
           label="Club"
           value={clubFilter}
-          onChange={e => { setClubFilter(e.target.value === '' ? '' : +e.target.value); setPage(0); }}
+          onChange={e => {
+            const id = e.target.value === '' ? '' : +e.target.value;
+            setClubFilter(id);
+            setPage(0);
+            const selectedTeam = teams.find(t => t.teamId === teamFilter);
+            if (id && selectedTeam?.associatedClubId !== id) {
+              handleTeamFilter('');
+            }
+          }}
           sx={{ width: { xs: '100%', sm: 200 } }}
         >
           <MenuItem value="">All Clubs</MenuItem>
           {clubs.map(c => (
             <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Team"
+          value={teamFilter}
+          onChange={e => handleTeamFilter(e.target.value === '' ? '' : +e.target.value)}
+          sx={{ width: { xs: '100%', sm: 200 } }}
+        >
+          <MenuItem value="">All Teams</MenuItem>
+          {(clubFilter ? teams.filter(t => t.associatedClubId === clubFilter) : teams).map(t => (
+            <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>
           ))}
         </TextField>
         <Tooltip title="Toggle columns">
@@ -242,7 +277,7 @@ export const Players: React.FC = () => {
         />
       </TableContainer>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editing.playerId ? 'Edit' : 'New'} Player</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           <PlayerEditForm editing={editing} onChange={set} clubs={clubs} />

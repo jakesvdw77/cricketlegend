@@ -273,6 +273,17 @@ export interface Match {
   youtubeUrl?: string;
   tournamentId?: number;
   tournamentName?: string;
+  matchCompleted?: boolean;
+  matchDrawn?: boolean;
+  forfeited?: boolean;
+  noResult?: boolean;
+  matchOutcomeDescription?: string;
+  scoreBattingFirst?: number;
+  wicketsLostBattingFirst?: number;
+  oversBattingFirst?: string;
+  scoreBattingSecond?: number;
+  wicketsLostBattingSecond?: number;
+  oversBattingSecond?: string;
 }
 
 export interface BattingEntry {

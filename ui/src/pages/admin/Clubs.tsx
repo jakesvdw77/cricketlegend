@@ -38,29 +38,46 @@ export const Clubs: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Club | null>(null);
+  const [nameError, setNameError] = useState('');
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const load = () => clubApi.findAll().then(setRows);
   useEffect(() => { load(); }, []);
 
-  const openCreate = () => { setEditing(empty); setOpen(true); };
-  const openEdit = (c: Club) => { setEditing(c); setOpen(true); };
+  const openCreate = () => { setEditing(empty); setNameError(''); setOpen(true); };
+  const openEdit = (c: Club) => { setEditing(c); setNameError(''); setOpen(true); };
 
-  const save = async () => {
-    if (editing.clubId) { await clubApi.update(editing.clubId, editing); }
-    else { await clubApi.create(editing); }
-    setOpen(false);
-    load();
+  const isDuplicateName = (name: string) => {
+    const lower = name.trim().toLowerCase();
+    return rows.some(r => r.name.toLowerCase() === lower && r.clubId !== editing.clubId);
   };
 
-  const remove = async (id: number) => {
-    if (confirm('Delete club?')) {
-      try {
-        await clubApi.delete(id);
-        load();
-      } catch (e: any) {
-        setError(e?.response?.data?.detail ?? 'Could not delete club.');
-      }
+  const save = async () => {
+    if (isDuplicateName(editing.name)) {
+      setNameError('A club with this name already exists.');
+      return;
+    }
+    try {
+      if (editing.clubId) { await clubApi.update(editing.clubId, editing); }
+      else { await clubApi.create(editing); }
+      setOpen(false);
+      load();
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail ?? e?.response?.data?.message ?? 'Could not save club.';
+      setNameError(msg);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget?.clubId) return;
+    try {
+      await clubApi.delete(deleteTarget.clubId);
+      load();
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? 'Could not delete club.');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -197,7 +214,7 @@ export const Clubs: React.FC = () => {
                 )}
                 <TableCell>
                   <IconButton size="small" onClick={() => openEdit(r)}><Edit /></IconButton>
-                  <IconButton size="small" color="error" onClick={() => remove(r.clubId!)}><Delete /></IconButton>
+                  <IconButton size="small" color="error" onClick={() => setDeleteTarget(r)}><Delete /></IconButton>
                 </TableCell>
               </TableRow>
             ))}
@@ -215,7 +232,7 @@ export const Clubs: React.FC = () => {
       </TableContainer>
 
       {/* Add / Edit dialog */}
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') setOpen(false); }} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.clubId ? 'Edit' : 'New'} Club</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
 
@@ -266,8 +283,10 @@ export const Clubs: React.FC = () => {
           <TextField
               label="Club Name"
               value={editing.name}
-              onChange={e => set({ name: e.target.value })}
+              onChange={e => { set({ name: e.target.value }); setNameError(''); }}
               required
+              error={!!nameError}
+              helperText={nameError}
           />
 
           <TextField
@@ -310,6 +329,18 @@ export const Clubs: React.FC = () => {
       </Dialog>
 
       <Snackbar open={!!error} autoHideDuration={5000} onClose={() => setError('')} message={error} />
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete Club</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Logo viewer */}
       <Dialog open={!!viewLogoUrl} onClose={() => setViewLogoUrl(null)} maxWidth="sm">

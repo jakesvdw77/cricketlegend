@@ -40,6 +40,8 @@ export const Fields: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Field | null>(null);
+  const [nameError, setNameError] = useState('');
 
   const load = () => fieldApi.findAll().then(setRows);
   useEffect(() => {
@@ -47,18 +49,35 @@ export const Fields: React.FC = () => {
     clubApi.findAll().then(setClubs);
   }, []);
 
-  const openCreate = () => { setEditing(empty); setOpen(true); };
-  const openEdit = (f: Field) => { setEditing(f); setOpen(true); };
+  const openCreate = () => { setEditing(empty); setNameError(''); setOpen(true); };
+  const openEdit = (f: Field) => { setEditing(f); setNameError(''); setOpen(true); };
+
+  const isDuplicateName = (name: string) =>
+    rows.some(r => r.name.toLowerCase() === name.trim().toLowerCase() && r.fieldId !== editing.fieldId);
 
   const save = async () => {
-    if (editing.fieldId) { await fieldApi.update(editing.fieldId, editing); }
-    else { await fieldApi.create(editing); }
-    setOpen(false);
-    load();
+    if (isDuplicateName(editing.name)) {
+      setNameError('A field with this name already exists.');
+      return;
+    }
+    try {
+      if (editing.fieldId) { await fieldApi.update(editing.fieldId, editing); }
+      else { await fieldApi.create(editing); }
+      setOpen(false);
+      load();
+    } catch (e: any) {
+      setNameError(e?.response?.data?.detail ?? e?.response?.data?.message ?? 'Could not save field.');
+    }
   };
 
-  const remove = async (id: number) => {
-    if (confirm('Delete field?')) { await fieldApi.delete(id); load(); }
+  const confirmDelete = async () => {
+    if (!deleteTarget?.fieldId) return;
+    try {
+      await fieldApi.delete(deleteTarget.fieldId);
+      load();
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   const set = (patch: Partial<Field>) => setEditing(e => ({ ...e, ...patch }));
@@ -197,7 +216,7 @@ export const Fields: React.FC = () => {
                 )}
                 <TableCell>
                   <IconButton size="small" onClick={() => openEdit(r)}><Edit /></IconButton>
-                  <IconButton size="small" color="error" onClick={() => remove(r.fieldId!)}><Delete /></IconButton>
+                  <IconButton size="small" color="error" onClick={() => setDeleteTarget(r)}><Delete /></IconButton>
                 </TableCell>
               </TableRow>
             ))}
@@ -214,7 +233,7 @@ export const Fields: React.FC = () => {
         />
       </TableContainer>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') setOpen(false); }} maxWidth="sm" fullWidth>
         <DialogTitle>{editing.fieldId ? 'Edit' : 'New'} Field</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
           {/* Icon upload */}
@@ -243,8 +262,10 @@ export const Fields: React.FC = () => {
           <TextField
             label="Name"
             value={editing.name}
-            onChange={e => set({ name: e.target.value })}
+            onChange={e => { set({ name: e.target.value }); setNameError(''); }}
             required
+            error={!!nameError}
+            helperText={nameError}
           />
           <TextField
               select
@@ -275,6 +296,17 @@ export const Fields: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={save} disabled={!editing.name}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete Field</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>Delete</Button>
         </DialogActions>
       </Dialog>
     </Box>

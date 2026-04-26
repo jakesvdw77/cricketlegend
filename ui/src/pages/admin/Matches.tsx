@@ -4,7 +4,7 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, ListSubheader,
   TableSortLabel, TablePagination,
-  Popover, FormGroup, Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme, InputAdornment,
+  Popover, FormGroup, Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme, InputAdornment, Chip,
 } from '@mui/material';
 import { Add, Edit, Delete, Assignment, Groups, ViewColumn, Print, HowToVote, YouTube } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,7 @@ import { Match, Team, Field, Tournament, MatchStage } from '../../types';
 
 const empty: Match = {};
 
-type ColKey = 'date' | 'startTime' | 'tournament' | 'homeTeam' | 'opposition' | 'ground' | 'umpire' | 'stage';
+type ColKey = 'date' | 'startTime' | 'tournament' | 'homeTeam' | 'opposition' | 'ground' | 'umpire' | 'stage' | 'result';
 const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'date',        label: 'Match Day' },
   { key: 'startTime',   label: 'Start Time' },
@@ -24,11 +24,12 @@ const ALL_COLUMNS: { key: ColKey; label: string }[] = [
   { key: 'stage',       label: 'Stage' },
   { key: 'homeTeam',    label: 'Home Team' },
   { key: 'opposition',  label: 'Opposition' },
+  { key: 'result',      label: 'Result' },
   { key: 'ground',      label: 'Ground' },
   { key: 'umpire',      label: 'Umpire' },
 ];
-const DEFAULT_VISIBLE = new Set<ColKey>(['date', 'startTime', 'tournament', 'homeTeam', 'opposition', 'ground', 'umpire', 'stage']);
-const MOBILE_VISIBLE = new Set<ColKey>(['date', 'startTime', 'tournament', 'homeTeam', 'opposition', 'ground']);
+const DEFAULT_VISIBLE = new Set<ColKey>(['date', 'startTime', 'tournament', 'homeTeam', 'opposition', 'result', 'ground', 'stage']);
+const MOBILE_VISIBLE = new Set<ColKey>(['date', 'startTime', 'tournament', 'homeTeam', 'opposition', 'result']);
 
 export const Matches: React.FC = () => {
   const navigate = useNavigate();
@@ -242,6 +243,7 @@ export const Matches: React.FC = () => {
                 </TableCell>
               )}
               {col('opposition') && <TableCell>Opposition</TableCell>}
+              {col('result')     && <TableCell>Result</TableCell>}
               {col('ground')     && <TableCell>Ground</TableCell>}
               {col('umpire')     && <TableCell>Umpire</TableCell>}
               <TableCell />
@@ -256,9 +258,36 @@ export const Matches: React.FC = () => {
                 {col('stage')      && <TableCell>{r.matchStage ? { FRIENDLY: 'Friendly', POOL: 'Pool', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' }[r.matchStage] : ''}</TableCell>}
                 {col('homeTeam')   && <TableCell>{r.homeTeamName}</TableCell>}
                 {col('opposition') && <TableCell>{r.oppositionTeamName}</TableCell>}
+                {col('result') && (
+                  <TableCell>
+                    {r.forfeited || r.noResult ? (
+                      <Chip label={r.forfeited ? 'Forfeited' : 'No Result'} size="small" color="warning" variant="outlined" />
+                    ) : r.matchCompleted ? (
+                      <Box>
+                        {r.scoreBattingFirst != null && (
+                          <Typography variant="caption" display="block" noWrap>
+                            {r.scoreBattingFirst}/{r.wicketsLostBattingFirst ?? '?'} ({r.oversBattingFirst ?? '?'} ov)
+                          </Typography>
+                        )}
+                        {r.scoreBattingSecond != null && (
+                          <Typography variant="caption" display="block" noWrap>
+                            {r.scoreBattingSecond}/{r.wicketsLostBattingSecond ?? '?'} ({r.oversBattingSecond ?? '?'} ov)
+                          </Typography>
+                        )}
+                        {r.matchDrawn ? (
+                          <Chip label="Draw" size="small" variant="outlined" sx={{ mt: 0.25 }} />
+                        ) : r.matchOutcomeDescription ? (
+                          <Typography variant="caption" display="block" color="text.secondary" noWrap sx={{ maxWidth: 200 }}>
+                            {r.matchOutcomeDescription}
+                          </Typography>
+                        ) : null}
+                      </Box>
+                    ) : null}
+                  </TableCell>
+                )}
                 {col('ground')     && <TableCell>{r.fieldName}</TableCell>}
                 {col('umpire')     && <TableCell>{r.umpire}</TableCell>}
-                <TableCell>
+                <TableCell sx={{ whiteSpace: { xs: 'normal', md: 'nowrap' } }}>
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => openEdit(r)}><Edit /></IconButton>
                   </Tooltip>

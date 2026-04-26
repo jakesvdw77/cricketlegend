@@ -3,6 +3,7 @@ package com.cricketlegend.service.impl;
 import com.cricketlegend.domain.Club;
 import com.cricketlegend.domain.Field;
 import com.cricketlegend.dto.FieldDTO;
+import com.cricketlegend.exception.ConflictException;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.FieldMapper;
 import com.cricketlegend.repository.ClubRepository;
@@ -40,6 +41,8 @@ public class FieldServiceImpl implements FieldService {
     @Override
     @Transactional
     public FieldDTO create(FieldDTO dto) {
+        if (fieldRepository.existsByNameIgnoreCase(dto.getName()))
+            throw new ConflictException("A field with this name already exists.");
         Field field = fieldMapper.toEntity(dto);
         resolveClub(field, dto.getHomeClubId());
         return fieldMapper.toDto(fieldRepository.save(field));
@@ -50,6 +53,8 @@ public class FieldServiceImpl implements FieldService {
     public FieldDTO update(Long id, FieldDTO dto) {
         Field existing = fieldRepository.findById(id)
                 .orElseThrow(() -> NotFoundException.of("Field", id));
+        if (fieldRepository.existsByNameIgnoreCaseAndFieldIdNot(dto.getName(), id))
+            throw new ConflictException("A field with this name already exists.");
         existing.setName(dto.getName());
         existing.setAddress(dto.getAddress());
         existing.setGoogleMapsUrl(dto.getGoogleMapsUrl());

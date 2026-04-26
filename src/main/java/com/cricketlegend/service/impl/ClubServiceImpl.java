@@ -44,6 +44,8 @@ public class ClubServiceImpl implements ClubService {
     @Override
     @Transactional
     public ClubDTO create(ClubDTO dto) {
+        if (clubRepository.existsByNameIgnoreCase(dto.getName()))
+            throw new ConflictException("A club with this name already exists.");
         Club saved = clubRepository.save(clubMapper.toEntity(dto));
         return clubMapper.toDto(saved);
     }
@@ -53,6 +55,8 @@ public class ClubServiceImpl implements ClubService {
     public ClubDTO update(Long id, ClubDTO dto) {
         Club existing = clubRepository.findById(id)
                 .orElseThrow(() -> NotFoundException.of("Club", id));
+        if (clubRepository.existsByNameIgnoreCaseAndClubIdNot(dto.getName(), id))
+            throw new ConflictException("A club with this name already exists.");
         existing.setName(dto.getName());
         existing.setLogoUrl(dto.getLogoUrl());
         existing.setGoogleMapsUrl(dto.getGoogleMapsUrl());

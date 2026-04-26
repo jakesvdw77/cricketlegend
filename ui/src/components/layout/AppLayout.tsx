@@ -24,7 +24,7 @@ export const AppLayout: React.FC = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 1.5, sm: 2, md: 3 },
+          p: { xs: 1, sm: 1.5, md: 2 },
           transition: 'margin 0.2s',
           marginLeft: !isMobile && sidebarOpen ? `${DRAWER_WIDTH}px` : 0,
           minWidth: 0,

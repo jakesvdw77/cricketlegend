@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface FieldRepository extends JpaRepository<Field, Long> {
     boolean existsByHomeClubClubId(Long clubId);
+    boolean existsByNameIgnoreCase(String name);
+    boolean existsByNameIgnoreCaseAndFieldIdNot(String name, Long fieldId);
 }

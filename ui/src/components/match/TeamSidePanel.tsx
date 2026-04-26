@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Box, Typography, Paper, Autocomplete, TextField,
+  Box, Typography, Autocomplete, TextField,
   List, ListItem, ListItemText, IconButton, Chip, Divider,
   Button, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip,
   CircularProgress, InputAdornment,
@@ -248,10 +248,10 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
   );
 
   return (
-    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+    <Box sx={{ display: 'flex', border: 1, borderColor: 'divider', borderRadius: 1, overflow: 'hidden', alignItems: 'stretch', bgcolor: 'background.paper' }}>
 
       {/* Left: Available Squad */}
-      <Paper variant="outlined" sx={{ p: 2, flex: '0 0 400px' }}>
+      <Box sx={{ flex: 8, p: 2, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="subtitle2" fontWeight="bold">Available Squad</Typography>
           <Button
@@ -274,10 +274,20 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
             {available.map(p => {
               const unavailable = availabilityMap[p.playerId!] === 'NO';
               const draggable = canAddMore && !unavailable;
+              const canAdd = !unavailable && !announced;
+              const handleDoubleClick = () => {
+                if (!canAdd) return;
+                if (xi.length < 11) {
+                  addPlayerAt(p.playerId!, xi.length);
+                } else if (!side.twelfthManPlayerId) {
+                  persist({ ...side, twelfthManPlayerId: p.playerId });
+                }
+              };
               return (
                 <ListItem
                   key={p.playerId}
                   draggable={draggable}
+                  onDoubleClick={handleDoubleClick}
                   onDragStart={() => {
                     dragSource.current = { type: 'squad', playerId: p.playerId! };
                   }}
@@ -326,41 +336,51 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
             })}
           </List>
         )}
-      </Paper>
+      </Box>
+
+      <Divider orientation="vertical" flexItem />
 
       {/* Right: Playing XI + selectors */}
-      <Paper variant="outlined" sx={{ p: 2, flex: 1, minWidth: 0 }}>
+      <Box sx={{ flex: 10, p: 2, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="subtitle1" fontWeight="bold">{teamName}</Typography>
           <Chip label={`${xi.length}/11`} size="small" color={xi.length === 11 ? 'success' : 'warning'} />
         </Box>
 
-        {side.teamAnnounced ? (
-          <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-            <Chip icon={<CheckCircle />} label="Team Announced" color="success" variant="outlined" sx={{ flex: 1 }} />
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
+          {xi.length > 0 && (
+            <Autocomplete
+              options={xi}
+              getOptionLabel={p => `${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`}
+              value={selectedCaptain}
+              onChange={(_, p) => persist({ ...side, captainPlayerId: p?.playerId ?? undefined })}
+              disabled={announced}
+              renderInput={params => <TextField {...params} label="👑 Captain" size="small" />}
+              sx={{ flex: 1 }}
+              blurOnSelect
+            />
+          )}
+          {side.teamAnnounced ? (
+            <>
+              <Chip icon={<CheckCircle />} label="Team Announced" color="success" variant="outlined" />
+              <Button size="small" variant="outlined" color="warning" startIcon={<Edit />} onClick={() => setEditConfirmOpen(true)}>
+                Edit
+              </Button>
+            </>
+          ) : (
             <Button
               size="small"
               variant="outlined"
-              color="warning"
-              startIcon={<Edit />}
-              onClick={() => setEditConfirmOpen(true)}
+              color="success"
+              startIcon={<Campaign />}
+              onClick={() => setConfirmOpen(true)}
+              disabled={xi.length < 11}
+              sx={{ whiteSpace: 'nowrap' }}
             >
-              Edit
+              Announce Team
             </Button>
-          </Box>
-        ) : (
-          <Button
-            variant="outlined"
-            color="success"
-            fullWidth
-            startIcon={<Campaign />}
-            onClick={() => setConfirmOpen(true)}
-            disabled={xi.length < 11}
-            sx={{ mb: 1 }}
-          >
-            Announce Team
-          </Button>
-        )}
+          )}
+        </Box>
 
         <Divider sx={{ mb: 1 }} />
 
@@ -513,19 +533,6 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
           />
         )}
 
-        {xi.length > 0 && (
-          <Autocomplete
-            options={xi}
-            getOptionLabel={p => `${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`}
-            value={selectedCaptain}
-            onChange={(_, p) => persist({ ...side, captainPlayerId: p?.playerId ?? undefined })}
-            disabled={announced}
-            renderInput={params => <TextField {...params} label="👑 Captain" size="small" />}
-            sx={{ mb: 1 }}
-            blurOnSelect
-          />
-        )}
-
         <Dialog open={subOpen} onClose={() => setSubOpen(false)} maxWidth="sm" fullWidth>
           <DialogTitle>Add Substitute Player</DialogTitle>
           <DialogContent>
@@ -650,7 +657,7 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
             </Button>
           </DialogActions>
         </Dialog>
-      </Paper>
+      </Box>
     </Box>
   );
 };

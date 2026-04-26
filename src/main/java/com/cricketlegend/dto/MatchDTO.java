@@ -34,4 +34,17 @@ public class MatchDTO {
     private String fieldGoogleMapsUrl;
     private Long tournamentId;
     private String tournamentName;
+
+    // Result summary (read-only, mapped from result relationship)
+    private Boolean matchCompleted;
+    private Boolean matchDrawn;
+    private Boolean forfeited;
+    private Boolean noResult;
+    private String  matchOutcomeDescription;
+    private Integer scoreBattingFirst;
+    private Integer wicketsLostBattingFirst;
+    private String  oversBattingFirst;
+    private Integer scoreBattingSecond;
+    private Integer wicketsLostBattingSecond;
+    private String  oversBattingSecond;
 }

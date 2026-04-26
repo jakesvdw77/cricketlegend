@@ -11,6 +11,7 @@ import { LandingPage } from './pages/LandingPage';
 // Admin pages
 import { Tournaments } from './pages/admin/Tournaments';
 import { Teams } from './pages/admin/Teams';
+import { TeamSquad } from './pages/admin/TeamSquad';
 import { Players } from './pages/admin/Players';
 import { Matches } from './pages/admin/Matches';
 import { Teamsheet } from './pages/admin/Teamsheet';
@@ -93,6 +94,7 @@ function ThemedApp() {
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />
             <Route path="admin/teams" element={<ManagerRoute element={<Teams />} />} />
+            <Route path="admin/teams/:teamId/squad" element={<ManagerRoute element={<TeamSquad />} />} />
             <Route path="admin/players" element={<ManagerRoute element={<Players />} />} />
             <Route path="admin/tournaments" element={<ManagerRoute element={<Tournaments />} />} />
             <Route path="admin/matches" element={<ManagerRoute element={<Matches />} />} />

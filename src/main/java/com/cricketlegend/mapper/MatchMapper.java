@@ -20,6 +20,17 @@ public interface MatchMapper {
     @Mapping(source = "field.googleMapsUrl", target = "fieldGoogleMapsUrl")
     @Mapping(source = "tournament.tournamentId", target = "tournamentId")
     @Mapping(source = "tournament.name", target = "tournamentName")
+    @Mapping(source = "result.matchCompleted", target = "matchCompleted")
+    @Mapping(source = "result.matchDrawn", target = "matchDrawn")
+    @Mapping(source = "result.forfeited", target = "forfeited")
+    @Mapping(source = "result.noResult", target = "noResult")
+    @Mapping(source = "result.matchOutcomeDescription", target = "matchOutcomeDescription")
+    @Mapping(source = "result.scoreBattingFirst", target = "scoreBattingFirst")
+    @Mapping(source = "result.wicketsLostBattingFirst", target = "wicketsLostBattingFirst")
+    @Mapping(source = "result.oversBattingFirst", target = "oversBattingFirst")
+    @Mapping(source = "result.scoreBattingSecond", target = "scoreBattingSecond")
+    @Mapping(source = "result.wicketsLostBattingSecond", target = "wicketsLostBattingSecond")
+    @Mapping(source = "result.oversBattingSecond", target = "oversBattingSecond")
     MatchDTO toDto(Match entity);
 
     @Mapping(target = "homeTeam", ignore = true)
