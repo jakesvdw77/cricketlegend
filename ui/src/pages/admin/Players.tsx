@@ -280,7 +280,7 @@ export const Players: React.FC = () => {
       <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') setOpen(false); }} maxWidth="md" fullWidth>
         <DialogTitle>{editing.playerId ? 'Edit' : 'New'} Player</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
-          <PlayerEditForm editing={editing} onChange={set} clubs={clubs} />
+          <PlayerEditForm editing={editing} onChange={set} clubs={clubs} readOnlyConsent />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>

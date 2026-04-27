@@ -169,6 +169,7 @@ export interface Player {
   bowlingType?: BowlingType;
   wicketKeeper?: boolean;
   partTimeBowler?: boolean;
+  consentEmail?: boolean;
   shirtSize?: ClothingSize;
   pantSize?: ClothingSize;
   gender?: Gender;

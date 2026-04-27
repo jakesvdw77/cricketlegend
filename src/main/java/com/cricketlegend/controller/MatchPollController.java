@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-record SendNotificationRequest(String subject, String message, Long teamId) {}
+record SendNotificationRequest(String subject, String message, Long teamId, Long clubId) {}
 
 @RestController
 @RequestMapping("/api/v1")
@@ -132,7 +132,7 @@ public class MatchPollController {
         String email = jwt.getClaimAsString("email");
         boolean isAdmin = authentication.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
-        pollService.sendManagerNotification(request.subject(), request.message(), email, isAdmin, request.teamId());
+        pollService.sendManagerNotification(request.subject(), request.message(), email, isAdmin, request.teamId(), request.clubId());
         return ResponseEntity.ok().build();
     }
 }

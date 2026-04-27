@@ -29,6 +29,7 @@ public class PlayerDTO {
     private BowlingType bowlingType;
     private Boolean wicketKeeper;
     private Boolean partTimeBowler;
+    private Boolean consentEmail;
     private ClothingSize shirtSize;
     private ClothingSize pantSize;
     private Gender gender;

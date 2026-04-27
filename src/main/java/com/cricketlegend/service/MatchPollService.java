@@ -16,5 +16,5 @@ public interface MatchPollService {
     void markNotificationRead(Long notificationId, String email);
     void markAllNotificationsRead(String email);
     void clearAllNotifications(String email);
-    void sendManagerNotification(String subject, String message, String managerEmail, boolean isAdmin, Long teamId);
+    void sendManagerNotification(String subject, String message, String managerEmail, boolean isAdmin, Long teamId, Long clubId);
 }

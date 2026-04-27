@@ -9,6 +9,6 @@ public interface ClubEventService {
     List<ClubEventDTO> getByClub(Long clubId);
     ClubEventDTO create(ClubEventDTO dto, String creatorEmail);
     ClubEventDTO update(Long eventId, ClubEventDTO dto);
-    void delete(Long eventId);
-    void deleteSeries(Long seriesId);
+    void delete(Long eventId, boolean notify);
+    void deleteSeries(Long seriesId, boolean notify);
 }

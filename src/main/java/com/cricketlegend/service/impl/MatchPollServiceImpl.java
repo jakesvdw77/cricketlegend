@@ -170,9 +170,17 @@ public class MatchPollServiceImpl implements MatchPollService {
     }
 
     @Override
-    public void sendManagerNotification(String subject, String message, String managerEmail, boolean isAdmin, Long teamId) {
+    public void sendManagerNotification(String subject, String message, String managerEmail, boolean isAdmin, Long teamId, Long clubId) {
         List<Player> players;
-        if (isAdmin) {
+        if (isAdmin && teamId != null) {
+            Team team = teamRepository.findById(teamId)
+                    .orElseThrow(() -> NotFoundException.of("Team", teamId));
+            List<Long> squadIds = team.getSquadPlayerIds();
+            if (squadIds == null || squadIds.isEmpty()) return;
+            players = playerRepository.findAllById(squadIds);
+        } else if (isAdmin && clubId != null) {
+            players = playerRepository.findByHomeClubClubId(clubId);
+        } else if (isAdmin) {
             players = playerRepository.findAll();
         } else if (teamId != null) {
             Team team = teamRepository.findById(teamId)

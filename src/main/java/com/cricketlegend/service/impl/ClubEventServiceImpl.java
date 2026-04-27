@@ -145,14 +145,17 @@ public class ClubEventServiceImpl implements ClubEventService {
     }
 
     @Override
-    public void delete(Long eventId) {
-        if (!eventRepository.existsById(eventId)) throw NotFoundException.of("ClubEvent", eventId);
+    public void delete(Long eventId, boolean notify) {
+        ClubEvent event = eventRepository.findById(eventId)
+                .orElseThrow(() -> NotFoundException.of("ClubEvent", eventId));
+        if (notify) sendCancellationNotifications(event);
         eventRepository.deleteById(eventId);
     }
 
     @Override
-    public void deleteSeries(Long seriesId) {
+    public void deleteSeries(Long seriesId, boolean notify) {
         List<ClubEvent> series = eventRepository.findBySeriesId(seriesId);
+        if (notify && !series.isEmpty()) sendCancellationNotifications(series.get(0));
         eventRepository.deleteAll(series);
     }
 
@@ -197,6 +200,33 @@ public class ClubEventServiceImpl implements ClubEventService {
                         .player(p)
                         .type(NotificationType.CLUB_EVENT)
                         .eventId(event.getEventId())
+                        .subject(subject)
+                        .message(body)
+                        .read(false)
+                        .createdAt(LocalDateTime.now())
+                        .build())
+                .toList();
+        notificationRepository.saveAll(notifications);
+    }
+
+    private void sendCancellationNotifications(ClubEvent event) {
+        Club club = event.getClub();
+        Team team = event.getTeam();
+        List<Player> recipients = team != null
+                ? playerRepository.findAllById(team.getSquadPlayerIds())
+                : playerRepository.findByHomeClubClubId(club.getClubId());
+
+        String subject = "Cancelled: " + categoryLabel(event.getCategory()) +
+                (event.getTitle() != null ? " — " + event.getTitle() : "");
+        String body = "The event scheduled for " + event.getEventDate()
+                + (event.getStartTime() != null ? " at " + event.getStartTime().format(TIME_FMT) : "")
+                + (event.getLocationName() != null ? " (" + event.getLocationName() + ")" : "")
+                + " has been cancelled.";
+
+        List<PlayerNotification> notifications = recipients.stream()
+                .map(p -> PlayerNotification.builder()
+                        .player(p)
+                        .type(NotificationType.CLUB_EVENT)
                         .subject(subject)
                         .message(body)
                         .read(false)

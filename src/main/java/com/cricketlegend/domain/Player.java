@@ -50,6 +50,7 @@ public class Player {
 
     private Boolean wicketKeeper;
     private Boolean partTimeBowler;
+    private Boolean consentEmail;
 
     @Enumerated(EnumType.STRING)
     private ClothingSize shirtSize;

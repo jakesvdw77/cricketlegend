@@ -552,6 +552,10 @@ export const LandingPage: React.FC = () => {
     ? 'linear-gradient(160deg, #0a160a 0%, #0e2a0e 50%, #1a3a1a 100%)'
     : 'linear-gradient(160deg, #0d3349 0%, #1a5276 55%, #1e7a4a 100%)';
 
+  const heroBgSemi = isDark
+    ? 'linear-gradient(160deg, rgba(10,22,10,0.5) 0%, rgba(14,42,14,0.5) 50%, rgba(26,58,26,0.5) 100%)'
+    : 'linear-gradient(160deg, rgba(13,51,73,0.5) 0%, rgba(26,82,118,0.5) 55%, rgba(30,122,74,0.5) 100%)';
+
   const stats = [
     { label: 'Active Tournaments', value: liveTournaments.length + upcomingTournaments.length },
     { label: 'Live Matches',       value: liveMatches.length },
@@ -565,10 +569,7 @@ export const LandingPage: React.FC = () => {
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <AppBar position="sticky" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <Toolbar sx={{ gap: 1 }}>
-          <SportsCricket sx={{ mr: 1 }} />
-          <Typography variant="h6" fontWeight="bold" sx={{ flexGrow: 1, letterSpacing: 0.5 }}>
-            Cricket Legend
-          </Typography>
+          <Box sx={{ flexGrow: 1 }} />
           {nextTournament && <NavCountdown tournament={nextTournament} />}
           {!keycloak.authenticated && (
             <Button
@@ -576,7 +577,7 @@ export const LandingPage: React.FC = () => {
               disableElevation
               startIcon={<Login />}
               onClick={() => keycloak.login()}
-              sx={{ bgcolor: 'rgba(255,255,255,0.15)', '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' } }}
+              sx={{ bgcolor: 'rgba(255,255,255,0.35)', color: 'white', fontWeight: 700, '&:hover': { bgcolor: 'rgba(255,255,255,0.5)' } }}
             >
               Login
             </Button>
@@ -585,71 +586,52 @@ export const LandingPage: React.FC = () => {
       </AppBar>
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      {!keycloak.authenticated && <Box sx={{
-        background: heroBg,
-        color: 'white',
-        minHeight: { xs: 'auto', md: 'auto' },
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        {/* Dot pattern overlay */}
-        <Box sx={{
-          position: 'absolute', inset: 0, opacity: 0.04,
-          backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-          pointerEvents: 'none',
-        }} />
+      {!keycloak.authenticated && (
+        <Box>
 
-        <Container maxWidth="md" sx={{ textAlign: 'center', py: { xs: 2.5, md: 3 }, position: 'relative', zIndex: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, mb: 2 }}>
-            <SportsCricket sx={{ fontSize: { xs: 28, md: 40 }, opacity: 0.85 }} />
-            <Typography component="h1" sx={{
-              fontSize: { xs: '2.2rem', sm: '3rem', md: '3.8rem' },
-              fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.5px',
+          {/* Banner with vintage green filter + edge vignette */}
+          <Box sx={{ position: 'relative' }}>
+            <Box
+              component="img"
+              src="/cricket_banner_1.svg"
+              alt="Cricket Legend"
+              sx={{
+                display: 'block', width: '100%', height: 'auto',
+                filter: 'sepia(70%) hue-rotate(65deg) saturate(220%) brightness(0.62)',
+              }}
+            />
+            <Box sx={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.45) 100%)',
+            }} />
+          </Box>
+
+          {/* Stats strip below the banner */}
+          {stats.length > 0 && (
+            <Box sx={{
+              background: heroBg,
+              borderTop: '2px solid rgba(255,255,255,0.08)',
+              py: { xs: 1.25, md: 1.75 },
             }}>
-              Cricket Legend
-            </Typography>
-          </Box>
+              <Container maxWidth="md">
+                <Box sx={{ display: 'flex', justifyContent: 'center', gap: { xs: 3, sm: 6 }, flexWrap: 'wrap' }}>
+                  {stats.map(s => (
+                    <Box key={s.label} sx={{ textAlign: 'center', color: 'white' }}>
+                      <Typography sx={{ fontSize: { xs: '1.25rem', sm: '1.75rem' }, fontWeight: 800, lineHeight: 1 }}>
+                        {s.value}
+                      </Typography>
+                      <Typography sx={{ fontSize: '0.6rem', opacity: 0.7, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 600 }}>
+                        {s.label}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Container>
+            </Box>
+          )}
 
-          <Typography variant="h6" sx={{
-            opacity: 0.82, fontWeight: 400,
-            maxWidth: 540, mx: 'auto', mb: 4.5,
-            fontSize: { xs: '1rem', md: '1.15rem' }, lineHeight: 1.65,
-          }}>
-            Complete cricket management — tournaments, fixtures, scorecards, team selection and financials in one platform.
-          </Typography>
-
-        </Container>
-
-        {/* Stats strip */}
-        {stats.length > 0 && (
-          <Box sx={{
-            bgcolor: 'rgba(0,0,0,0.28)',
-            backdropFilter: 'blur(8px)',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            py: 1.5, mt: { xs: 2.5, md: 3 },
-          }}>
-            <Container maxWidth="md">
-              <Box sx={{ display: 'flex', justifyContent: 'center', gap: { xs: 3, sm: 6 }, flexWrap: 'wrap' }}>
-                {stats.map(s => (
-                  <Box key={s.label} sx={{ textAlign: 'center' }}>
-                    <Typography sx={{ fontSize: { xs: '1.5rem', sm: '2rem' }, fontWeight: 800, lineHeight: 1 }}>
-                      {s.value}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.62rem', opacity: 0.65, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                      {s.label}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            </Container>
-          </Box>
-        )}
-
-      </Box>}
+        </Box>
+      )}
 
       {/* ── Live Matches ────────────────────────────────────────────────── */}
       {liveMatches.length > 0 && (
@@ -1091,12 +1073,26 @@ export const LandingPage: React.FC = () => {
             ))}
           </Grid>
 
-          <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', mb: 2.5 }} />
-          <Typography variant="caption" sx={{ opacity: 0.45 }}>
-            © {new Date().getFullYear()} Cricket Legend. All rights reserved.
-          </Typography>
         </Container>
       </Box>
+
+      {/* Fixed copyright bar */}
+      <Box sx={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1200,
+        background: isDark
+          ? 'linear-gradient(160deg, #0a160a 0%, #0e2a0e 100%)'
+          : 'linear-gradient(160deg, #0d3349 0%, #1a5276 100%)',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
+        py: 0.75, px: 2,
+        textAlign: 'center',
+      }}>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+          © {new Date().getFullYear()} Cricket Legend. All rights reserved.
+        </Typography>
+      </Box>
+
+      {/* Spacer so footer content isn't hidden behind the fixed bar */}
+      <Box sx={{ height: 36 }} />
     </Box>
   );
 };

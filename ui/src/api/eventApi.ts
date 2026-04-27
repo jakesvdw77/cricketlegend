@@ -6,6 +6,6 @@ export const eventApi = {
   getByClub: (clubId: number) => api.get<ClubEvent[]>(`/events/club/${clubId}`).then(r => r.data),
   create: (dto: ClubEvent) => api.post<ClubEvent>('/events', dto).then(r => r.data),
   update: (eventId: number, dto: ClubEvent) => api.put<ClubEvent>(`/events/${eventId}`, dto).then(r => r.data),
-  delete: (eventId: number) => api.delete(`/events/${eventId}`),
-  deleteSeries: (seriesId: number) => api.delete(`/events/series/${seriesId}`),
+  delete: (eventId: number, notify = false) => api.delete(`/events/${eventId}`, { params: { notify } }),
+  deleteSeries: (seriesId: number, notify = false) => api.delete(`/events/series/${seriesId}`, { params: { notify } }),
 };

@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import {
   Box, TextField, MenuItem, Checkbox, FormControlLabel, Avatar,
   Button, CircularProgress, Tooltip, ToggleButtonGroup, ToggleButton, IconButton,
-  Tabs, Tab,
+  Tabs, Tab, Typography,
 } from '@mui/material';
 import { CloudUpload, Male, Female, HighlightOff } from '@mui/icons-material';
 import { paymentApi } from '../../api/paymentApi';
@@ -20,9 +20,10 @@ interface Props {
   onChange: (patch: Partial<Player>) => void;
   clubs: Club[];
   readOnlyEmail?: boolean;
+  readOnlyConsent?: boolean;
 }
 
-export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, readOnlyEmail }) => {
+export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, readOnlyEmail, readOnlyConsent }) => {
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState(0);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +50,7 @@ export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, read
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Tab label="General" />
         <Tab label="Cricket" />
+        <Tab label="Notifications" />
       </Tabs>
 
       {/* Both panels share the same grid cell so the container height never changes */}
@@ -205,6 +207,24 @@ export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, read
             <FormControlLabel control={<Checkbox checked={editing.partTimeBowler ?? false}
               onChange={e => set({ partTimeBowler: e.target.checked })} />} label="Part Time Bowler" />
           </Box>
+        </Box>
+
+        <Box sx={{ gridArea: '1/1', display: 'flex', flexDirection: 'column', gap: 2, visibility: tab === 2 ? 'visible' : 'hidden' }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={editing.consentEmail ?? false}
+                onChange={e => !readOnlyConsent && set({ consentEmail: e.target.checked })}
+                disabled={readOnlyConsent}
+              />
+            }
+            label="Player consents to receive notifications via Email"
+          />
+          {readOnlyConsent && (
+            <Typography variant="caption" color="text.secondary">
+              Only the player can change their notification consent.
+            </Typography>
+          )}
         </Box>
 
       </Box>

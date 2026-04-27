@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody,
   TableContainer, Paper, IconButton, Dialog, DialogTitle, DialogContent,
   DialogActions, TextField, MenuItem, Chip, Tooltip, TablePagination,
-  Divider, FormControlLabel, Switch,
+  Divider, FormControlLabel, Switch, Checkbox,
 } from '@mui/material';
 import { Add, Edit, Delete, DeleteSweep, OpenInNew, VideoCall } from '@mui/icons-material';
 import { eventApi } from '../../api/eventApi';
@@ -45,9 +45,11 @@ export const Events: React.FC = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedClubId, setSelectedClubId] = useState<number | ''>('');
   const [categoryFilter, setCategoryFilter] = useState<EventCategory | ''>('');
+  const [teamFilter, setTeamFilter] = useState<number | ''>('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ClubEvent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClubEvent | null>(null);
+  const [deleteNotify, setDeleteNotify] = useState(false);
   const [useClubLocation, setUseClubLocation] = useState(false);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -107,14 +109,16 @@ export const Events: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!deleteTarget?.eventId) return;
-    await eventApi.delete(deleteTarget.eventId);
+    await eventApi.delete(deleteTarget.eventId, deleteNotify);
     setDeleteTarget(null);
+    setDeleteNotify(false);
     load();
   };
 
   const deleteSeries = async (seriesId: number) => {
-    await eventApi.deleteSeries(seriesId);
+    await eventApi.deleteSeries(seriesId, deleteNotify);
     setDeleteTarget(null);
+    setDeleteNotify(false);
     load();
   };
 
@@ -122,7 +126,10 @@ export const Events: React.FC = () => {
     ? teams.filter(t => t.associatedClubId === editing.clubId)
     : teams;
 
-  const filtered = categoryFilter ? events.filter(e => e.category === categoryFilter) : events;
+  const clubTeams = selectedClubId ? teams.filter(t => t.associatedClubId === selectedClubId) : [];
+  const filtered = events
+    .filter(e => !categoryFilter || e.category === categoryFilter)
+    .filter(e => !teamFilter || e.teamId === teamFilter);
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   return (
@@ -134,11 +141,23 @@ export const Events: React.FC = () => {
           size="small"
           label="Club"
           value={selectedClubId}
-          onChange={e => { setSelectedClubId(e.target.value === '' ? '' : +e.target.value); setCategoryFilter(''); setPage(0); }}
+          onChange={e => { setSelectedClubId(e.target.value === '' ? '' : +e.target.value); setCategoryFilter(''); setTeamFilter(''); setPage(0); }}
           sx={{ width: 220 }}
         >
           <MenuItem value="">— Select a club —</MenuItem>
           {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Team"
+          value={teamFilter}
+          onChange={e => { setTeamFilter(e.target.value === '' ? '' : +e.target.value); setPage(0); }}
+          sx={{ width: 200 }}
+          disabled={!selectedClubId}
+        >
+          <MenuItem value="">— All teams —</MenuItem>
+          {clubTeams.map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>)}
         </TextField>
         <TextField
           select
@@ -223,8 +242,8 @@ export const Events: React.FC = () => {
                   <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                     {!selectedClubId
                       ? 'Select a club to view events.'
-                      : categoryFilter
-                        ? 'No events found for the selected category.'
+                      : (categoryFilter || teamFilter)
+                        ? 'No events match the selected filters.'
                         : 'No events found for this club.'}
                   </Typography>
                 </TableCell>
@@ -348,7 +367,7 @@ export const Events: React.FC = () => {
       )}
 
       {/* Delete confirmation */}
-      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+      <Dialog open={!!deleteTarget} onClose={() => { setDeleteTarget(null); setDeleteNotify(false); }} maxWidth="xs" fullWidth>
         <DialogTitle>Delete Event</DialogTitle>
         <DialogContent>
           <Typography>
@@ -359,9 +378,20 @@ export const Events: React.FC = () => {
               This event is part of a recurring series.
             </Typography>
           )}
+          <FormControlLabel
+            sx={{ mt: 2, display: 'flex' }}
+            control={
+              <Checkbox
+                checked={deleteNotify}
+                onChange={e => setDeleteNotify(e.target.checked)}
+                color="warning"
+              />
+            }
+            label="Send cancellation notification to members"
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button onClick={() => { setDeleteTarget(null); setDeleteNotify(false); }}>Cancel</Button>
           {deleteTarget?.seriesId && (
             <Button color="warning" onClick={() => deleteSeries(deleteTarget.seriesId!)}>
               Delete Series

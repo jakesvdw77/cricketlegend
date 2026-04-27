@@ -60,5 +60,6 @@
     <include file="db/changelog/v1/053-match-result-forfeited.sql"/>
     <include file="db/changelog/v1/054-match-result-no-result.sql"/>
     <include file="db/changelog/v1/055-club-event.sql"/>
+    <include file="db/changelog/v1/056-player-notification-consent.sql"/>
 
 </databaseChangeLog>

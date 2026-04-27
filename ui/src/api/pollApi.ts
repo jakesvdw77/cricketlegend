@@ -29,8 +29,8 @@ export const pollApi = {
   clearAll: () =>
     api.delete('/notifications'),
 
-  sendNotification: (subject: string, message: string, teamId?: number) =>
-    api.post('/notifications/send', { subject, message, teamId: teamId ?? null }),
+  sendNotification: (subject: string, message: string, teamId?: number, clubId?: number) =>
+    api.post('/notifications/send', { subject, message, teamId: teamId ?? null, clubId: clubId ?? null }),
 
   getManagedTeams: () =>
     api.get<ManagerTeamDTO[]>('/managers/my-managed-teams').then(r => r.data),

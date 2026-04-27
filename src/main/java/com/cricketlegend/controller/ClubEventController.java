@@ -55,16 +55,18 @@ public class ClubEventController {
     @DeleteMapping("/{eventId}")
     @PreAuthorize("hasAnyRole('admin','manager')")
     @Operation(summary = "Delete a single event occurrence")
-    public ResponseEntity<Void> delete(@PathVariable Long eventId) {
-        eventService.delete(eventId);
+    public ResponseEntity<Void> delete(@PathVariable Long eventId,
+                                       @RequestParam(defaultValue = "false") boolean notify) {
+        eventService.delete(eventId, notify);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/series/{seriesId}")
     @PreAuthorize("hasAnyRole('admin','manager')")
     @Operation(summary = "Delete all occurrences in a recurring series")
-    public ResponseEntity<Void> deleteSeries(@PathVariable Long seriesId) {
-        eventService.deleteSeries(seriesId);
+    public ResponseEntity<Void> deleteSeries(@PathVariable Long seriesId,
+                                             @RequestParam(defaultValue = "false") boolean notify) {
+        eventService.deleteSeries(seriesId, notify);
         return ResponseEntity.noContent().build();
     }
 }

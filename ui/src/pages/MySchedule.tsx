@@ -11,6 +11,7 @@ import {
 import {
   SportsCricket, LocationOn, EmojiEvents, AccessTime, CalendarMonth,
   CheckCircle, Cancel, HelpOutline, Groups, HowToVote, AssignmentInd,
+  FileDownload,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { pollApi } from '../api/pollApi';
@@ -201,6 +202,93 @@ export const MySchedule: React.FC = () => {
   const onNavigate = useCallback((d: Date) => setDate(d), []);
   const onView = useCallback((v: View) => setView(v), []);
 
+  const downloadIcs = () => {
+    const escIcs = (s: string) =>
+      s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const fmtDt = (d: Date) =>
+      `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    const fmtDate = (d: Date) =>
+      `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+
+    const stamp = fmtDt(new Date());
+    const lines: string[] = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Cricket Legend//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'X-WR-CALNAME:Cricket Legend',
+    ];
+
+    matches.forEach(m => {
+      const start = toDate(m);
+      const end = toEndDate(m);
+      const desc = [
+        m.tournamentName ? `${m.tournamentName}${m.matchStage ? ' — ' + (STAGE_LABELS[m.matchStage] ?? m.matchStage) : ''}` : '',
+        m.umpire ? `Umpire: ${m.umpire}` : '',
+      ].filter(Boolean).join('\\n');
+      lines.push(
+        'BEGIN:VEVENT',
+        `UID:match-${m.matchId}@cricketlegend`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART:${fmtDt(start)}`,
+        `DTEND:${fmtDt(end)}`,
+        `SUMMARY:${escIcs(`🏏 ${m.homeTeamName ?? '—'} vs ${m.oppositionTeamName ?? '—'}`)}`,
+        ...(m.fieldName ? [`LOCATION:${escIcs([m.fieldName, m.fieldAddress].filter(Boolean).join(', '))}`] : []),
+        ...(desc ? [`DESCRIPTION:${desc}`] : []),
+        'END:VEVENT',
+      );
+    });
+
+    clubEvents.forEach(ev => {
+      const start = new Date(ev.eventDate + 'T' + (ev.startTime ?? '00:00'));
+      const end = ev.endTime
+        ? new Date(ev.eventDate + 'T' + ev.endTime)
+        : new Date(start.getTime() + 60 * 60 * 1000);
+      const categoryLabel = CATEGORY_LABELS[ev.category] ?? ev.category;
+      const summary = ev.title ? `${categoryLabel} — ${ev.title}` : categoryLabel;
+      const desc = [ev.notes, ev.meetingUrl ? `Meeting: ${ev.meetingUrl}` : ''].filter(Boolean).join('\\n');
+      lines.push(
+        'BEGIN:VEVENT',
+        `UID:event-${ev.eventId}@cricketlegend`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART:${fmtDt(start)}`,
+        `DTEND:${fmtDt(end)}`,
+        `SUMMARY:${escIcs(summary)}`,
+        ...(ev.locationName ? [`LOCATION:${escIcs(ev.locationName)}`] : []),
+        ...(desc ? [`DESCRIPTION:${escIcs(desc)}`] : []),
+        'END:VEVENT',
+      );
+    });
+
+    clubPlayers.forEach(p => {
+      const dob = new Date(p.dateOfBirth!);
+      const start = new Date(thisYear, dob.getMonth(), dob.getDate());
+      const end = new Date(thisYear, dob.getMonth(), dob.getDate() + 1);
+      lines.push(
+        'BEGIN:VEVENT',
+        `UID:birthday-${p.playerId}@cricketlegend`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${fmtDate(start)}`,
+        `DTEND;VALUE=DATE:${fmtDate(end)}`,
+        'RRULE:FREQ=YEARLY',
+        `SUMMARY:${escIcs(`🎂 ${p.name} ${p.surname}`)}`,
+        'END:VEVENT',
+      );
+    });
+
+    lines.push('END:VCALENDAR');
+
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cricket-legend.ics';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const eventStyleGetter = (event: CalendarEvent) => {
     const bg = event.type === 'birthday' ? '#7b1fa2'
       : event.type === 'club_event' ? '#2e7d32'
@@ -241,6 +329,15 @@ export const MySchedule: React.FC = () => {
         <CalendarMonth color="primary" />
         <Typography variant="h5">My Schedule</Typography>
         <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ ml: 1 }} />
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<FileDownload />}
+          onClick={downloadIcs}
+          sx={{ ml: 'auto' }}
+        >
+          Export to Calendar
+        </Button>
       </Box>
 
       {matches.length === 0 ? (
