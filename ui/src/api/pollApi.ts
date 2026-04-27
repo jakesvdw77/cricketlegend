@@ -14,6 +14,9 @@ export const pollApi = {
   setPlayerAvailability: (matchId: number, teamId: number, playerId: number, status: AvailabilityStatus) =>
     api.put(`/matches/${matchId}/poll/${teamId}/players/${playerId}/availability`, { status }),
 
+  resendNotifications: (matchId: number, teamId: number) =>
+    api.post(`/matches/${matchId}/poll/${teamId}/resend`),
+
   getMyNotifications: () =>
     api.get<PlayerNotification[]>('/notifications').then(r => r.data),
 

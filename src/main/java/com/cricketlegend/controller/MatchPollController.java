@@ -50,6 +50,16 @@ public class MatchPollController {
         return ResponseEntity.ok(pollService.togglePoll(matchId, request.getTeamId(), request.isOpen()));
     }
 
+    @PostMapping("/matches/{matchId}/poll/{teamId}/resend")
+    @PreAuthorize("hasAnyRole('admin','manager')")
+    @Operation(summary = "Resend poll notifications to all squad members")
+    public ResponseEntity<Void> resendPollNotifications(
+            @PathVariable Long matchId,
+            @PathVariable Long teamId) {
+        pollService.resendPollNotifications(matchId, teamId);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/matches/{matchId}/poll/{teamId}")
     @Operation(summary = "Get poll details with squad availability")
     public ResponseEntity<MatchPollDTO> getPoll(

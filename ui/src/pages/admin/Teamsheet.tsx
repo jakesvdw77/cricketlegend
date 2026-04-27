@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Button, Snackbar, Alert, CircularProgress, Tabs, Tab } from '@mui/material';
-import { ArrowBack, Print, Sync } from '@mui/icons-material';
+import { ArrowBack, Print, Share, Sync } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
-import { Match, Player } from '../../types';
+import { playerApi } from '../../api/playerApi';
+import { Match, MatchSide, Player } from '../../types';
 import { TeamSidePanel } from '../../components/match/TeamSidePanel';
+import TeamsheetTemplatesDialog from '../../components/match/TeamsheetTemplatesDialog';
 
 export const Teamsheet: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
@@ -13,13 +15,22 @@ export const Teamsheet: React.FC = () => {
   const id = Number(matchId);
   const [match, setMatch] = useState<Match | null>(null);
   const [squadsByTeam, setSquadsByTeam] = useState<Record<number, Player[]>>({});
+  const [sides, setSides] = useState<MatchSide[]>([]);
+  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [activeTab, setActiveTab] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
 
   useEffect(() => {
-    matchApi.findById(id).then(m => {
+    Promise.all([
+      matchApi.findById(id),
+      matchApi.getTeamSheet(id),
+      playerApi.findAll(),
+    ]).then(([m, s, p]) => {
       setMatch(m);
+      setSides(s);
+      setAllPlayers(p);
       const teamIds = [m.homeTeamId, m.oppositionTeamId].filter(Boolean) as number[];
       Promise.all(teamIds.map(tid => teamApi.getSquad(tid).then(squad => ({ tid, squad }))))
         .then(results => {
@@ -42,8 +53,9 @@ export const Teamsheet: React.FC = () => {
   const refreshCalendar = async () => {
     setSyncing(true);
     try {
-      const sides = await matchApi.getTeamSheet(id);
-      const totalPlayers = sides.reduce((sum, s) => sum + (s.playingXi?.length ?? 0), 0);
+      const refreshed = await matchApi.getTeamSheet(id);
+      setSides(refreshed);
+      const totalPlayers = refreshed.reduce((sum, s) => sum + (s.playingXi?.length ?? 0), 0);
       setSnackbar({
         open: true,
         message: totalPlayers > 0
@@ -54,6 +66,8 @@ export const Teamsheet: React.FC = () => {
       setSyncing(false);
     }
   };
+
+  const eitherAnnounced = sides.some(s => s.teamAnnounced);
 
   return (
     <Box>
@@ -84,6 +98,14 @@ export const Teamsheet: React.FC = () => {
           </Button>
           <Button
             variant="outlined"
+            startIcon={<Share />}
+            onClick={() => setTemplatesOpen(true)}
+            disabled={!eitherAnnounced}
+          >
+            Share / Templates
+          </Button>
+          <Button
+            variant="outlined"
             startIcon={<Print />}
             onClick={() => navigate(`/matches/${id}/teamsheet`)}
           >
@@ -106,6 +128,16 @@ export const Teamsheet: React.FC = () => {
           />
         </Box>
       ))}
+
+      {match && (
+        <TeamsheetTemplatesDialog
+          open={templatesOpen}
+          onClose={() => setTemplatesOpen(false)}
+          match={match}
+          sides={sides}
+          players={allPlayers}
+        />
+      )}
 
       <Snackbar
         open={snackbar.open}

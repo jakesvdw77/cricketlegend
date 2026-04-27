@@ -57,6 +57,7 @@ export const Players: React.FC = () => {
   const [clubFilter, setClubFilter] = useState<number | ''>('');
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Player | null>(null);
 
   const load = () => playerApi.findAll().then(setRows);
   useEffect(() => {
@@ -86,8 +87,11 @@ export const Players: React.FC = () => {
     setOpen(false); load();
   };
 
-  const remove = async (id: number) => {
-    if (confirm('Delete player?')) { await playerApi.delete(id); load(); }
+  const confirmDelete = async () => {
+    if (!deleteTarget?.playerId) return;
+    await playerApi.delete(deleteTarget.playerId);
+    setDeleteTarget(null);
+    load();
   };
 
   const set = (patch: Partial<Player>) => setEditing(e => ({ ...e, ...patch }));
@@ -252,7 +256,7 @@ export const Players: React.FC = () => {
                     <IconButton size="small" onClick={() => { setEditing(r); setOpen(true); }}><Edit /></IconButton>
                   )}
                   {isAdmin && (
-                    <IconButton size="small" color="error" onClick={() => remove(r.playerId!)}><Delete /></IconButton>
+                    <IconButton size="small" color="error" onClick={() => setDeleteTarget(r)}><Delete /></IconButton>
                   )}
                   {r.careerUrl && (
                     <Tooltip title="Career profile">
@@ -285,6 +289,18 @@ export const Players: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={save}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete Player</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete <strong>{deleteTarget?.name} {deleteTarget?.surname}</strong>? This action cannot be undone.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>Delete</Button>
         </DialogActions>
       </Dialog>
 

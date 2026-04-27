@@ -184,8 +184,8 @@ export const SendNotification: React.FC = () => {
           </FormControl>
         )}
 
-        {/* Audience badge */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        {/* Audience badge + Send button */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
           <Chip
             icon={isAdmin && adminAudience === 'all' ? <People /> : <Groups />}
             label={`Recipients: ${audienceLabel}`}
@@ -193,21 +193,6 @@ export const SendNotification: React.FC = () => {
             variant="outlined"
             size="small"
           />
-        </Box>
-
-        <TextField
-          label="Subject"
-          fullWidth
-          value={subject}
-          onChange={e => setSubject(e.target.value)}
-          sx={{ mb: 3 }}
-          inputProps={{ maxLength: 255 }}
-        />
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Message
-        </Typography>
-        <RichEditor initialHtml={message} onChange={setMessage} />
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
           <Button
             variant="contained"
             startIcon={<Send />}
@@ -217,6 +202,23 @@ export const SendNotification: React.FC = () => {
             {sending ? 'Sending…' : `Send to ${audienceLabel}`}
           </Button>
         </Box>
+
+        <TextField
+          label="Subject"
+          fullWidth
+          value={subject}
+          onChange={e => setSubject(e.target.value)}
+          sx={{
+            mb: 3,
+            '& .MuiInputBase-root': { bgcolor: '#f5f5f5' },
+            '& .MuiInputBase-input': { color: '#000000' },
+          }}
+          inputProps={{ maxLength: 255 }}
+        />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Message
+        </Typography>
+        <RichEditor initialHtml={message} onChange={setMessage} />
       </Paper>
     </Box>
   );

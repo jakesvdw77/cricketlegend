@@ -23,6 +23,8 @@ cd ui
 docker build --no-cache -t jakesvdwesthuizen/cricketlegend-ui:latest ./ui
 docker push jakesvdwesthuizen/cricketlegend-ui:latest
 
+docker build -t jakesvdwesthuizen/cricketlegend-ui:latest ./ui
+
 
 -- Build the Backend
 mvn compile jib:build

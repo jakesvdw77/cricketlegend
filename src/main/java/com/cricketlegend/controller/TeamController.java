@@ -122,4 +122,15 @@ public class TeamController {
         teamService.removeFromSquad(id, playerId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/squad/notify")
+    @PreAuthorize("hasAnyRole('admin','manager')")
+    @Operation(summary = "Send email notifications to all consenting squad members")
+    public ResponseEntity<Void> notifySquad(
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, Long> body) {
+        Long tournamentId = body != null ? body.get("tournamentId") : null;
+        teamService.notifySquad(id, tournamentId);
+        return ResponseEntity.ok().build();
+    }
 }

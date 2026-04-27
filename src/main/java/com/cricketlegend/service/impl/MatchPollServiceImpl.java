@@ -8,13 +8,16 @@ import com.cricketlegend.dto.PlayerAvailabilityDTO;
 import com.cricketlegend.dto.PlayerNotificationDTO;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.repository.*;
+import com.cricketlegend.service.EmailService;
 import com.cricketlegend.service.ManagerTeamService;
 import com.cricketlegend.service.MatchPollService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +36,10 @@ public class MatchPollServiceImpl implements MatchPollService {
     private final PlayerAvailabilityRepository availabilityRepository;
     private final PlayerNotificationRepository notificationRepository;
     private final ManagerTeamService managerTeamService;
+    private final EmailService emailService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     public MatchPollDTO togglePoll(Long matchId, Long teamId, boolean open) {
@@ -210,6 +217,20 @@ public class MatchPollServiceImpl implements MatchPollService {
         notificationRepository.saveAll(notifications);
     }
 
+    @Override
+    public void resendPollNotifications(Long matchId, Long teamId) {
+        MatchAvailabilityPoll poll = pollRepository
+                .findByMatchMatchIdAndTeamTeamId(matchId, teamId)
+                .orElseThrow(() -> new NotFoundException("No poll found for match " + matchId + " and team " + teamId));
+
+        if (!poll.isOpen()) {
+            throw new IllegalStateException("Poll is not open");
+        }
+
+        notificationRepository.deleteByMatchIdAndTeamIdAndType(matchId, teamId, NotificationType.POLL_AVAILABLE);
+        sendPollNotifications(poll, poll.getMatch(), poll.getTeam());
+    }
+
     private void sendPollNotifications(MatchAvailabilityPoll poll, Match match, Team team) {
         List<Long> squadIds = team.getSquadPlayerIds();
         if (squadIds == null || squadIds.isEmpty()) return;
@@ -227,6 +248,32 @@ public class MatchPollServiceImpl implements MatchPollService {
                 .toList();
 
         notificationRepository.saveAll(notifications);
+
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy");
+        DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("HH:mm");
+        String homeTeamName = match.getHomeTeam() != null ? match.getHomeTeam().getTeamName() : "TBD";
+        String awayTeamName = match.getOppositionTeam() != null ? match.getOppositionTeam().getTeamName() : "TBD";
+        String matchTitle = homeTeamName + " vs " + awayTeamName;
+        String matchDate = match.getMatchDate() != null ? match.getMatchDate().format(dateFmt) : "TBD";
+        String startTime = match.getScheduledStartTime() != null ? match.getScheduledStartTime().format(timeFmt) : "TBD";
+        String arrivalTime = match.getArrivalTime() != null ? match.getArrivalTime().format(timeFmt) : "TBD";
+        String tossTime = match.getTossTime() != null ? match.getTossTime().format(timeFmt) : "TBD";
+        String venue = match.getField() != null ? match.getField().getName() : "TBD";
+        String venueAddress = match.getField() != null ? match.getField().getAddress() : null;
+        String mapsUrl = match.getField() != null ? match.getField().getGoogleMapsUrl() : null;
+        String tournament = match.getTournament() != null ? match.getTournament().getName() : null;
+        String matchStage = match.getMatchStage() != null ? match.getMatchStage().name().replace("_", " ") : null;
+        String pollUrl = frontendUrl + "/poll/" + match.getMatchId() + "/" + team.getTeamId();
+
+        squadPlayers.stream()
+                .filter(p -> Boolean.TRUE.equals(p.getConsentEmail()) && p.getEmail() != null)
+                .forEach(p -> emailService.sendAvailabilityPollEmail(new EmailService.PollEmailData(
+                        p.getEmail(),
+                        p.getName() + " " + p.getSurname(),
+                        matchTitle, matchDate, startTime, arrivalTime, tossTime,
+                        team.getTeamName(), venue, venueAddress, mapsUrl,
+                        tournament, matchStage, pollUrl
+                )));
     }
 
     private MatchPollDTO buildPollDTO(MatchAvailabilityPoll poll) {

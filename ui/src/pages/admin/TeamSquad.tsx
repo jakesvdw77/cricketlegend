@@ -3,7 +3,7 @@ import {
   Box, Typography, Button, Avatar, List, ListItem, ListItemAvatar, ListItemText,
   TextField, MenuItem, Divider, Autocomplete, Chip, InputAdornment, IconButton,
 } from '@mui/material';
-import { ArrowBack, Print, PersonAdd, PersonRemove, Search, SportsCricket } from '@mui/icons-material';
+import { ArrowBack, Print, PersonAdd, PersonRemove, Search, Share, SportsCricket } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { teamApi } from '../../api/teamApi';
 import { clubApi } from '../../api/clubApi';
@@ -11,6 +11,7 @@ import { playerApi } from '../../api/playerApi';
 import { Team, Player, Club } from '../../types';
 import { playerDescription } from '../../utils/playerDescription';
 import { printSquad } from '../../utils/printSquad';
+import SquadShareDialog from './SquadShareDialog';
 
 export const TeamSquad: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
@@ -23,6 +24,7 @@ export const TeamSquad: React.FC = () => {
   const [clubs, setClubs]     = useState<Club[]>([]);
   const [availSearch, setAvailSearch] = useState('');
   const [availClubId, setAvailClubId] = useState<number | ''>('');
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     teamApi.findById(id).then(t => {
@@ -79,6 +81,14 @@ export const TeamSquad: React.FC = () => {
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate('/admin/teams')}>
             Back
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Share />}
+            onClick={() => setShareOpen(true)}
+            disabled={!team || squad.length === 0}
+          >
+            Share / Notify
           </Button>
           <Button
             variant="outlined"
@@ -215,6 +225,15 @@ export const TeamSquad: React.FC = () => {
         </Box>
 
       </Box>
+
+      {team && (
+        <SquadShareDialog
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          team={team}
+          squad={squad}
+        />
+      )}
     </Box>
   );
 };

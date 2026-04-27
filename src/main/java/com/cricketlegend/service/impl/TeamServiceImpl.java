@@ -8,16 +8,23 @@ import com.cricketlegend.dto.TeamDTO;
 import com.cricketlegend.exception.NotFoundException;
 import com.cricketlegend.mapper.PlayerMapper;
 import com.cricketlegend.mapper.TeamMapper;
+import com.cricketlegend.domain.Player;
+import com.cricketlegend.domain.Tournament;
 import com.cricketlegend.repository.ClubRepository;
 import com.cricketlegend.repository.FieldRepository;
 import com.cricketlegend.repository.PlayerRepository;
 import com.cricketlegend.repository.SponsorRepository;
 import com.cricketlegend.repository.TeamRepository;
+import com.cricketlegend.repository.TournamentRepository;
+import com.cricketlegend.service.EmailService;
 import com.cricketlegend.service.TeamService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -33,6 +40,11 @@ public class TeamServiceImpl implements TeamService {
     private final PlayerRepository playerRepository;
     private final FieldRepository fieldRepository;
     private final SponsorRepository sponsorRepository;
+    private final TournamentRepository tournamentRepository;
+    private final EmailService emailService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
     private final TeamMapper teamMapper;
     private final PlayerMapper playerMapper;
 
@@ -140,6 +152,100 @@ public class TeamServiceImpl implements TeamService {
         List<Sponsor> sponsors = new ArrayList<>(sponsorRepository.findAllById(ids));
         team.getSponsors().clear();
         team.getSponsors().addAll(sponsors);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void notifySquad(Long teamId, Long tournamentId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> NotFoundException.of("Team", teamId));
+
+        List<Long> squadIds = team.getSquadPlayerIds();
+        if (squadIds == null || squadIds.isEmpty()) return;
+
+        List<Player> players = playerRepository.findAllById(squadIds);
+
+        // Resolve all lazy associations in this transaction
+        String captainName = team.getCaptain() != null
+                ? team.getCaptain().getName() + " " + team.getCaptain().getSurname() : null;
+        String homeField = team.getHomeField() != null ? team.getHomeField().getName() : null;
+
+        Tournament tournament = tournamentId != null
+                ? tournamentRepository.findById(tournamentId).orElse(null) : null;
+
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("d MMMM yyyy");
+        String tournamentName  = tournament != null ? tournament.getName() : null;
+        String tournamentDates = tournament != null && (tournament.getStartDate() != null || tournament.getEndDate() != null)
+                ? (tournament.getStartDate() != null ? tournament.getStartDate().format(dateFmt) : "")
+                  + (tournament.getStartDate() != null && tournament.getEndDate() != null ? " – " : "")
+                  + (tournament.getEndDate() != null ? tournament.getEndDate().format(dateFmt) : "")
+                : null;
+        String cricketFormat    = tournament != null && tournament.getCricketFormat() != null
+                ? tournament.getCricketFormat().name().replace("_", " ") : null;
+        String ageGroup         = tournament != null && tournament.getAgeGroup() != null
+                ? tournament.getAgeGroup().name().replace("_", " ") : null;
+        String tournamentGender = tournament != null && tournament.getTournamentGender() != null
+                ? tournament.getTournamentGender().name().replace("_", " ") : null;
+        String description      = tournament != null ? tournament.getDescription() : null;
+        String websiteLink      = tournament != null ? tournament.getWebsiteLink() : null;
+        String facebookLink     = tournament != null ? tournament.getFacebookLink() : null;
+        String instagramLink    = tournament != null ? tournament.getInstagramLink() : null;
+        String youtubeLink      = tournament != null ? tournament.getYoutubeLink() : null;
+        String tournamentLogoUrl = tournament != null ? tournament.getLogoUrl() : null;
+        String playingConditions = tournament != null ? tournament.getPlayingConditionsUrl() : null;
+        String regFee  = tournament != null && tournament.getRegistrationFee() != null
+                ? "R " + tournament.getRegistrationFee().setScale(2, java.math.RoundingMode.HALF_UP) : null;
+        String matchFee = tournament != null && tournament.getMatchFee() != null
+                ? "R " + tournament.getMatchFee().setScale(2, java.math.RoundingMode.HALF_UP) : null;
+        String squadUrl = frontendUrl + "/admin/teams/" + teamId + "/squad";
+
+        // Build squad list (sorted by name, captain first)
+        Long captainId = team.getCaptain() != null ? team.getCaptain().getPlayerId() : null;
+        List<EmailService.SquadPlayer> squadList = players.stream()
+                .sorted(Comparator.comparing(p -> (p.getName() + " " + p.getSurname())))
+                .map(p -> {
+                    boolean isCap = p.getPlayerId().equals(captainId);
+                    String role = buildRoleText(p);
+                    return new EmailService.SquadPlayer(p.getName() + " " + p.getSurname(), role, isCap);
+                })
+                .toList();
+
+        players.stream()
+                .filter(p -> Boolean.TRUE.equals(p.getConsentEmail()) && p.getEmail() != null)
+                .forEach(p -> emailService.sendSquadEmail(new EmailService.SquadEmailData(
+                        p.getEmail(),
+                        p.getName() + " " + p.getSurname(),
+                        team.getTeamName(),
+                        captainName,
+                        team.getCoach(),
+                        team.getManager(),
+                        homeField,
+                        squadList,
+                        squadUrl,
+                        tournamentName,
+                        tournamentLogoUrl,
+                        tournamentDates,
+                        cricketFormat,
+                        ageGroup,
+                        tournamentGender,
+                        description,
+                        websiteLink,
+                        facebookLink,
+                        instagramLink,
+                        youtubeLink,
+                        playingConditions,
+                        regFee,
+                        matchFee
+                )));
+    }
+
+    private String buildRoleText(Player p) {
+        boolean isBowler = p.getBowlingType() != null
+                && !p.getBowlingType().name().equals("NONE")
+                && !Boolean.TRUE.equals(p.getPartTimeBowler());
+        if (Boolean.TRUE.equals(p.getWicketKeeper())) return isBowler ? "WK / Bat" : "WK / Bat";
+        if (isBowler) return "Bat / Bowl";
+        return "Batsman";
     }
 
     private void resolveAssociations(Team team, TeamDTO dto) {

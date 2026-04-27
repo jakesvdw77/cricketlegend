@@ -25,15 +25,16 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const {isAdmin, isManager} = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    type Section = 'capture' | 'financials' | 'access' | 'view' | 'matchCentre';
+    type Section = 'capture' | 'financials' | 'access' | 'view' | 'matchCentre' | 'administration';
     const [openSection, setOpenSection] = useState<Section>('view');
     const toggle = (s: Section) => setOpenSection(prev => prev === s ? 'view' : s);
 
-    const captureOpen      = openSection === 'capture';
-    const financialsOpen   = openSection === 'financials';
-    const accessOpen       = openSection === 'access';
-    const viewOpen         = openSection === 'view';
-    const matchCentreOpen  = openSection === 'matchCentre';
+    const captureOpen        = openSection === 'capture';
+    const financialsOpen     = openSection === 'financials';
+    const accessOpen         = openSection === 'access';
+    const viewOpen           = openSection === 'view';
+    const matchCentreOpen    = openSection === 'matchCentre';
+    const administrationOpen = openSection === 'administration';
 
     const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
     const goCollapse = (path: string) => { navigate(path); onClose(); };
@@ -80,13 +81,13 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         <ListItemIcon><HowToVote/></ListItemIcon>
                         <ListItemText primary="My Availability"/>
                     </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-wallet')}>
-                        <ListItemIcon><AccountBalanceWallet/></ListItemIcon>
-                        <ListItemText primary="My Wallet"/>
-                    </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/my-schedule')}>
                         <ListItemIcon><CalendarMonth/></ListItemIcon>
                         <ListItemText primary="My Schedule"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-wallet')}>
+                        <ListItemIcon><AccountBalanceWallet/></ListItemIcon>
+                        <ListItemText primary="My Wallet"/>
                     </ListItemButton>
                 </List>
             </Collapse>
@@ -111,7 +112,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/upcoming')}>
                         <ListItemIcon><CalendarMonth/></ListItemIcon>
-                        <ListItemText primary="Upcoming Matches"/>
+                        <ListItemText primary="Matches"/>
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/previous')}>
                         <ListItemIcon><History/></ListItemIcon>
@@ -134,7 +135,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     <List disablePadding>
                         <ListItemButton onClick={() => toggle('capture')}>
                             <ListItemIcon><AdminPanelSettings/></ListItemIcon>
-                            <ListItemText primary="Administration" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            <ListItemText primary="Manage" primaryTypographyProps={{fontWeight: 'bold'}}/>
                             {captureOpen ? <ExpandLess/> : <ExpandMore/>}
                         </ListItemButton>
                     </List>
@@ -178,20 +179,13 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
 
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/send-notification')}>
                                 <ListItemIcon><Campaign/></ListItemIcon>
-                                <ListItemText primary="Send Notification"/>
+                                <ListItemText primary="Notifications"/>
                             </ListItemButton>
 
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/events')}>
                                 <ListItemIcon><Event/></ListItemIcon>
                                 <ListItemText primary="Events"/>
                             </ListItemButton>
-
-                            {isAdmin && (
-                                <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/login-history')}>
-                                    <ListItemIcon><Login/></ListItemIcon>
-                                    <ListItemText primary="Login History"/>
-                                </ListItemButton>
-                            )}
 
                         </List>
                     </Collapse>
@@ -252,11 +246,24 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     <Divider/>
 
                     <List disablePadding>
-                        <ListItemButton onClick={() => go('/admin/social-media-pages')}>
-                            <ListItemIcon><Facebook/></ListItemIcon>
-                            <ListItemText primary="Social Media Pages" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                        <ListItemButton onClick={() => toggle('administration')}>
+                            <ListItemIcon><AdminPanelSettings/></ListItemIcon>
+                            <ListItemText primary="Administration" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            {administrationOpen ? <ExpandLess/> : <ExpandMore/>}
                         </ListItemButton>
                     </List>
+                    <Collapse in={administrationOpen} timeout="auto" unmountOnExit>
+                        <List disablePadding>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/social-media-pages')}>
+                                <ListItemIcon><Facebook/></ListItemIcon>
+                                <ListItemText primary="Social Media Pages"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/login-history')}>
+                                <ListItemIcon><Login/></ListItemIcon>
+                                <ListItemText primary="Login History"/>
+                            </ListItemButton>
+                        </List>
+                    </Collapse>
                     <Divider/>
                 </>
             ) : null}

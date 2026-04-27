@@ -101,7 +101,8 @@ const RichEditor: React.FC<Props> = ({ initialHtml, onChange }) => {
           borderRadius: 1,
           p: 2,
           minHeight: 450,
-          bgcolor: 'background.paper',
+          bgcolor: '#f5f5f5',
+          color: '#000000',
           cursor: 'text',
           '& .ProseMirror': {
             outline: 'none',

@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, Chip, Divider, Button, ToggleButton, ToggleButtonGroup,
-  Table, TableHead, TableRow, TableCell, TableBody, Tooltip, Snackbar,
-  Dialog, DialogTitle, DialogContent, DialogActions, TextField,
+  Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
 } from '@mui/material';
 import {
-  Print, ArrowBack, Star, SportsCricket, WhatsApp, ContentCopy,
-  ScoreboardOutlined, Share, Facebook, Refresh, YouTube,
+  Print, ArrowBack, Star, SportsCricket, ScoreboardOutlined, Share, YouTube,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
@@ -14,6 +12,7 @@ import { playerApi } from '../../api/playerApi';
 import { teamApi } from '../../api/teamApi';
 import { Match, MatchSide, Player, Team } from '../../types';
 import { printTeamSheet } from '../../utils/printTeamSheet';
+import TeamsheetTemplatesDialog from '../../components/match/TeamsheetTemplatesDialog';
 
 // ── Role icon helpers (UI) ─────────────────────────────────────────────────
 
@@ -64,132 +63,6 @@ function getRoleText(player: Player, battingPosition: number, isWK: boolean): st
   return showBat ? '🏏' : '';
 }
 
-function buildTeamWhatsAppLines(
-  _match: Match,
-  teamName: string,
-  xi: Player[],
-  captain: Player | undefined,
-  twelfth: Player | undefined,
-  wicketKeeperPlayerId: number | undefined,
-): string[] {
-  const lines: string[] = [];
-  lines.push(`*${teamName} — Playing XI*`);
-  if (captain) lines.push(`⭐ Captain: ${captain.name} ${captain.surname}`);
-  lines.push('');
-  xi.forEach((p, idx) => {
-    const pos = idx + 1;
-    const isWK = p.playerId === wicketKeeperPlayerId;
-    const isCaptain = p.playerId === captain?.playerId;
-    const role = getRoleText(p, pos, isWK);
-    lines.push(`${role} ${pos}. ${p.name} ${p.surname}${isCaptain ? ' *(C)*' : ''}`);
-  });
-  if (twelfth) {
-    lines.push('');
-    lines.push(`_12th Man: ${twelfth.name} ${twelfth.surname}_`);
-  }
-  return lines;
-}
-
-function buildWhatsAppText(
-  match: Match,
-  scope: 'both' | 'home' | 'away',
-  sides: MatchSide[],
-  players: Player[],
-): string {
-  const lines: string[] = [];
-
-  lines.push(`🏏 *${match.homeTeamName} vs ${match.oppositionTeamName}*`);
-  if (match.tournamentName) lines.push(`🏆 ${match.tournamentName}`);
-  const details = [
-    match.matchDate          ? `📅 ${match.matchDate}`           : '',
-    match.arrivalTime        ? `🚗 Arrive: ${match.arrivalTime}` : '',
-    match.tossTime           ? `🕐 Toss: ${match.tossTime}`      : '',
-    match.scheduledStartTime ? `⏰ ${match.scheduledStartTime}`   : '',
-    match.fieldName          ? `📍 ${match.fieldName}`           : '',
-    match.umpire             ? `Umpire: ${match.umpire}`         : '',
-  ].filter(Boolean).join('  |  ');
-  if (details) lines.push(details);
-
-  const getXi  = (side: MatchSide) => (side.playingXi ?? []).map(pid => players.find(p => p.playerId === pid)).filter(Boolean) as Player[];
-  const getCap  = (side: MatchSide) => side.captainPlayerId ? players.find(p => p.playerId === side.captainPlayerId) : undefined;
-  const get12th = (side: MatchSide) => side.twelfthManPlayerId ? players.find(p => p.playerId === side.twelfthManPlayerId) : undefined;
-
-  const teamsToShow: Array<{ teamId: number; teamName: string }> = [];
-  if (scope === 'both' || scope === 'home') teamsToShow.push({ teamId: match.homeTeamId!, teamName: match.homeTeamName! });
-  if (scope === 'both' || scope === 'away') teamsToShow.push({ teamId: match.oppositionTeamId!, teamName: match.oppositionTeamName! });
-
-  for (const team of teamsToShow) {
-    const side = sides.find(s => s.teamId === team.teamId);
-    if (!side) continue;
-    lines.push('');
-    lines.push(...buildTeamWhatsAppLines(match, team.teamName, getXi(side), getCap(side), get12th(side), side.wicketKeeperPlayerId));
-  }
-
-  lines.push('');
-  lines.push('🏏 = Bat  |  🔴 = Bowl  |  🧤 = WK');
-
-  if (match.fieldGoogleMapsUrl) {
-    lines.push('');
-    lines.push(`📍 ${match.fieldGoogleMapsUrl}`);
-  }
-
-  return lines.join('\n');
-}
-
-function buildFacebookText(
-  match: Match,
-  scope: 'both' | 'home' | 'away',
-  sides: MatchSide[],
-  players: Player[],
-): string {
-  const paras: string[] = [];
-
-  paras.push(`🏏 Playing XI Announcement\n${match.homeTeamName} vs ${match.oppositionTeamName}`);
-
-  const meta = [
-    match.matchDate      && `📅 ${match.matchDate}`,
-    match.tournamentName && `🏆 ${match.tournamentName}`,
-    match.fieldName      && `📍 ${match.fieldName}`,
-  ].filter(Boolean).join('  |  ');
-  if (meta) paras.push(meta);
-
-  const getXi   = (side: MatchSide) => (side.playingXi ?? []).map(pid => players.find(p => p.playerId === pid)).filter(Boolean) as Player[];
-  const getCap  = (side: MatchSide) => side.captainPlayerId ? players.find(p => p.playerId === side.captainPlayerId) : undefined;
-  const get12th = (side: MatchSide) => side.twelfthManPlayerId ? players.find(p => p.playerId === side.twelfthManPlayerId) : undefined;
-
-  const teamsToShow: Array<{ teamId: number; teamName: string }> = [];
-  if (scope === 'both' || scope === 'home') teamsToShow.push({ teamId: match.homeTeamId!, teamName: match.homeTeamName! });
-  if (scope === 'both' || scope === 'away') teamsToShow.push({ teamId: match.oppositionTeamId!, teamName: match.oppositionTeamName! });
-
-  for (const team of teamsToShow) {
-    const side = sides.find(s => s.teamId === team.teamId);
-    if (!side) continue;
-    const xi      = getXi(side);
-    const captain = getCap(side);
-    const twelfth = get12th(side);
-
-    const playerLines = xi.map((p, idx) => {
-      const isWK = p.playerId === side.wicketKeeperPlayerId;
-      const role = getRoleText(p, idx + 1, isWK);
-      return `${role} ${p.name} ${p.surname}${p.playerId === captain?.playerId ? ' (C)' : ''}`;
-    });
-
-    let teamPara = `*${team.teamName}* take the field with:\n${playerLines.join('\n')}`;
-    if (twelfth) teamPara += `\n12th Man: ${twelfth.name} ${twelfth.surname}`;
-    paras.push(teamPara);
-  }
-
-  paras.push('Good luck to both teams! 🙌');
-
-  const tags = ['#Cricket', '#CricketLegend'];
-  if (match.tournamentName)     tags.push(`#${match.tournamentName.replace(/\s+/g, '')}`);
-  if (match.homeTeamName)       tags.push(`#${match.homeTeamName.replace(/\s+/g, '')}`);
-  if (match.oppositionTeamName) tags.push(`#${match.oppositionTeamName.replace(/\s+/g, '')}`);
-  paras.push(tags.join(' '));
-
-  return paras.join('\n\n');
-}
-
 // ──────────────────────────────────────────────────────────────────────────
 
 export const MatchTeamSheet: React.FC = () => {
@@ -203,13 +76,7 @@ export const MatchTeamSheet: React.FC = () => {
   const [homeTeamData, setHomeTeamData] = useState<Team | null>(null);
   const [awayTeamData, setAwayTeamData] = useState<Team | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  // Template dialog state
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [templateType, setTemplateType] = useState<'whatsapp' | 'facebook'>('whatsapp');
-  const [templateScope, setTemplateScope] = useState<'both' | 'home' | 'away'>('both');
-  const [templateText, setTemplateText] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -256,30 +123,7 @@ export const MatchTeamSheet: React.FC = () => {
   const awaySideAnnounced  = awaySide?.teamAnnounced ?? false;
   const eitherAnnounced    = homeSideAnnounced || awaySideAnnounced;
 
-  const generateTemplateText = (type: typeof templateType, scope: typeof templateScope) => {
-    if (!match) return '';
-    return type === 'whatsapp'
-      ? buildWhatsAppText(match, scope, sides, players)
-      : buildFacebookText(match, scope, sides, players);
-  };
-
-  const handleOpenTemplates = () => {
-    setTemplateText(generateTemplateText(templateType, templateScope));
-    setTemplatesOpen(true);
-  };
-
-  const handleRegenerateTemplate = () => {
-    setTemplateText(generateTemplateText(templateType, templateScope));
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(templateText).then(() => {
-      setCopied(true);
-      setTemplatesOpen(false);
-    });
-  };
-
-  const handlePrint = (scope: typeof templateScope) => {
+  const handlePrint = (scope: 'both' | 'home' | 'away') => {
     if (scope === 'both') {
       if (homeSide) {
         const homeXi  = getXi(homeSide);
@@ -321,7 +165,7 @@ export const MatchTeamSheet: React.FC = () => {
           <span>
             <Button
               variant="outlined"
-              onClick={handleOpenTemplates}
+              onClick={() => setTemplatesOpen(true)}
               disabled={!eitherAnnounced}
               startIcon={<Share sx={{ fontSize: 18 }} />}
             >
@@ -498,103 +342,13 @@ export const MatchTeamSheet: React.FC = () => {
         </Paper>
       </Box>
 
-      {/* ── Templates dialog ── */}
-      <Dialog open={templatesOpen} onClose={() => setTemplatesOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ pb: 1 }}>Share / Templates</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-
-          {/* Template type */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-              Template
-            </Typography>
-            <ToggleButtonGroup
-              exclusive size="small"
-              value={templateType}
-              onChange={(_, v) => {
-                if (!v) return;
-                setTemplateType(v);
-                setTemplateText(generateTemplateText(v, templateScope));
-              }}
-            >
-              <ToggleButton value="whatsapp">
-                <WhatsApp sx={{ fontSize: 16, mr: 0.5, color: '#25D366' }} />WhatsApp
-              </ToggleButton>
-              <ToggleButton value="facebook">
-                <Facebook sx={{ fontSize: 16, mr: 0.5, color: '#1877F2' }} />Facebook
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-
-          {/* Team scope */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-              Teams
-            </Typography>
-            <ToggleButtonGroup
-              exclusive size="small"
-              value={templateScope}
-              onChange={(_, v) => {
-                if (!v) return;
-                setTemplateScope(v);
-                setTemplateText(generateTemplateText(templateType, v));
-              }}
-            >
-              <ToggleButton value="both">Both Teams</ToggleButton>
-              <ToggleButton value="home" disabled={!homeSideAnnounced}>
-                {match.homeTeamName}
-              </ToggleButton>
-              <ToggleButton value="away" disabled={!awaySideAnnounced}>
-                {match.oppositionTeamName}
-              </ToggleButton>
-            </ToggleButtonGroup>
-            {templateScope !== 'both' && !side?.teamAnnounced && (
-              <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
-                This team has not been announced yet.
-              </Typography>
-            )}
-          </Box>
-
-          {/* Text area */}
-          <TextField
-            multiline fullWidth minRows={12}
-            value={templateText}
-            onChange={e => setTemplateText(e.target.value)}
-            variant="outlined"
-            inputProps={{ style: { fontFamily: 'monospace', fontSize: 13 } }}
-          />
-
-          {/* Print option */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Print fontSize="small" color="action" />
-            <Typography variant="body2" color="text.secondary">Print:</Typography>
-            <Button size="small" variant="outlined" startIcon={<Print />}
-              onClick={() => { handlePrint(templateScope); setTemplatesOpen(false); }}
-            >
-              Print {templateScope === 'both' ? 'Both Teams' : teamName}
-            </Button>
-          </Box>
-        </DialogContent>
-
-        <DialogActions>
-          <Button startIcon={<Refresh />} onClick={handleRegenerateTemplate} size="small">Regenerate</Button>
-          <Box sx={{ flex: 1 }} />
-          <Button onClick={() => setTemplatesOpen(false)}>Close</Button>
-          <Button
-            variant="contained"
-            startIcon={<ContentCopy />}
-            onClick={handleCopy}
-          >
-            Copy to Clipboard
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={copied}
-        autoHideDuration={3000}
-        onClose={() => setCopied(false)}
-        message="Copied! Paste into your message 💬"
+      <TeamsheetTemplatesDialog
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        match={match}
+        sides={sides}
+        players={players}
+        onPrint={handlePrint}
       />
 
       <style>{`

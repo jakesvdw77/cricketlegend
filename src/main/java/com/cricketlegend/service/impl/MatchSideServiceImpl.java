@@ -12,12 +12,15 @@ import com.cricketlegend.repository.MatchSideRepository;
 import com.cricketlegend.repository.PlayerNotificationRepository;
 import com.cricketlegend.repository.PlayerRepository;
 import com.cricketlegend.repository.TeamRepository;
+import com.cricketlegend.service.EmailService;
 import com.cricketlegend.service.MatchSideService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,6 +35,10 @@ public class MatchSideServiceImpl implements MatchSideService {
     private final MatchSideMapper matchSideMapper;
     private final PlayerRepository playerRepository;
     private final PlayerNotificationRepository notificationRepository;
+    private final EmailService emailService;
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Override
     public List<MatchSideDTO> findByMatch(Long matchId) {
@@ -81,19 +88,19 @@ public class MatchSideServiceImpl implements MatchSideService {
     }
 
     private void sendTeamAnnouncedNotifications(MatchSide matchSide) {
-        Long matchId = matchSide.getMatch().getMatchId();
-        Long teamId = matchSide.getTeam().getTeamId();
+        var match  = matchSide.getMatch();
+        var team   = matchSide.getTeam();
+        Long matchId = match.getMatchId();
+        Long teamId  = team.getTeamId();
 
-        // Remove any prior TEAM_ANNOUNCED notifications for this match/team
         notificationRepository.deleteByMatchIdAndTeamIdAndType(matchId, teamId, NotificationType.TEAM_ANNOUNCED);
 
         List<Long> playerIds = new ArrayList<>(matchSide.getPlayingXi() != null ? matchSide.getPlayingXi() : List.of());
-        if (matchSide.getTwelfthManPlayerId() != null) {
-            playerIds.add(matchSide.getTwelfthManPlayerId());
-        }
+        if (matchSide.getTwelfthManPlayerId() != null) playerIds.add(matchSide.getTwelfthManPlayerId());
         if (playerIds.isEmpty()) return;
 
         List<Player> players = playerRepository.findAllById(playerIds);
+
         List<PlayerNotification> notifications = players.stream()
                 .map(p -> PlayerNotification.builder()
                         .player(p)
@@ -104,8 +111,37 @@ public class MatchSideServiceImpl implements MatchSideService {
                         .createdAt(LocalDateTime.now())
                         .build())
                 .toList();
-
         notificationRepository.saveAll(notifications);
+
+        // Resolve all lazy data inside the transaction before firing async emails
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy");
+        DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("HH:mm");
+        String home  = match.getHomeTeam()        != null ? match.getHomeTeam().getTeamName()        : "TBD";
+        String away  = match.getOppositionTeam()  != null ? match.getOppositionTeam().getTeamName()  : "TBD";
+        String matchTitle   = home + " vs " + away;
+        String matchDate    = match.getMatchDate()           != null ? match.getMatchDate().format(dateFmt)           : "TBD";
+        String startTime    = match.getScheduledStartTime()  != null ? match.getScheduledStartTime().format(timeFmt)  : "TBD";
+        String arrivalTime  = match.getArrivalTime()         != null ? match.getArrivalTime().format(timeFmt)         : "TBD";
+        String tossTime     = match.getTossTime()            != null ? match.getTossTime().format(timeFmt)            : "TBD";
+        String venue        = match.getField()               != null ? match.getField().getName()                     : "TBD";
+        String venueAddress = match.getField()               != null ? match.getField().getAddress()                  : null;
+        String mapsUrl      = match.getField()               != null ? match.getField().getGoogleMapsUrl()            : null;
+        String tournament   = match.getTournament()          != null ? match.getTournament().getName()                : null;
+        String matchStage   = match.getMatchStage()          != null ? match.getMatchStage().name().replace("_", " ") : null;
+        String teamsheetUrl = frontendUrl + "/matches/" + matchId + "/teamsheet";
+
+        players.stream()
+                .filter(p -> Boolean.TRUE.equals(p.getConsentEmail()) && p.getEmail() != null)
+                .forEach(p -> emailService.sendTeamAnnouncedEmail(new EmailService.TeamAnnouncedEmailData(
+                        p.getEmail(),
+                        p.getName() + " " + p.getSurname(),
+                        p.getPlayerId().equals(matchSide.getCaptainPlayerId()),
+                        p.getPlayerId().equals(matchSide.getWicketKeeperPlayerId()),
+                        p.getPlayerId().equals(matchSide.getTwelfthManPlayerId()),
+                        matchTitle, matchDate, startTime, arrivalTime, tossTime,
+                        team.getTeamName(), venue, venueAddress, mapsUrl,
+                        tournament, matchStage, teamsheetUrl
+                )));
     }
 
     @Override

@@ -16,4 +16,5 @@ public interface TeamService {
     List<PlayerDTO> getSquad(Long teamId);
     void addToSquad(Long teamId, Long playerId);
     void removeFromSquad(Long teamId, Long playerId);
+    void notifySquad(Long teamId, Long tournamentId);
 }

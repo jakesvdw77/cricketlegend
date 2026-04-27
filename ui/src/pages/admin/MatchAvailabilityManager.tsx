@@ -5,12 +5,13 @@ import {
   Chip, MenuItem, TextField, Switch, FormControlLabel,
   IconButton, Tooltip,
 } from '@mui/material';
-import { ArrowBack, CheckCircle, Cancel, HelpOutline, Edit } from '@mui/icons-material';
+import { ArrowBack, CheckCircle, Cancel, HelpOutline, Edit, NotificationsActive, WhatsApp } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
 import { matchApi } from '../../api/matchApi';
 import { MatchPoll, PlayerAvailabilityEntry, AvailabilityStatus, Match } from '../../types';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
+import PollWhatsAppDialog from './PollWhatsAppDialog';
 
 const STATUS_LABELS: Record<AvailabilityStatus, string> = {
   YES: 'Available',
@@ -35,6 +36,9 @@ export const MatchAvailabilityManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showOnlyConfirmed, setShowOnlyConfirmed] = useState(false);
   const [overridePlayer, setOverridePlayer] = useState<number | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [whatsAppOpen, setWhatsAppOpen] = useState(false);
 
   useEffect(() => {
     if (matchId) matchApi.findById(Number(matchId)).then(setMatch);
@@ -62,6 +66,21 @@ export const MatchAvailabilityManager: React.FC = () => {
       setPoll(updated);
     } catch {
       setError('Failed to update poll status.');
+    }
+  };
+
+  const handleResend = async () => {
+    if (!matchId || !selectedTeamId) return;
+    setResending(true);
+    setResendSuccess(false);
+    try {
+      await pollApi.resendNotifications(Number(matchId), selectedTeamId as number);
+      setResendSuccess(true);
+      setTimeout(() => setResendSuccess(false), 4000);
+    } catch {
+      setError('Failed to resend notifications.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -111,16 +130,45 @@ export const MatchAvailabilityManager: React.FC = () => {
           </TextField>
 
           {poll && (
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={poll.open}
-                  onChange={e => handleTogglePoll(e.target.checked)}
-                  color="success"
-                />
-              }
-              label={poll.open ? 'Poll Open' : 'Poll Closed'}
-            />
+            <>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={poll.open}
+                    onChange={e => handleTogglePoll(e.target.checked)}
+                    color="success"
+                  />
+                }
+                label={poll.open ? 'Poll Open' : 'Poll Closed'}
+              />
+              {poll.open && (
+                <Tooltip title="Resend in-app and email notifications to all squad members">
+                  <span>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={resending ? <CircularProgress size={16} /> : <NotificationsActive />}
+                      onClick={handleResend}
+                      disabled={resending}
+                      color={resendSuccess ? 'success' : 'primary'}
+                    >
+                      {resendSuccess ? 'Sent!' : 'Resend Notifications'}
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
+              <Tooltip title="Generate WhatsApp message for this poll">
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<WhatsApp />}
+                  onClick={() => setWhatsAppOpen(true)}
+                  sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', color: '#128C7E' } }}
+                >
+                  WhatsApp
+                </Button>
+              </Tooltip>
+            </>
           )}
 
           {!poll && selectedTeamId !== '' && !loading && (
@@ -227,6 +275,15 @@ export const MatchAvailabilityManager: React.FC = () => {
             </Table>
           </TableContainer>
         </>
+      )}
+
+      {match && poll && (
+        <PollWhatsAppDialog
+          open={whatsAppOpen}
+          onClose={() => setWhatsAppOpen(false)}
+          match={match}
+          poll={poll}
+        />
       )}
     </Box>
   );
