@@ -63,6 +63,9 @@ export const MediaLibrary: React.FC = () => {
   // Preview lightbox
   const [lightbox, setLightbox] = useState<MediaContent | null>(null);
 
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<MediaContent | null>(null);
+
   useEffect(() => {
     Promise.all([
       playerApi.findAll(),
@@ -166,10 +169,10 @@ export const MediaLibrary: React.FC = () => {
 
   // ── Delete ───────────────────────────────────────────────────────────────
 
-  const handleDelete = async (item: MediaContent) => {
-    if (!item.id) return;
-    if (!confirm('Delete this media item?')) return;
-    await mediaApi.delete(item.id);
+  const confirmDelete = async () => {
+    if (!deleteTarget?.id) return;
+    await mediaApi.delete(deleteTarget.id);
+    setDeleteTarget(null);
     loadGallery(filters);
   };
 
@@ -346,7 +349,7 @@ export const MediaLibrary: React.FC = () => {
               }}>
                 <Tooltip title="Delete">
                   <IconButton size="small" sx={{ color: 'white', bgcolor: 'rgba(0,0,0,0.4)' }}
-                    onClick={e => { e.stopPropagation(); handleDelete(item); }}>
+                    onClick={e => { e.stopPropagation(); setDeleteTarget(item); }}>
                     <Delete fontSize="small" />
                   </IconButton>
                 </Tooltip>
