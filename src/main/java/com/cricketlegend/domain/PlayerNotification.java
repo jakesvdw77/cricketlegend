@@ -24,6 +24,7 @@ public class PlayerNotification {
 
     private Long matchId;
     private Long teamId;
+    private Long eventId;
 
     private boolean read;
 

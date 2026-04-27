@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft, SportsCricket,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Facebook, Login,
+    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Facebook, Login, Event,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -179,6 +179,11 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/send-notification')}>
                                 <ListItemIcon><Campaign/></ListItemIcon>
                                 <ListItemText primary="Send Notification"/>
+                            </ListItemButton>
+
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/events')}>
+                                <ListItemIcon><Event/></ListItemIcon>
+                                <ListItemText primary="Events"/>
                             </ListItemButton>
 
                             {isAdmin && (

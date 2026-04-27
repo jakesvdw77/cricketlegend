@@ -15,7 +15,8 @@ import {
 import { matchApi } from '../api/matchApi';
 import { pollApi } from '../api/pollApi';
 import { playerApi } from '../api/playerApi';
-import { Match, MatchSide, Player, PlayerAvailabilityEntry, AvailabilityStatus } from '../types';
+import { eventApi } from '../api/eventApi';
+import { Match, MatchSide, Player, PlayerAvailabilityEntry, AvailabilityStatus, ClubEvent } from '../types';
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales: { 'en-US': enUS } });
 
@@ -25,9 +26,17 @@ interface CalendarEvent {
   start: Date;
   end: Date;
   allDay?: boolean;
-  type: 'match' | 'birthday';
+  type: 'match' | 'birthday' | 'club_event';
   resource?: Match;
+  clubEvent?: ClubEvent;
 }
+
+const CATEGORY_LABELS: Record<string, string> = {
+  TEAM_PRACTISE: 'Team Practice',
+  AWARD_CEREMONY: 'Award Ceremony',
+  CAPPING_CEREMONY: 'Capping Ceremony',
+  TEAM_MEETING: 'Team Meeting',
+};
 
 const STAGE_LABELS: Record<string, string> = {
   FRIENDLY: 'Friendly', POOL: 'Pool', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final',
@@ -63,6 +72,8 @@ export const MySchedule: React.FC = () => {
   // Detail state
   const [me, setMe] = useState<Player | null>(null);
   const [clubPlayers, setClubPlayers] = useState<Player[]>([]);
+  const [clubEvents, setClubEvents] = useState<ClubEvent[]>([]);
+  const [selectedClubEvent, setSelectedClubEvent] = useState<ClubEvent | null>(null);
   const [teamSides, setTeamSides] = useState<MatchSide[]>([]);
   const [myAvailability, setMyAvailability] = useState<PlayerAvailabilityEntry | null | undefined>(undefined);
   const [pollTeamId, setPollTeamId] = useState<number | null>(null);
@@ -75,7 +86,7 @@ export const MySchedule: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Fetch current player + club mates
+  // Fetch current player + club mates + club events
   useEffect(() => {
     playerApi.findMe().then(player => {
       setMe(player);
@@ -85,6 +96,7 @@ export const MySchedule: React.FC = () => {
         }).catch(() => {});
       }
     }).catch(() => {});
+    eventApi.getMyEvents().then(setClubEvents).catch(() => {});
   }, []);
 
   const matchEvents: CalendarEvent[] = matches.map(m => ({
@@ -112,14 +124,42 @@ export const MySchedule: React.FC = () => {
     });
   });
 
-  const events: CalendarEvent[] = [...matchEvents, ...birthdayEvents];
+  const CATEGORY_EMOJI: Record<string, string> = {
+    TEAM_PRACTISE: '🏏',
+    AWARD_CEREMONY: '🏆',
+    CAPPING_CEREMONY: '🎓',
+    TEAM_MEETING: '📋',
+  };
+
+  const clubEventCalEvents: CalendarEvent[] = clubEvents.map(ev => {
+    const date = new Date(ev.eventDate + 'T' + (ev.startTime ?? '00:00'));
+    const end = ev.endTime
+      ? new Date(ev.eventDate + 'T' + ev.endTime)
+      : new Date(date.getTime() + 60 * 60 * 1000);
+    const emoji = CATEGORY_EMOJI[ev.category] ?? '📅';
+    const categoryLabel = CATEGORY_LABELS[ev.category] ?? ev.category;
+    const label = ev.title ? `${categoryLabel} — ${ev.title}` : categoryLabel;
+    return {
+      id: `event-${ev.eventId}`,
+      title: `${emoji} ${label}`,
+      start: date,
+      end,
+      type: 'club_event' as const,
+      clubEvent: ev,
+    };
+  });
+
+  const events: CalendarEvent[] = [...matchEvents, ...birthdayEvents, ...clubEventCalEvents];
 
   const onSelectEvent = useCallback((event: CalendarEvent) => {
-    if (event.type !== 'match' || !event.resource) return;
-    setSelected(event.resource);
-    setTeamSides([]);
-    setMyAvailability(undefined);
-    setPollTeamId(null);
+    if (event.type === 'match' && event.resource) {
+      setSelected(event.resource);
+      setTeamSides([]);
+      setMyAvailability(undefined);
+      setPollTeamId(null);
+    } else if (event.type === 'club_event' && event.clubEvent) {
+      setSelectedClubEvent(event.clubEvent);
+    }
   }, []);
 
   // Fetch team sheet + poll when a match is selected
@@ -161,17 +201,22 @@ export const MySchedule: React.FC = () => {
   const onNavigate = useCallback((d: Date) => setDate(d), []);
   const onView = useCallback((v: View) => setView(v), []);
 
-  const eventStyleGetter = (event: CalendarEvent) => ({
-    style: {
-      backgroundColor: event.type === 'birthday' ? '#7b1fa2' : '#1a5276',
-      borderRadius: 4,
-      color: '#fff',
-      border: 'none',
-      fontSize: 12,
-      padding: '2px 6px',
-      cursor: event.type === 'birthday' ? 'default' : 'pointer',
-    },
-  });
+  const eventStyleGetter = (event: CalendarEvent) => {
+    const bg = event.type === 'birthday' ? '#7b1fa2'
+      : event.type === 'club_event' ? '#2e7d32'
+      : '#1a5276';
+    return {
+      style: {
+        backgroundColor: bg,
+        borderRadius: 4,
+        color: '#fff',
+        border: 'none',
+        fontSize: 12,
+        padding: '2px 6px',
+        cursor: event.type === 'birthday' ? 'default' : 'pointer',
+      },
+    };
+  };
 
   // Derive selection status from team sheets
   const myId = me?.playerId;
@@ -404,6 +449,75 @@ export const MySchedule: React.FC = () => {
                   Team Sheet
                 </Button>
               )}
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+
+      {/* Club event detail dialog */}
+      <Dialog open={!!selectedClubEvent} onClose={() => setSelectedClubEvent(null)} maxWidth="sm" fullWidth>
+        {selectedClubEvent && (
+          <>
+            <DialogTitle sx={{ bgcolor: 'success.main', color: 'common.white', pb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Chip
+                  label={CATEGORY_LABELS[selectedClubEvent.category] ?? selectedClubEvent.category}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(255,255,255,0.25)', color: 'common.white', fontWeight: 'bold' }}
+                />
+                {selectedClubEvent.title && (
+                  <Typography variant="h6">{selectedClubEvent.title}</Typography>
+                )}
+              </Box>
+              {selectedClubEvent.teamName && (
+                <Typography variant="caption" sx={{ opacity: 0.85 }}>{selectedClubEvent.teamName}</Typography>
+              )}
+            </DialogTitle>
+            <DialogContent sx={{ pt: 2 }}>
+              <Stack spacing={1.5}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CalendarMonth fontSize="small" color="action" />
+                  <Typography variant="body2">
+                    <strong>Date:</strong> {selectedClubEvent.eventDate}
+                    {selectedClubEvent.startTime && ` at ${selectedClubEvent.startTime}`}
+                    {selectedClubEvent.endTime && ` – ${selectedClubEvent.endTime}`}
+                  </Typography>
+                </Box>
+                {selectedClubEvent.locationName && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LocationOn fontSize="small" color="action" />
+                    <Typography variant="body2">
+                      <strong>Location:</strong>{' '}
+                      {selectedClubEvent.googleMapsUrl ? (
+                        <Typography component="a" href={selectedClubEvent.googleMapsUrl} target="_blank" rel="noopener noreferrer"
+                          variant="body2" sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                          {selectedClubEvent.locationName}
+                        </Typography>
+                      ) : selectedClubEvent.locationName}
+                    </Typography>
+                  </Box>
+                )}
+                {selectedClubEvent.meetingUrl && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <EmojiEvents fontSize="small" color="action" />
+                    <Typography variant="body2">
+                      <Typography component="a" href={selectedClubEvent.meetingUrl} target="_blank" rel="noopener noreferrer"
+                        variant="body2" sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                        Join Meeting
+                      </Typography>
+                    </Typography>
+                  </Box>
+                )}
+                {selectedClubEvent.notes && (
+                  <>
+                    <Divider />
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>{selectedClubEvent.notes}</Typography>
+                  </>
+                )}
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setSelectedClubEvent(null)}>Close</Button>
             </DialogActions>
           </>
         )}

@@ -105,6 +105,7 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
 
   const notifLabel = (n: PlayerNotification) => {
     if (n.type === 'MANAGER_MESSAGE') return n.subject ?? 'Message from manager';
+    if (n.type === 'CLUB_EVENT') return n.subject ?? 'New club event';
     const match = `${n.homeTeamName ?? ''} vs ${n.oppositionTeamName ?? ''}`;
     if (n.type === 'TEAM_ANNOUNCED') return `You've made the team! ${match}`;
     return `Availability poll open: ${match}`;

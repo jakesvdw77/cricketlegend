@@ -30,6 +30,7 @@ import { MediaLibrary } from './pages/admin/MediaLibrary';
 import { SocialMediaPages } from './pages/admin/SocialMediaPages';
 import { SendNotification } from './pages/admin/SendNotification';
 import { LoginHistory } from './pages/admin/LoginHistory';
+import { Events } from './pages/admin/Events';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
@@ -100,6 +101,7 @@ function ThemedApp() {
             <Route path="admin/matches" element={<ManagerRoute element={<Matches />} />} />
             <Route path="admin/media" element={<ManagerRoute element={<MediaLibrary />} />} />
             <Route path="admin/send-notification" element={<ManagerRoute element={<SendNotification />} />} />
+            <Route path="admin/events" element={<ManagerRoute element={<Events />} />} />
             <Route path="admin/matches/:matchId/teamsheet" element={<ManagerRoute element={<Teamsheet />} />} />
             <Route path="admin/matches/:matchId/result" element={<ManagerRoute element={<MatchResultCapture />} />} />
             <Route path="admin/matches/:matchId/availability" element={<ManagerRoute element={<MatchAvailabilityManager />} />} />

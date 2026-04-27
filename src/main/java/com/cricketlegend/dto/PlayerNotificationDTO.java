@@ -12,6 +12,7 @@ public class PlayerNotificationDTO {
     private NotificationType type;
     private Long matchId;
     private Long teamId;
+    private Long eventId;
     private String matchDate;
     private String homeTeamName;
     private String oppositionTeamName;

@@ -445,9 +445,10 @@ export interface MatchPoll {
 
 export interface PlayerNotification {
   notificationId: number;
-  type: 'POLL_AVAILABLE' | 'TEAM_ANNOUNCED' | 'MANAGER_MESSAGE';
+  type: 'POLL_AVAILABLE' | 'TEAM_ANNOUNCED' | 'MANAGER_MESSAGE' | 'CLUB_EVENT';
   matchId?: number;
   teamId?: number;
+  eventId?: number;
   matchDate?: string;
   homeTeamName?: string;
   oppositionTeamName?: string;
@@ -456,6 +457,30 @@ export interface PlayerNotification {
   subject?: string;
   message?: string;
   availabilityStatus?: AvailabilityStatus;
+}
+
+export type EventCategory = 'TEAM_PRACTISE' | 'AWARD_CEREMONY' | 'CAPPING_CEREMONY' | 'TEAM_MEETING';
+export type RecurrenceType = 'NONE' | 'WEEKLY' | 'FORTNIGHTLY' | 'MONTHLY';
+
+export interface ClubEvent {
+  eventId?: number;
+  clubId: number;
+  clubName?: string;
+  teamId?: number;
+  teamName?: string;
+  category: EventCategory;
+  title?: string;
+  notes?: string;
+  eventDate: string;
+  startTime?: string;
+  endTime?: string;
+  locationName?: string;
+  googleMapsUrl?: string;
+  meetingUrl?: string;
+  recurrence?: RecurrenceType;
+  recurrenceEndDate?: string;
+  seriesId?: number;
+  createdByName?: string;
 }
 
 export interface SocialMediaPage {
