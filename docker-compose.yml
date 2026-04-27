@@ -79,12 +79,16 @@ services:
     restart: unless-stopped
     user: "root"
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/cricketlegend
       SPRING_DATASOURCE_USERNAME: cricket
       SPRING_DATASOURCE_PASSWORD: legend
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: https://cricketlegend.co.za:8443/realms/cricketlegend
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/cricketlegend/protocol/openid-connect/certs
       APP_UPLOAD_DIR: /app/uploads
+      APP_FRONTEND_URL: https://cricketlegend.co.za
+      SPRING_MAIL_USERNAME: jakesvdw77@gmail.com
+      SPRING_MAIL_PASSWORD: "ofmm asfc txgi iqvy"
     volumes:
       - ./uploads:/app/uploads
     depends_on:

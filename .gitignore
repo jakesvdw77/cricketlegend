@@ -33,3 +33,8 @@ build/
 ### VS Code ###
 .vscode/
 /ui/node_modules/
+
+### Secrets ###
+src/main/resources/application.properties
+src/main/resources/application-dev.properties
+src/main/resources/application-prod.properties
