@@ -520,6 +520,18 @@ export const MediaLibrary: React.FC = () => {
           </DialogContent>
         )}
       </Dialog>
+
+      {/* Delete confirm */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete Media</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete <strong>{deleteTarget?.fileName ?? 'this item'}</strong>? This action cannot be undone.
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={confirmDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
