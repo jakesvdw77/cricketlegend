@@ -4,13 +4,15 @@ import {
   Box, Typography, Button, AppBar, Toolbar, Avatar, Card, CardContent,
   Chip, Divider, Grid, Container, Tabs, Tab, Table, TableHead, TableRow,
   TableCell, TableBody, TableContainer, Paper, Dialog, DialogTitle,
-  DialogContent, IconButton, CircularProgress, useTheme,
+  DialogContent, IconButton, CircularProgress, useTheme, Tooltip,
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, LocationOn, AccessTime, Login, SportsCricket,
   PhotoLibrary, FiberManualRecord, Handshake, Language, CheckCircle, Facebook,
   AccountBalance, Groups, HowToVote, EventNote, Close, Instagram, YouTube, OpenInNew, AppRegistration, Article, ScoreboardOutlined,
+  LightMode, DarkMode,
 } from '@mui/icons-material';
+import { useColorMode } from '../context/ColorModeContext';
 import { matchApi } from '../api/matchApi';
 import { sponsorApi } from '../api/sponsorApi';
 import { mediaApi } from '../api/mediaApi';
@@ -546,6 +548,7 @@ export const LandingPage: React.FC = () => {
   }, []);
 
   const theme = useTheme();
+  const { mode, toggleMode } = useColorMode();
   const isDark = theme.palette.mode === 'dark';
 
   const heroBg = isDark
@@ -571,6 +574,11 @@ export const LandingPage: React.FC = () => {
         <Toolbar sx={{ gap: 1 }}>
           <Box sx={{ flexGrow: 1 }} />
           {nextTournament && <NavCountdown tournament={nextTournament} />}
+          <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            <IconButton color="inherit" onClick={toggleMode}>
+              {mode === 'dark' ? <LightMode /> : <DarkMode />}
+            </IconButton>
+          </Tooltip>
           {!keycloak.authenticated && (
             <Button
               variant="contained"

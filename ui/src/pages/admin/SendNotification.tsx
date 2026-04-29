@@ -91,7 +91,7 @@ export const SendNotification: React.FC = () => {
     ? adminAudience === 'team' && selectedTeamId
       ? allTeams.find(t => t.teamId === selectedTeamId)?.teamName ?? 'Selected team'
       : adminAudience === 'club' && selectedClubId
-        ? clubs.find(c => c.clubId === selectedClubId)?.name + ' members' ?? 'Selected club'
+        ? (clubs.find(c => c.clubId === selectedClubId)?.name ?? 'Selected club') + ' members'
         : 'All players'
     : managerTeamId
       ? managedTeams.find(t => t.teamId === managerTeamId)?.teamName ?? 'Selected team'

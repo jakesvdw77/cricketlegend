@@ -4,7 +4,6 @@ import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 
-const DRAWER_WIDTH = 240;
 const version = import.meta.env.VITE_APP_VERSION;
 
 export const AppLayout: React.FC = () => {
@@ -25,8 +24,6 @@ export const AppLayout: React.FC = () => {
         sx={{
           flexGrow: 1,
           p: { xs: 1, sm: 1.5, md: 2 },
-          transition: 'margin 0.2s',
-          marginLeft: !isMobile && sidebarOpen ? `${DRAWER_WIDTH}px` : 0,
           minWidth: 0,
         }}
       >

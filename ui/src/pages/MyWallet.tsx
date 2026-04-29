@@ -128,7 +128,7 @@ export const MyWallet: React.FC = () => {
   }
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+    <Box>
 
       {/* ── Balance card + Topup button ──────────────────────────────────── */}
       <Paper
@@ -157,14 +157,14 @@ export const MyWallet: React.FC = () => {
           startIcon={<Add />}
           onClick={() => setShowForm(v => !v)}
           sx={{
-            bgcolor: 'rgba(255,255,255,0.15)',
+            bgcolor: 'rgba(0,0,0,0.35)',
             color: 'inherit',
-            border: '1px solid rgba(255,255,255,0.4)',
-            '&:hover': { bgcolor: 'rgba(255,255,255,0.25)' },
+            border: '1px solid rgba(255,255,255,0.5)',
+            '&:hover': { bgcolor: 'rgba(0,0,0,0.5)' },
             whiteSpace: 'nowrap',
           }}
         >
-          Topup My Wallet
+          Topup
         </Button>
       </Paper>
 
@@ -281,6 +281,7 @@ export const MyWallet: React.FC = () => {
       )}
 
       {/* ── Transaction history ──────────────────────────────────────────── */}
+      {!showForm && <>
       <Typography variant="h6" sx={{ mb: 1 }}>Transaction History</Typography>
 
       {transactions.length === 0 ? (
@@ -359,9 +360,10 @@ export const MyWallet: React.FC = () => {
           />
         </TableContainer>
       )}
+      </>}
 
       {/* ── Allocated funds ──────────────────────────────────────────────── */}
-      {allocations.length > 0 && (
+      {allocations.length > 0 && !showForm && (
         <>
           <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Allocated Funds</Typography>
           <TableContainer component={Paper} variant="outlined">

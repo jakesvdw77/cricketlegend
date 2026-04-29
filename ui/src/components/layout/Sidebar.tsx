@@ -1,12 +1,12 @@
 import React, {useState} from 'react';
 import {
     Drawer, List, ListItemButton, ListItemIcon, ListItemText,
-    Collapse, Divider, IconButton, Toolbar, Typography, Box,
+    Collapse, Divider, IconButton, Toolbar, Box,
     useMediaQuery, useTheme,
 } from '@mui/material';
 import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
-    ExpandLess, ExpandMore, ChevronLeft, SportsCricket,
+    ExpandLess, ExpandMore, ChevronLeft,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
     PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Facebook, Login, Event,
 } from '@mui/icons-material';
@@ -25,7 +25,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const {isAdmin, isManager} = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    type Section = 'capture' | 'financials' | 'access' | 'view' | 'matchCentre' | 'administration';
+    type Section = 'capture' | 'financials' | 'access' | 'view' | 'matchCentre' | 'administration' | 'manageClub';
     const [openSection, setOpenSection] = useState<Section>('view');
     const toggle = (s: Section) => setOpenSection(prev => prev === s ? 'view' : s);
 
@@ -35,6 +35,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const viewOpen           = openSection === 'view';
     const matchCentreOpen    = openSection === 'matchCentre';
     const administrationOpen = openSection === 'administration';
+    const manageClubOpen     = openSection === 'manageClub';
 
     const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
     const goCollapse = (path: string) => { navigate(path); onClose(); };
@@ -47,11 +48,13 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
             onClose={onClose}
             sx={{width: !isMobile && open ? DRAWER_WIDTH : 0, flexShrink: 0, transition: 'width 0.2s', '& .MuiDrawer-paper': {width: DRAWER_WIDTH, display: 'flex', flexDirection: 'column'}}}
         >
-            <Toolbar sx={{display: 'flex', justifyContent: 'space-between', flexShrink: 0}}>
-                <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-                    <SportsCricket color="primary"/>
-                    <Typography variant="subtitle1" fontWeight="bold">Cricket Legend</Typography>
-                </Box>
+            <Toolbar sx={{display: 'flex', justifyContent: 'space-between', flexShrink: 0, px: 1}}>
+                <Box
+                    component="img"
+                    src="/cricket_legend_banner_final.svg"
+                    alt="Cricket Legend"
+                    sx={{ height: 40, width: 'auto', maxWidth: 160, opacity: 0.18, objectFit: 'contain' }}
+                />
                 <IconButton onClick={onClose}><ChevronLeft/></IconButton>
             </Toolbar>
             <Divider sx={{flexShrink: 0}}/>
@@ -135,7 +138,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     <List disablePadding>
                         <ListItemButton onClick={() => toggle('capture')}>
                             <ListItemIcon><AdminPanelSettings/></ListItemIcon>
-                            <ListItemText primary="Manage" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            <ListItemText primary="Administration" primaryTypographyProps={{fontWeight: 'bold'}}/>
                             {captureOpen ? <ExpandLess/> : <ExpandMore/>}
                         </ListItemButton>
                     </List>
@@ -147,24 +150,38 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemText primary="Clubs"/>
                             </ListItemButton>
 
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/teams')}>
-                                <ListItemIcon><Groups/></ListItemIcon>
-                                <ListItemText primary="Teams"/>
-                            </ListItemButton>
-
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/fields')}>
                                 <ListItemIcon><Grass/></ListItemIcon>
                                 <ListItemText primary="Fields"/>
                             </ListItemButton>
+
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/tournaments')}>
+                                <ListItemIcon><EmojiEvents/></ListItemIcon>
+                                <ListItemText primary="Tournaments"/>
+                            </ListItemButton>
+
+                        </List>
+                    </Collapse>
+                    <Divider/>
+
+                    <List disablePadding>
+                        <ListItemButton onClick={() => toggle('manageClub')}>
+                            <ListItemIcon><SportsScore/></ListItemIcon>
+                            <ListItemText primary="Manage Club" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            {manageClubOpen ? <ExpandLess/> : <ExpandMore/>}
+                        </ListItemButton>
+                    </List>
+                    <Collapse in={manageClubOpen} timeout="auto" unmountOnExit>
+                        <List disablePadding>
 
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/players')}>
                                 <ListItemIcon><Person/></ListItemIcon>
                                 <ListItemText primary="Players"/>
                             </ListItemButton>
 
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/tournaments')}>
-                                <ListItemIcon><EmojiEvents/></ListItemIcon>
-                                <ListItemText primary="Tournaments"/>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/teams')}>
+                                <ListItemIcon><Groups/></ListItemIcon>
+                                <ListItemText primary="Teams"/>
                             </ListItemButton>
 
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/matches')}>
@@ -239,7 +256,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                             </ListItemButton>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/manager-teams')}>
                                 <ListItemIcon><ManageAccounts/></ListItemIcon>
-                                <ListItemText primary="Manager Teams"/>
+                                <ListItemText primary="Team Managers"/>
                             </ListItemButton>
                         </List>
                     </Collapse>
@@ -248,7 +265,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     <List disablePadding>
                         <ListItemButton onClick={() => toggle('administration')}>
                             <ListItemIcon><AdminPanelSettings/></ListItemIcon>
-                            <ListItemText primary="Administration" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            <ListItemText primary="System Admin" primaryTypographyProps={{fontWeight: 'bold'}}/>
                             {administrationOpen ? <ExpandLess/> : <ExpandMore/>}
                         </ListItemButton>
                     </List>

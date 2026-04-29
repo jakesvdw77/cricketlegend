@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import {
   Add, Edit, Delete, PictureAsPdf, FilterAlt, AttachFile,
-  Person, Business, EmojiEvents, CheckCircle, Cancel, Undo,
+  Person, Business, EmojiEvents, CheckCircle, Cancel, Undo, ArrowBack,
 } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -336,7 +336,8 @@ export const Payments: React.FC = () => {
 
   return (
     <Box>
-      {/* ── header ──────────────────────────────────────────────────────── */}
+      {/* ── list view ───────────────────────────────────────────────────── */}
+      {!open && <>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h5">Payments</Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -587,209 +588,201 @@ export const Payments: React.FC = () => {
         onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
       />
 
-      {/* ── add/edit dialog ─────────────────────────────────────────────── */}
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing.paymentId ? 'Edit' : 'New'} Payment</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
+      </>}
 
-          {/* Payment type */}
-          <TextField select label="Payment Type" value={editing.paymentType}
-            onChange={e => {
-              if (e.target.value !== 'PLAYER') setDialogClub(null);
-              set({ paymentType: e.target.value as PaymentType, paymentCategory: undefined, playerId: undefined, sponsorId: undefined, tournamentId: undefined });
-            }}>
-            <MenuItem value="PLAYER">Player</MenuItem>
-            <MenuItem value="SPONSOR">Sponsor</MenuItem>
-            <MenuItem value="AD_HOC">Ad Hoc</MenuItem>
-          </TextField>
+      {/* ── add/edit full page form ──────────────────────────────────────── */}
+      {open && (
+        <Box sx={{ maxWidth: 640 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+            <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)}>Back</Button>
+            <Typography variant="h5">{editing.paymentId ? 'Edit' : 'New'} Payment</Typography>
+          </Box>
 
-          {/* Club filter → then Player */}
-          {showPlayerField && (
-            <>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+            <TextField select label="Payment Type" value={editing.paymentType}
+              onChange={e => {
+                if (e.target.value !== 'PLAYER') setDialogClub(null);
+                set({ paymentType: e.target.value as PaymentType, paymentCategory: undefined, playerId: undefined, sponsorId: undefined, tournamentId: undefined });
+              }}>
+              <MenuItem value="PLAYER">Player</MenuItem>
+              <MenuItem value="SPONSOR">Sponsor</MenuItem>
+              <MenuItem value="AD_HOC">Ad Hoc</MenuItem>
+            </TextField>
+
+            {showPlayerField && (
+              <>
+                <Autocomplete
+                  options={clubs}
+                  getOptionLabel={c => c.name}
+                  value={dialogClub}
+                  onChange={(_, c) => { setDialogClub(c); set({ playerId: undefined }); }}
+                  renderInput={params => <TextField {...params} label="Filter by Club" helperText="Select a club to narrow down the player list" />}
+                  isOptionEqualToValue={(o, v) => o.clubId === v.clubId}
+                  clearOnEscape
+                />
+                <Autocomplete
+                  options={dialogClub ? players.filter(p => p.homeClubId === dialogClub.clubId) : players}
+                  getOptionLabel={p => `${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`}
+                  value={selectedPlayerObj}
+                  onChange={(_, v) => set({ playerId: v?.playerId })}
+                  renderInput={params => (
+                    <TextField {...params} label="Player" required
+                      helperText={dialogClub
+                        ? `${players.filter(p => p.homeClubId === dialogClub.clubId).length} player(s) in ${dialogClub.name}`
+                        : `${players.length} players — filter by club above`}
+                    />
+                  )}
+                  isOptionEqualToValue={(o, v) => o.playerId === v.playerId}
+                  noOptionsText={dialogClub ? `No players registered under ${dialogClub.name}` : 'No players found'}
+                />
+              </>
+            )}
+
+            {showSponsorField && (
               <Autocomplete
-                options={clubs}
-                getOptionLabel={c => c.name}
-                value={dialogClub}
-                onChange={(_, c) => { setDialogClub(c); set({ playerId: undefined }); }}
-                renderInput={params => <TextField {...params} label="Filter by Club" helperText="Select a club to narrow down the player list" />}
-                isOptionEqualToValue={(o, v) => o.clubId === v.clubId}
-                clearOnEscape
+                options={sponsors}
+                getOptionLabel={s => s.name}
+                value={selectedSponsorObj}
+                onChange={(_, v) => set({ sponsorId: v?.sponsorId })}
+                renderInput={params => <TextField {...params} label="Sponsor" required />}
+                isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
               />
+            )}
+
+            {showPlayerField && (
+              <TextField select label="Category" value={editing.paymentCategory ?? ''}
+                onChange={e => { set({ paymentCategory: e.target.value as PaymentCategory, tournamentId: undefined, amount: 0, vatInclusive: false }); setAmountStr('0'); }}>
+                {playerCategories.map(c => (
+                  <MenuItem key={c} value={c}>{CATEGORY_LABELS[c]}</MenuItem>
+                ))}
+              </TextField>
+            )}
+            {showSponsorField && (
+              <TextField select label="Category" value={editing.paymentCategory ?? ''}
+                onChange={e => set({ paymentCategory: e.target.value as PaymentCategory })}>
+                <MenuItem value="SPONSORSHIP">Sponsorship</MenuItem>
+              </TextField>
+            )}
+
+            {showTournamentField && (
               <Autocomplete
-                options={dialogClub
-                  ? players.filter(p => p.homeClubId === dialogClub.clubId)
-                  : players}
-                getOptionLabel={p => `${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`}
-                value={selectedPlayerObj}
-                onChange={(_, v) => set({ playerId: v?.playerId })}
+                options={tournaments}
+                getOptionLabel={t => t.name}
+                value={selectedTournamentObj}
+                onChange={(_, v) => {
+                  const patch: Partial<Payment> = { tournamentId: v?.tournamentId };
+                  if (v) {
+                    const fee = editing.paymentCategory === 'TOURNAMENT_REGISTRATION' ? v.registrationFee
+                              : editing.paymentCategory === 'TOURNAMENT_FEE' ? v.matchFee
+                              : undefined;
+                    if (fee != null) { patch.amount = Number(fee); setAmountStr(String(fee)); }
+                  }
+                  set(patch);
+                }}
                 renderInput={params => (
-                  <TextField {...params} label="Player" required
-                    helperText={dialogClub
-                      ? `${players.filter(p => p.homeClubId === dialogClub.clubId).length} player(s) in ${dialogClub.name}`
-                      : `${players.length} players — filter by club above`}
+                  <TextField {...params} label="Tournament"
+                    helperText={editing.paymentType === 'SPONSOR' ? 'Leave blank for once-off sponsorship' : undefined}
+                    required={editing.paymentCategory === 'TOURNAMENT_FEE'}
                   />
                 )}
-                isOptionEqualToValue={(o, v) => o.playerId === v.playerId}
-                noOptionsText={dialogClub ? `No players registered under ${dialogClub.name}` : 'No players found'}
+                isOptionEqualToValue={(o, v) => o.tournamentId === v.tournamentId}
               />
-            </>
-          )}
-
-          {/* Sponsor */}
-          {showSponsorField && (
-            <Autocomplete
-              options={sponsors}
-              getOptionLabel={s => s.name}
-              value={selectedSponsorObj}
-              onChange={(_, v) => set({ sponsorId: v?.sponsorId })}
-              renderInput={params => <TextField {...params} label="Sponsor" required />}
-              isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
-            />
-          )}
-
-          {/* Category */}
-          {showPlayerField && (
-            <TextField select label="Category" value={editing.paymentCategory ?? ''}
-              onChange={e => { set({ paymentCategory: e.target.value as PaymentCategory, tournamentId: undefined, amount: 0, vatInclusive: false }); setAmountStr('0'); }}>
-              {playerCategories.map(c => (
-                <MenuItem key={c} value={c}>{CATEGORY_LABELS[c]}</MenuItem>
-              ))}
-            </TextField>
-          )}
-          {showSponsorField && (
-            <TextField select label="Category" value={editing.paymentCategory ?? ''}
-              onChange={e => set({ paymentCategory: e.target.value as PaymentCategory })}>
-              <MenuItem value="SPONSORSHIP">Sponsorship</MenuItem>
-            </TextField>
-          )}
-
-          {/* Tournament (optional for sponsors, required for tournament fee) */}
-          {showTournamentField && (
-            <Autocomplete
-              options={tournaments}
-              getOptionLabel={t => t.name}
-              value={selectedTournamentObj}
-              onChange={(_, v) => {
-                const patch: Partial<Payment> = { tournamentId: v?.tournamentId };
-                if (v) {
-                  const fee = editing.paymentCategory === 'TOURNAMENT_REGISTRATION' ? v.registrationFee
-                            : editing.paymentCategory === 'TOURNAMENT_FEE' ? v.matchFee
-                            : undefined;
-                  if (fee != null) { patch.amount = Number(fee); setAmountStr(String(fee)); }
-                }
-                set(patch);
-              }}
-              renderInput={params => (
-                <TextField {...params} label="Tournament"
-                  helperText={editing.paymentType === 'SPONSOR' ? 'Leave blank for once-off sponsorship' : undefined}
-                  required={editing.paymentCategory === 'TOURNAMENT_FEE'}
-                />
-              )}
-              isOptionEqualToValue={(o, v) => o.tournamentId === v.tournamentId}
-            />
-          )}
-
-          <Divider />
-
-          {/* Date + Amount */}
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField label="Payment Date" type="date" value={editing.paymentDate}
-              InputLabelProps={{ shrink: true }}
-              onChange={e => set({ paymentDate: e.target.value })}
-              fullWidth required />
-            <TextField label="Amount (R)" type="number" value={amountStr}
-              inputProps={{ min: 0, step: 0.01 }}
-              onChange={e => {
-                setAmountStr(e.target.value);
-                set({ amount: parseFloat(e.target.value) || 0 });
-              }}
-              fullWidth required />
-          </Box>
-
-          {/* VAT */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={!!editing.taxable}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    set({ taxable: checked, vatInclusive: checked ? editing.vatInclusive : false });
-                  }}
-                />
-              }
-              label="Subject to VAT (15%)"
-            />
-            {editing.taxable && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, pl: 1 }}>
-                <FormControl>
-                  <RadioGroup
-                    row
-                    value={editing.vatInclusive ? 'inclusive' : 'exclusive'}
-                    onChange={e => set({ vatInclusive: e.target.value === 'inclusive' })}
-                  >
-                    <FormControlLabel value="exclusive" control={<Radio size="small" />} label="VAT Exclusive (VAT added on top)" />
-                    <FormControlLabel value="inclusive" control={<Radio size="small" />} label="VAT Inclusive (VAT already in amount)" />
-                  </RadioGroup>
-                </FormControl>
-                <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-                  {editing.vatInclusive
-                    ? <>Net: {fmt(editing.amount / 1.15)} &nbsp;|&nbsp; VAT: {fmt(editing.amount - editing.amount / 1.15)} &nbsp;|&nbsp; Total paid: {fmt(editing.amount)}</>
-                    : <>VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total incl. VAT: {fmt(editing.amount * (1 + VAT_RATE))}</>
-                  }
-                </Typography>
-              </Box>
             )}
-          </Box>
 
-          {/* Description */}
-          <TextField
-            label={showAdHocDescription ? 'Description (required)' : 'Notes / Description'}
-            value={editing.description ?? ''}
-            multiline rows={showAdHocDescription ? 3 : 2}
-            onChange={e => set({ description: e.target.value })}
-            required={showAdHocDescription}
-          />
+            <Divider />
 
-          {/* Proof of payment */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-              Proof of Payment
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-              <input
-                type="file"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                accept="image/*,application/pdf"
-                onChange={handleFileChange}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField label="Payment Date" type="date" value={editing.paymentDate}
+                InputLabelProps={{ shrink: true }}
+                onChange={e => set({ paymentDate: e.target.value })}
+                fullWidth required />
+              <TextField label="Amount (R)" type="number" value={amountStr}
+                inputProps={{ min: 0, step: 0.01 }}
+                onChange={e => { setAmountStr(e.target.value); set({ amount: parseFloat(e.target.value) || 0 }); }}
+                fullWidth required />
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!!editing.taxable}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      set({ taxable: checked, vatInclusive: checked ? editing.vatInclusive : false });
+                    }}
+                  />
+                }
+                label="Subject to VAT (15%)"
               />
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<AttachFile />}
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? 'Uploading…' : 'Upload File'}
-              </Button>
-              {editing.proofOfPaymentUrl && (
-                <Button size="small" variant="text" startIcon={<AttachFile />}
-                  onClick={() => paymentApi.openProof(editing.proofOfPaymentUrl!).catch(() => setSnack('Could not load proof of payment.'))}>
-                  View current proof
-                </Button>
+              {editing.taxable && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, pl: 1 }}>
+                  <FormControl>
+                    <RadioGroup
+                      row
+                      value={editing.vatInclusive ? 'inclusive' : 'exclusive'}
+                      onChange={e => set({ vatInclusive: e.target.value === 'inclusive' })}
+                    >
+                      <FormControlLabel value="exclusive" control={<Radio size="small" />} label="VAT Exclusive (VAT added on top)" />
+                      <FormControlLabel value="inclusive" control={<Radio size="small" />} label="VAT Inclusive (VAT already in amount)" />
+                    </RadioGroup>
+                  </FormControl>
+                  <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                    {editing.vatInclusive
+                      ? <>Net: {fmt(editing.amount / 1.15)} &nbsp;|&nbsp; VAT: {fmt(editing.amount - editing.amount / 1.15)} &nbsp;|&nbsp; Total paid: {fmt(editing.amount)}</>
+                      : <>VAT: {fmt(editing.amount * VAT_RATE)} &nbsp;|&nbsp; Total incl. VAT: {fmt(editing.amount * (1 + VAT_RATE))}</>
+                    }
+                  </Typography>
+                </Box>
               )}
             </Box>
-            <Typography variant="caption" color="text.secondary">
-              Accepted: images (JPG, PNG) or PDF. Max 10 MB.
-            </Typography>
+
+            <TextField
+              label={showAdHocDescription ? 'Description (required)' : 'Notes / Description'}
+              value={editing.description ?? ''}
+              multiline rows={showAdHocDescription ? 3 : 2}
+              onChange={e => set({ description: e.target.value })}
+              required={showAdHocDescription}
+            />
+
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                Proof of Payment
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  accept="image/*,application/pdf"
+                  onChange={handleFileChange}
+                />
+                <Button variant="outlined" size="small" startIcon={<AttachFile />}
+                  onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                  {uploading ? 'Uploading…' : 'Upload File'}
+                </Button>
+                {editing.proofOfPaymentUrl && (
+                  <Button size="small" variant="text" startIcon={<AttachFile />}
+                    onClick={() => paymentApi.openProof(editing.proofOfPaymentUrl!).catch(() => setSnack('Could not load proof of payment.'))}>
+                    View current proof
+                  </Button>
+                )}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                Accepted: images (JPG, PNG) or PDF. Max 10 MB.
+              </Typography>
+            </Box>
+
+            <Divider />
+
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+              <Button onClick={() => setOpen(false)}>Cancel</Button>
+              <Button variant="contained" onClick={save}>Save</Button>
+            </Box>
           </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={save}>Save</Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
+      )}
 
       {/* Approval confirmation dialog */}
       <Dialog open={!!approveTarget} onClose={() => setApproveTarget(null)} maxWidth="xs" fullWidth>

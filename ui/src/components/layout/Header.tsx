@@ -5,7 +5,7 @@ import {
   Accordion, AccordionSummary, AccordionDetails,
   Badge, Popover, List, ListItem, ListItemText, Divider,
 } from '@mui/material';
-import { Menu as MenuIcon, SportsCricket, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode, DoneAll, DeleteSweep } from '@mui/icons-material';
+import { Menu as MenuIcon, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode, DoneAll, DeleteSweep } from '@mui/icons-material';
 import { useColorMode } from '../../context/ColorModeContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -117,10 +117,7 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
         <IconButton color="inherit" edge="start" onClick={onToggleSidebar} sx={{ mr: 2 }}>
           <MenuIcon />
         </IconButton>
-        <SportsCricket sx={{ mr: 1 }} />
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Cricket Legend
-        </Typography>
+        <Box sx={{ flexGrow: 1 }} />
         {isAdmin && (
           <Chip label="Admin" color="warning" size="small" sx={{ mr: 2, color: 'white' }} />
         )}
