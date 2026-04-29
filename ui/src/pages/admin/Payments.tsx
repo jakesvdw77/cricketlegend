@@ -14,6 +14,7 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { paymentApi } from '../../api/paymentApi';
+import { ProofViewerDialog } from '../../components/ProofViewerDialog';
 import { playerApi } from '../../api/playerApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -105,6 +106,7 @@ export const Payments: React.FC = () => {
   const [amountStr, setAmountStr] = useState<string>('0');
   const [uploading, setUploading] = useState(false);
   const [snack, setSnack] = useState('');
+  const [proofViewUrl, setProofViewUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -198,7 +200,7 @@ export const Payments: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const url = await paymentApi.uploadFile(formData);
+      const url = await paymentApi.uploadProofFile(formData);
       set({ proofOfPaymentUrl: url });
       setSnack('Proof of payment uploaded.');
     } catch {
@@ -519,7 +521,7 @@ export const Payments: React.FC = () => {
                 <TableCell>
                   {r.proofOfPaymentUrl ? (
                     <Button size="small" variant="text" startIcon={<AttachFile />}
-                      onClick={() => paymentApi.openProof(r.proofOfPaymentUrl!).catch(() => setSnack('Could not load proof of payment.'))}>
+                      onClick={() => setProofViewUrl(r.proofOfPaymentUrl!)}>
                       View
                     </Button>
                   ) : '—'}
@@ -764,7 +766,7 @@ export const Payments: React.FC = () => {
                 </Button>
                 {editing.proofOfPaymentUrl && (
                   <Button size="small" variant="text" startIcon={<AttachFile />}
-                    onClick={() => paymentApi.openProof(editing.proofOfPaymentUrl!).catch(() => setSnack('Could not load proof of payment.'))}>
+                    onClick={() => setProofViewUrl(editing.proofOfPaymentUrl!)}>
                     View current proof
                   </Button>
                 )}
@@ -897,6 +899,7 @@ export const Payments: React.FC = () => {
       </Dialog>
 
       <Snackbar open={!!snack} autoHideDuration={4000} onClose={() => setSnack('')} message={snack} />
+      <ProofViewerDialog open={!!proofViewUrl} proofUrl={proofViewUrl} onClose={() => setProofViewUrl(null)} />
 
     </Box>
   );

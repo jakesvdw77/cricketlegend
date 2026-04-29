@@ -25,16 +25,38 @@ public class FileController {
     private final FileStorageService fileStorageService;
 
     @PostMapping("/upload")
-    @Operation(summary = "Upload a file (e.g. proof of payment)")
+    @Operation(summary = "Upload a public file (logo, photo, media)")
     public ResponseEntity<Map<String, String>> upload(@RequestParam("file") MultipartFile file) {
         String url = fileStorageService.store(file);
         return ResponseEntity.ok(Map.of("url", url));
     }
 
     @GetMapping("/{filename:.+}")
-    @Operation(summary = "Retrieve an uploaded file")
+    @Operation(summary = "Retrieve a public uploaded file")
     public ResponseEntity<Resource> serveFile(@PathVariable String filename) {
-        Resource resource = fileStorageService.loadAsResource(filename);
+        return buildResponse(fileStorageService.loadAsResource(filename), filename);
+    }
+
+    // ── Proof-of-payment endpoints (authentication required) ─────────────────
+
+    @PostMapping("/proof/upload")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Upload a proof-of-payment document (authenticated)")
+    public ResponseEntity<Map<String, String>> uploadProof(@RequestParam("file") MultipartFile file) {
+        String url = fileStorageService.storeProof(file);
+        return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    @GetMapping("/proof/{filename:.+}")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Retrieve a proof-of-payment document (authenticated)")
+    public ResponseEntity<Resource> serveProofFile(@PathVariable String filename) {
+        return buildResponse(fileStorageService.loadProofAsResource(filename), filename);
+    }
+
+    // ── helper ────────────────────────────────────────────────────────────────
+
+    private ResponseEntity<Resource> buildResponse(Resource resource, String filename) {
         String contentType = "application/octet-stream";
         try {
             contentType = Files.probeContentType(Path.of(filename));
@@ -43,6 +65,8 @@ public class FileController {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Cache-Control", "no-store")
                 .body(resource);
     }
 }

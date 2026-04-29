@@ -8,6 +8,7 @@ import { AccountBalanceWallet, AttachFile, Upload, Add } from '@mui/icons-materi
 import { paymentApi } from '../api/paymentApi';
 import { tournamentApi } from '../api/tournamentApi';
 import { Payment, PaymentCategory, PaymentStatus, Tournament, WalletAllocationDTO } from '../types';
+import { ProofViewerDialog } from '../components/ProofViewerDialog';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(v);
@@ -55,6 +56,7 @@ export const MyWallet: React.FC = () => {
   const [description, setDescription] = useState('');
   const [proofUrl, setProofUrl] = useState('');
   const [snack, setSnack] = useState('');
+  const [proofViewUrl, setProofViewUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,7 +81,7 @@ export const MyWallet: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const url = await paymentApi.uploadFile(formData);
+      const url = await paymentApi.uploadProofFile(formData);
       setProofUrl(url);
       setSnack('Proof of payment uploaded.');
     } catch {
@@ -341,7 +343,7 @@ export const MyWallet: React.FC = () => {
                           size="small"
                           variant="outlined"
                           clickable
-                          onClick={() => paymentApi.openProof(t.proofOfPaymentUrl!)}
+                          onClick={() => setProofViewUrl(t.proofOfPaymentUrl!)}
                         />
                       ) : '—'}
                     </TableCell>
@@ -401,6 +403,7 @@ export const MyWallet: React.FC = () => {
       )}
 
       <Snackbar open={!!snack} autoHideDuration={5000} onClose={() => setSnack('')} message={snack} />
+      <ProofViewerDialog open={!!proofViewUrl} proofUrl={proofViewUrl} onClose={() => setProofViewUrl(null)} />
     </Box>
   );
 };

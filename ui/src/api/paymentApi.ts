@@ -47,6 +47,12 @@ export const paymentApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(r => r.data.url),
 
+  /** Upload a proof-of-payment document to the secured proof store */
+  uploadProofFile: (formData: FormData) =>
+    api.post<{ url: string }>('/files/proof/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data.url),
+
   /** Get the calling player's wallet balance and transactions */
   getWallet: () => api.get<WalletDTO>('/payments/wallet/me').then(r => r.data),
 
@@ -105,12 +111,12 @@ export const paymentApi = {
       params: { amount, description },
     }).then(r => r.data),
 
-  /** Fetches the file with auth token and opens it in a new tab as a blob URL */
-  openProof: async (storedUrl: string): Promise<void> => {
+  /** Fetches a proof document and returns a blob URL + mime type for in-dialog rendering */
+  fetchProof: async (storedUrl: string): Promise<{ blobUrl: string; mimeType: string }> => {
     const path = storedUrl.replace('/api/v1', '');
     const response = await api.get(path, { responseType: 'blob' });
+    const mimeType: string = response.data.type || 'application/octet-stream';
     const blobUrl = URL.createObjectURL(response.data);
-    const win = window.open(blobUrl, '_blank');
-    if (win) setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000);
+    return { blobUrl, mimeType };
   },
 };

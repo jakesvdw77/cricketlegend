@@ -48,6 +48,7 @@ public class SecurityConfig {
             .sessionManagement(session ->
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/api/v1/files/proof/**").authenticated()
                     .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
                     .anyRequest().authenticated()

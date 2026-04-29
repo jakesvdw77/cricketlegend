@@ -9,6 +9,7 @@ import { MenuItem } from '@mui/material';
 import { paymentApi } from '../api/paymentApi';
 import { tournamentApi } from '../api/tournamentApi';
 import { Payment, PaymentCategory, PaymentStatus, Tournament } from '../types';
+import { ProofViewerDialog } from '../components/ProofViewerDialog';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(v);
@@ -28,6 +29,7 @@ export const MyPayments: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [snack, setSnack] = useState('');
+  const [proofViewUrl, setProofViewUrl] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
 
@@ -57,7 +59,7 @@ export const MyPayments: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const url = await paymentApi.uploadFile(formData);
+      const url = await paymentApi.uploadProofFile(formData);
       setProofUrl(url);
       setSnack('Proof of payment uploaded.');
     } catch {
@@ -268,7 +270,7 @@ export const MyPayments: React.FC = () => {
                         size="small"
                         variant="text"
                         startIcon={<AttachFile />}
-                        onClick={() => paymentApi.openProof(p.proofOfPaymentUrl!).catch(() => setSnack('Could not load proof.'))}
+                        onClick={() => setProofViewUrl(p.proofOfPaymentUrl!)}
                       >
                         View
                       </Button>
@@ -291,6 +293,7 @@ export const MyPayments: React.FC = () => {
       )}
 
       <Snackbar open={!!snack} autoHideDuration={5000} onClose={() => setSnack('')} message={snack} />
+      <ProofViewerDialog open={!!proofViewUrl} proofUrl={proofViewUrl} onClose={() => setProofViewUrl(null)} />
     </Box>
   );
 };
