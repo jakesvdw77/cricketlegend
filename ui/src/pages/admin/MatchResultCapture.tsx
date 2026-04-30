@@ -244,8 +244,8 @@ export const MatchResultCapture: React.FC = () => {
         sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
       >
         <Tab label="Match Details" />
-        <Tab label="Performers" />
         <Tab label="Scorecard" />
+        <Tab label="Performers" />
         <Tab label="Summary" />
       </Tabs>
 
@@ -481,8 +481,33 @@ export const MatchResultCapture: React.FC = () => {
         </Box>
       )}
 
-      {/* ── Tab 1: Performers ── */}
+      {/* ── Tab 1: Scorecard ── */}
       {activeTab === 1 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {!result.sideBattingFirstId && (
+            <Alert severity="info">
+              Please set the toss and batting order in Match Details before capturing the scorecard.
+            </Alert>
+          )}
+          <ScorecardCaptureTab
+            firstInningsLabel={`1st Innings — ${firstTeamName} batting`}
+            secondInningsLabel={`2nd Innings — ${secondTeamName} batting`}
+            firstCard={firstCard}
+            secondCard={secondCard}
+            firstBatterOptions={firstInningsPlayers}
+            firstBowlerOptions={secondInningsPlayers}
+            secondBatterOptions={secondInningsPlayers}
+            secondBowlerOptions={firstInningsPlayers}
+            disabled={!result.sideBattingFirstId || !!result.forfeited}
+            onFirstCardChange={card => setScoreCard({ teamA: card })}
+            onSecondCardChange={card => setScoreCard({ teamB: card })}
+          />
+          <Box>{saveButton}</Box>
+        </Box>
+      )}
+
+      {/* ── Tab 2: Performers ── */}
+      {activeTab === 2 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {!result.sideBattingFirstId && (
             <Alert severity="info">
@@ -526,31 +551,6 @@ export const MatchResultCapture: React.FC = () => {
             </TextField>
           </Section>
 
-          <Box>{saveButton}</Box>
-        </Box>
-      )}
-
-      {/* ── Tab 2: Scorecard ── */}
-      {activeTab === 2 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {!result.sideBattingFirstId && (
-            <Alert severity="info">
-              Please set the toss and batting order in Match Details before capturing the scorecard.
-            </Alert>
-          )}
-          <ScorecardCaptureTab
-            firstInningsLabel={`1st Innings — ${firstTeamName} batting`}
-            secondInningsLabel={`2nd Innings — ${secondTeamName} batting`}
-            firstCard={firstCard}
-            secondCard={secondCard}
-            firstBatterOptions={firstInningsPlayers}
-            firstBowlerOptions={secondInningsPlayers}
-            secondBatterOptions={secondInningsPlayers}
-            secondBowlerOptions={firstInningsPlayers}
-            disabled={!result.sideBattingFirstId || !!result.forfeited}
-            onFirstCardChange={card => setScoreCard({ teamA: card })}
-            onSecondCardChange={card => setScoreCard({ teamB: card })}
-          />
           <Box>{saveButton}</Box>
         </Box>
       )}
