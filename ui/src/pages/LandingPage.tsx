@@ -18,7 +18,8 @@ import { sponsorApi } from '../api/sponsorApi';
 import { mediaApi } from '../api/mediaApi';
 import { tournamentApi } from '../api/tournamentApi';
 import { socialMediaPageApi } from '../api/socialMediaPageApi';
-import { Match, MatchResultSummary, Sponsor, MediaContent, Tournament, SocialMediaPage, PoolStandings } from '../types';
+import { appSettingsApi } from '../api/appSettingsApi';
+import { Match, MatchResultSummary, Sponsor, MediaContent, Tournament, SocialMediaPage, PoolStandings, AppSettings } from '../types';
 import MatchSummaryView from './view/MatchSummaryView';
 import { MediaCarousel } from '../components/media/MediaCarousel';
 import { SocialMediaPageEmbed } from '../components/SocialMediaPageEmbed';
@@ -483,6 +484,7 @@ export const LandingPage: React.FC = () => {
   const [liveTournaments, setLiveTournaments] = useState<Tournament[]>([]);
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([]);
   const [socialMediaPages, setSocialMediaPages] = useState<SocialMediaPage[]>([]);
+  const [appSettings, setAppSettings] = useState<AppSettings>({ showUpcomingSection: true, showLiveMatchesSection: true, showLogStandingsSection: true });
   const [featureDialog, setFeatureDialog] = useState<{ title: string; desc: string; icon: React.ReactNode } | null>(null);
   const [summaryMatch, setSummaryMatch] = useState<Match | null>(null);
   const [summaryView, setSummaryView] = useState<'whatsapp' | 'facebook'>('whatsapp');
@@ -503,6 +505,7 @@ export const LandingPage: React.FC = () => {
   const upcomingRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    appSettingsApi.get().then(setAppSettings).catch(() => {});
     matchApi.findUpcoming().then(setUpcomingMatches).catch(() => {});
     matchApi.findLive().then(setLiveMatches).catch(() => {});
     matchApi.findRecentResults(6).then(setRecentResults).catch(() => {});
@@ -642,7 +645,7 @@ export const LandingPage: React.FC = () => {
       )}
 
       {/* ── Live Matches ────────────────────────────────────────────────── */}
-      {liveMatches.length > 0 && (
+      {appSettings.showLiveMatchesSection && liveMatches.length > 0 && (
         <>
           <Divider />
           <Box ref={tournamentsRef} sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
@@ -672,7 +675,7 @@ export const LandingPage: React.FC = () => {
       )}
 
       {/* ── Standings ───────────────────────────────────────────────────── */}
-      {liveTournaments.length > 0 && Object.keys(standingsMap).length > 0 && (
+      {appSettings.showLogStandingsSection && liveTournaments.length > 0 && Object.keys(standingsMap).length > 0 && (
         <>
           <Divider />
           <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
@@ -733,7 +736,7 @@ export const LandingPage: React.FC = () => {
       )}
 
       {/* ── Upcoming (Tournaments + Matches combined) ───────────────────── */}
-      {(upcomingTournaments.length > 0 || upcomingMatches.length > 0) && (
+      {appSettings.showUpcomingSection && (upcomingTournaments.length > 0 || upcomingMatches.length > 0) && (
         <>
           <Divider />
           <Box ref={upcomingRef} sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>

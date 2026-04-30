@@ -61,5 +61,6 @@
     <include file="db/changelog/v1/054-match-result-no-result.sql"/>
     <include file="db/changelog/v1/055-club-event.sql"/>
     <include file="db/changelog/v1/056-player-notification-consent.sql"/>
+    <include file="db/changelog/v1/057-app-settings.sql"/>
 
 </databaseChangeLog>

@@ -271,9 +271,9 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     </List>
                     <Collapse in={administrationOpen} timeout="auto" unmountOnExit>
                         <List disablePadding>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/social-media-pages')}>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/setup')}>
                                 <ListItemIcon><Facebook/></ListItemIcon>
-                                <ListItemText primary="Social Media Pages"/>
+                                <ListItemText primary="Setup"/>
                             </ListItemButton>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/login-history')}>
                                 <ListItemIcon><Login/></ListItemIcon>

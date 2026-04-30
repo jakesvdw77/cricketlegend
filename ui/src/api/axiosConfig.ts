@@ -7,8 +7,11 @@ const api = axios.create({
 
 api.interceptors.request.use(async (config) => {
   if (keycloak.authenticated) {
-    if (keycloak.isTokenExpired(30)) {
+    try {
       await keycloak.updateToken(30);
+    } catch {
+      keycloak.login();
+      return Promise.reject(new Error('Session expired — please log in again.'));
     }
     config.headers.Authorization = `Bearer ${keycloak.token}`;
   }

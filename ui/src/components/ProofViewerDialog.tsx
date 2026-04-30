@@ -51,10 +51,9 @@ export const ProofViewerDialog: React.FC<Props> = ({ open, proofUrl, onClose }) 
         {error && <Typography color="error" sx={{ p: 3 }}>{error}</Typography>}
         {blobUrl && isPdf && (
           <Box
-            component="iframe"
-            src={blobUrl}
-            title="Proof of Payment"
-            sandbox="allow-same-origin"
+            component="object"
+            data={blobUrl}
+            type="application/pdf"
             sx={{ width: '100%', height: '70vh', border: 'none', display: 'block' }}
           />
         )}
@@ -68,6 +67,11 @@ export const ProofViewerDialog: React.FC<Props> = ({ open, proofUrl, onClose }) 
         )}
       </DialogContent>
       <DialogActions>
+        {blobUrl && (
+          <Button component="a" href={blobUrl} download="proof-of-payment">
+            Download
+          </Button>
+        )}
         <Button onClick={handleClose}>Close</Button>
       </DialogActions>
     </Dialog>

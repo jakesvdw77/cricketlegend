@@ -491,6 +491,12 @@ export interface SocialMediaPage {
   enabled: boolean;
 }
 
+export interface AppSettings {
+  showUpcomingSection: boolean;
+  showLiveMatchesSection: boolean;
+  showLogStandingsSection: boolean;
+}
+
 export interface MatchFeePlayerDataDTO {
   playerId: number;
   playerName: string;

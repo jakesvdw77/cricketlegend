@@ -15,9 +15,7 @@ export const mediaApi = {
   upload: (file: File): Promise<string> => {
     const form = new FormData();
     form.append('file', file);
-    return api.post<{ url: string }>('/files/upload', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then(r => r.data.url);
+    return api.post<{ url: string }>('/files/upload', form).then(r => r.data.url);
   },
 
   save: (dto: MediaContent) => api.post<MediaContent>('/media', dto).then(r => r.data),

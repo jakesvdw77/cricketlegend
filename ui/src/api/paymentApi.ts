@@ -43,15 +43,11 @@ export const paymentApi = {
     api.post<Payment>('/payments/submit', dto).then(r => r.data),
 
   uploadFile: (formData: FormData) =>
-    api.post<{ url: string }>('/files/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then(r => r.data.url),
+    api.post<{ url: string }>('/files/upload', formData).then(r => r.data.url),
 
   /** Upload a proof-of-payment document to the secured proof store */
   uploadProofFile: (formData: FormData) =>
-    api.post<{ url: string }>('/files/proof/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then(r => r.data.url),
+    api.post<{ url: string }>('/files/proof/upload', formData).then(r => r.data.url),
 
   /** Get the calling player's wallet balance and transactions */
   getWallet: () => api.get<WalletDTO>('/payments/wallet/me').then(r => r.data),

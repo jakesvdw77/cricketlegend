@@ -37,7 +37,8 @@ public class SecurityConfig {
             "/api/v1/tournaments/*",
             "/api/v1/tournaments/*/standings",
             "/api/v1/media",
-            "/api/v1/social-media-pages/enabled"
+            "/api/v1/social-media-pages/enabled",
+            "/api/v1/app-settings"
     };
 
     @Bean
