@@ -7,4 +7,5 @@ public class AppSettingsDTO {
     private boolean showUpcomingSection;
     private boolean showLiveMatchesSection;
     private boolean showLogStandingsSection;
+    private boolean showMatchResultsSection;
 }

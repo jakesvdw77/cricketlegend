@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Facebook, Login, Event,
+    PermMedia, Campaign, Home, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Facebook, Login, Event, Settings,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -272,8 +272,8 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     <Collapse in={administrationOpen} timeout="auto" unmountOnExit>
                         <List disablePadding>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/setup')}>
-                                <ListItemIcon><Facebook/></ListItemIcon>
-                                <ListItemText primary="Setup"/>
+                                <ListItemIcon><Settings/></ListItemIcon>
+                                <ListItemText primary="Page Setup"/>
                             </ListItemButton>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/login-history')}>
                                 <ListItemIcon><Login/></ListItemIcon>

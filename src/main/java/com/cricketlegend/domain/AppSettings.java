@@ -22,4 +22,7 @@ public class AppSettings {
 
     @Column(nullable = false)
     private boolean showLogStandingsSection = true;
+
+    @Column(nullable = false)
+    private boolean showMatchResultsSection = true;
 }

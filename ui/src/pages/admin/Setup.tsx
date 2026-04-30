@@ -5,7 +5,7 @@ import {
   DialogContent, DialogActions, TextField, Switch, Tooltip, Chip,
   Card, CardContent, CardHeader, Divider, Stack,
 } from '@mui/material';
-import { Add, Edit, Delete, OpenInNew, CalendarMonth, Sensors, EmojiEvents } from '@mui/icons-material';
+import { Add, Edit, Delete, OpenInNew, CalendarMonth, Sensors, EmojiEvents, CheckCircle } from '@mui/icons-material';
 import { socialMediaPageApi } from '../../api/socialMediaPageApi';
 import { appSettingsApi } from '../../api/appSettingsApi';
 import { SocialMediaPage, AppSettings } from '../../types';
@@ -16,6 +16,7 @@ const defaultSettings: AppSettings = {
   showUpcomingSection: true,
   showLiveMatchesSection: true,
   showLogStandingsSection: true,
+  showMatchResultsSection: true,
 };
 
 export const Setup: React.FC = () => {
@@ -61,13 +62,14 @@ export const Setup: React.FC = () => {
 
   const landingSections = [
     { key: 'showUpcomingSection'      as const, label: 'Upcoming Matches & Tournaments', icon: <CalendarMonth fontSize="small" color="primary" /> },
-    { key: 'showLiveMatchesSection'   as const, label: 'Live Matches',                    icon: <Sensors fontSize="small" sx={{ color: '#e53935' }} /> },
-    { key: 'showLogStandingsSection'  as const, label: 'Log Standings',                   icon: <EmojiEvents fontSize="small" color="primary" /> },
+    { key: 'showLiveMatchesSection'   as const, label: 'Live Matches',                   icon: <Sensors fontSize="small" sx={{ color: '#e53935' }} /> },
+    { key: 'showLogStandingsSection'  as const, label: 'Log Standings',                  icon: <EmojiEvents fontSize="small" color="primary" /> },
+    { key: 'showMatchResultsSection'  as const, label: 'Match Results',                  icon: <CheckCircle fontSize="small" color="primary" /> },
   ];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Typography variant="h5">Setup</Typography>
+      <Typography variant="h5">Page Setup</Typography>
 
       {/* ── Landing Page Sections ─────────────────────────────────────── */}
       <Card variant="outlined">

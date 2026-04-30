@@ -495,6 +495,7 @@ export interface AppSettings {
   showUpcomingSection: boolean;
   showLiveMatchesSection: boolean;
   showLogStandingsSection: boolean;
+  showMatchResultsSection: boolean;
 }
 
 export interface MatchFeePlayerDataDTO {

@@ -484,7 +484,7 @@ export const LandingPage: React.FC = () => {
   const [liveTournaments, setLiveTournaments] = useState<Tournament[]>([]);
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([]);
   const [socialMediaPages, setSocialMediaPages] = useState<SocialMediaPage[]>([]);
-  const [appSettings, setAppSettings] = useState<AppSettings>({ showUpcomingSection: true, showLiveMatchesSection: true, showLogStandingsSection: true });
+  const [appSettings, setAppSettings] = useState<AppSettings>({ showUpcomingSection: true, showLiveMatchesSection: true, showLogStandingsSection: true, showMatchResultsSection: true });
   const [featureDialog, setFeatureDialog] = useState<{ title: string; desc: string; icon: React.ReactNode } | null>(null);
   const [summaryMatch, setSummaryMatch] = useState<Match | null>(null);
   const [summaryView, setSummaryView] = useState<'whatsapp' | 'facebook'>('whatsapp');
@@ -707,7 +707,7 @@ export const LandingPage: React.FC = () => {
       )}
 
       {/* ── Results ─────────────────────────────────────────────────────── */}
-      {recentResults.length > 0 && (
+      {appSettings.showMatchResultsSection && recentResults.length > 0 && (
         <>
           <Divider sx={{ borderColor: 'divider', opacity: 0.5 }} />
           <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
