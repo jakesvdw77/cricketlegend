@@ -10,6 +10,11 @@ public class TeamScorecard {
     private Integer score;
     private Integer wickets;
     private String overs;
+    private Integer byes;
+    private Integer legByes;
+    private Integer wides;
+    private Integer noBalls;
+    private Integer penaltyRuns;
     private List<BattingEntry> batting;
     private List<BowlingEntry> bowling;
 }

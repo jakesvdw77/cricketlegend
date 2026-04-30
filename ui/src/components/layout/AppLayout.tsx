@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet } from 'react-router-dom';
+import { useColorMode } from '../../context/ColorModeContext';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 
@@ -9,6 +10,8 @@ const version = import.meta.env.VITE_APP_VERSION;
 export const AppLayout: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { mode } = useColorMode();
+  const isDark = mode === 'dark';
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
@@ -29,22 +32,26 @@ export const AppLayout: React.FC = () => {
       >
         <Toolbar />
         <Outlet />
+        <Box sx={{ height: 36 }} />
       </Box>
-      {version && (
-        <Typography
-          variant="caption"
-          sx={{
-            position: 'fixed',
-            bottom: 8,
-            right: 12,
-            color: 'text.disabled',
-            pointerEvents: 'none',
-            userSelect: 'none',
-          }}
-        >
-          v{version}
+      <Box sx={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1200,
+        background: isDark
+          ? 'linear-gradient(160deg, #0a160a 0%, #0e2a0e 100%)'
+          : 'linear-gradient(160deg, #0d3349 0%, #1a5276 100%)',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
+        py: 0.75, px: 2,
+        textAlign: 'center',
+      }}>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+          © {new Date().getFullYear()} Cricket Legend. All rights reserved.
         </Typography>
-      )}
+        {version && (
+          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.3)', ml: 2 }}>
+            v{version}
+          </Typography>
+        )}
+      </Box>
     </Box>
   );
 };

@@ -320,6 +320,11 @@ export interface TeamScorecard {
   score?: number;
   wickets?: number;
   overs?: string;
+  byes?: number;
+  legByes?: number;
+  wides?: number;
+  noBalls?: number;
+  penaltyRuns?: number;
   batting?: BattingEntry[];
   bowling?: BowlingEntry[];
 }

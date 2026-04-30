@@ -64,6 +64,9 @@ public class PlayerServiceImpl implements PlayerService {
     @Transactional
     public PlayerDTO create(PlayerDTO dto) {
         Player player = playerMapper.toEntity(dto);
+        if (player.getConsentEmail()   == null) player.setConsentEmail(false);
+        if (player.getWicketKeeper()   == null) player.setWicketKeeper(false);
+        if (player.getPartTimeBowler() == null) player.setPartTimeBowler(false);
         resolveClub(player, dto.getHomeClubId());
         return playerMapper.toDto(playerRepository.save(player));
     }

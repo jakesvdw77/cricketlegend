@@ -12,12 +12,14 @@ import {
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
 import { tournamentApi } from '../../api/tournamentApi';
+import { teamApi } from '../../api/teamApi';
 import { Match, MatchResult, Player, MatchSide, BattingEntry, BowlingEntry, TeamScorecard, TossWinner, TossDecision, Tournament } from '../../types';
 import WhatsAppTemplate from './templates/WhatsAppTemplate';
 import FacebookTemplate from './templates/FacebookTemplate';
 import ScorecardTemplate from './templates/ScorecardTemplate';
 import BroadcastScorecardTemplate from './templates/BroadcastScorecardTemplate';
 import { TemplateProps, TeamFilter } from './templates/types';
+import ScorecardCaptureTab from '../../components/match/ScorecardCaptureTab';
 
 const empty: MatchResult = {
   matchCompleted: false,
@@ -45,6 +47,8 @@ export const MatchResultCapture: React.FC = () => {
   const [result, setResult]       = useState<MatchResult>(empty);
   const [teamSheets, setTeamSheets] = useState<MatchSide[]>([]);
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
+  const [homeSquad,  setHomeSquad]  = useState<Player[]>([]);
+  const [awaySquad,  setAwaySquad]  = useState<Player[]>([]);
   const [loading, setLoading]     = useState(true);
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
@@ -66,6 +70,8 @@ export const MatchResultCapture: React.FC = () => {
       setTeamSheets(sheets);
       setAllPlayers(players);
       if (existingResult) setResult(existingResult);
+      if (m.homeTeamId)       teamApi.getSquad(m.homeTeamId).then(setHomeSquad).catch(() => {});
+      if (m.oppositionTeamId) teamApi.getSquad(m.oppositionTeamId).then(setAwaySquad).catch(() => {});
       if (m.tournamentId) {
         tournamentApi.findById(m.tournamentId).then(setTournament).catch(() => null);
       }
@@ -128,12 +134,21 @@ export const MatchResultCapture: React.FC = () => {
   const firstInningsTeam  = teams.find(t => t.id === result.sideBattingFirstId);
   const secondInningsTeam = teams.find(t => t.id !== result.sideBattingFirstId && t.id != null);
 
+  const squadFor = (teamId?: number): Player[] => {
+    if (!teamId) return [];
+    if (Number(teamId) === Number(match?.homeTeamId))       return homeSquad;
+    if (Number(teamId) === Number(match?.oppositionTeamId)) return awaySquad;
+    return [];
+  };
+
   const playersFor = (teamId?: number): Player[] => {
-    const sheet = teamSheets.find(s => s.teamId === teamId);
-    if (!sheet?.playingXi?.length) return allPlayers;
-    return sheet.playingXi
-      .map(id => allPlayers.find(p => p.playerId === id))
-      .filter(Boolean) as Player[];
+    const sheet = teamSheets.find(s => Number(s.teamId) === Number(teamId));
+    if (sheet?.playingXi?.length) {
+      return sheet.playingXi
+        .map(id => allPlayers.find(p => p.playerId === id))
+        .filter(Boolean) as Player[];
+    }
+    return squadFor(teamId);
   };
 
   const firstInningsPlayers  = playersFor(result.sideBattingFirstId);
@@ -230,6 +245,7 @@ export const MatchResultCapture: React.FC = () => {
       >
         <Tab label="Match Details" />
         <Tab label="Performers" />
+        <Tab label="Scorecard" />
         <Tab label="Summary" />
       </Tabs>
 
@@ -514,8 +530,33 @@ export const MatchResultCapture: React.FC = () => {
         </Box>
       )}
 
-      {/* ── Tab 2: Summary ── */}
+      {/* ── Tab 2: Scorecard ── */}
       {activeTab === 2 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {!result.sideBattingFirstId && (
+            <Alert severity="info">
+              Please set the toss and batting order in Match Details before capturing the scorecard.
+            </Alert>
+          )}
+          <ScorecardCaptureTab
+            firstInningsLabel={`1st Innings — ${firstTeamName} batting`}
+            secondInningsLabel={`2nd Innings — ${secondTeamName} batting`}
+            firstCard={firstCard}
+            secondCard={secondCard}
+            firstBatterOptions={firstInningsPlayers}
+            firstBowlerOptions={secondInningsPlayers}
+            secondBatterOptions={secondInningsPlayers}
+            secondBowlerOptions={firstInningsPlayers}
+            disabled={!result.sideBattingFirstId || !!result.forfeited}
+            onFirstCardChange={card => setScoreCard({ teamA: card })}
+            onSecondCardChange={card => setScoreCard({ teamB: card })}
+          />
+          <Box>{saveButton}</Box>
+        </Box>
+      )}
+
+      {/* ── Tab 3: Summary ── */}
+      {activeTab === 3 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* Template + team filter selectors */}
           <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
