@@ -558,10 +558,6 @@ export const LandingPage: React.FC = () => {
     ? 'linear-gradient(160deg, #0a160a 0%, #0e2a0e 50%, #1a3a1a 100%)'
     : 'linear-gradient(160deg, #0d3349 0%, #1a5276 55%, #1e7a4a 100%)';
 
-  const heroBgSemi = isDark
-    ? 'linear-gradient(160deg, rgba(10,22,10,0.5) 0%, rgba(14,42,14,0.5) 50%, rgba(26,58,26,0.5) 100%)'
-    : 'linear-gradient(160deg, rgba(13,51,73,0.5) 0%, rgba(26,82,118,0.5) 55%, rgba(30,122,74,0.5) 100%)';
-
   const stats = [
     { label: 'Active Tournaments', value: liveTournaments.length + upcomingTournaments.length },
     { label: 'Live Matches',       value: liveMatches.length },

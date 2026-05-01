@@ -857,55 +857,6 @@ export const MatchResultCapture: React.FC = () => {
   );
 };
 
-// ── Module-level helpers ─────────────────────────────────────────────────────
-
-interface PlayerAutoProps {
-  playerList: Player[];
-  value: string;
-  onSelect: (name: string, playerId?: number) => void;
-  disabled: boolean;
-}
-
-const PlayerAutocomplete: React.FC<PlayerAutoProps> = ({ playerList, value, onSelect, disabled }) => {
-  const options = playerList.map(p => `${p.name} ${p.surname}`);
-  return (
-    <Autocomplete
-      freeSolo
-      options={options}
-      inputValue={value}
-      disabled={disabled}
-      onInputChange={(_, val, reason) => {
-        if (reason === 'reset') return;
-        const player = playerList.find(p => `${p.name} ${p.surname}` === val);
-        onSelect(val, player?.playerId);
-      }}
-      onChange={(_, val) => {
-        const name = typeof val === 'string' ? val : '';
-        const player = playerList.find(p => `${p.name} ${p.surname}` === name);
-        onSelect(name, player?.playerId);
-      }}
-      renderInput={params => <TextField {...params} label="Player" size="small" sx={{ minWidth: 260 }} />}
-      sx={{ minWidth: 260 }}
-    />
-  );
-};
-
-interface NumFieldProps {
-  label: string;
-  value: number | undefined;
-  onChange: (v: number | undefined) => void;
-  width?: number;
-  disabled: boolean;
-}
-
-const NumField: React.FC<NumFieldProps> = ({ label, value, onChange, width = 80, disabled }) => (
-  <TextField
-    label={label} type="number" size="small" sx={{ width }}
-    value={value ?? ''} disabled={disabled}
-    inputProps={{ min: 0 }}
-    onChange={e => onChange(e.target.value ? +e.target.value : undefined)}
-  />
-);
 
 // ── DLS calculation ──────────────────────────────────────────────────────────
 

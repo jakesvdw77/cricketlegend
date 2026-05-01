@@ -5,7 +5,7 @@ import {
   DialogActions, TextField, MenuItem, Chip, Tooltip, TablePagination,
   Divider, FormControlLabel, Switch, Checkbox,
 } from '@mui/material';
-import { Add, Edit, Delete, DeleteSweep, OpenInNew, VideoCall } from '@mui/icons-material';
+import { Add, Edit, Delete, OpenInNew, VideoCall } from '@mui/icons-material';
 import { eventApi } from '../../api/eventApi';
 import { clubApi } from '../../api/clubApi';
 import { teamApi } from '../../api/teamApi';

@@ -29,6 +29,7 @@ public class AppSettingsServiceImpl implements AppSettingsService {
         s.setShowUpcomingSection(dto.isShowUpcomingSection());
         s.setShowLiveMatchesSection(dto.isShowLiveMatchesSection());
         s.setShowLogStandingsSection(dto.isShowLogStandingsSection());
+        s.setShowMatchResultsSection(dto.isShowMatchResultsSection());
         return toDto(appSettingsRepository.save(s));
     }
 
@@ -37,6 +38,7 @@ public class AppSettingsServiceImpl implements AppSettingsService {
                 .showUpcomingSection(s.isShowUpcomingSection())
                 .showLiveMatchesSection(s.isShowLiveMatchesSection())
                 .showLogStandingsSection(s.isShowLogStandingsSection())
+                .showMatchResultsSection(s.isShowMatchResultsSection())
                 .build();
     }
 }

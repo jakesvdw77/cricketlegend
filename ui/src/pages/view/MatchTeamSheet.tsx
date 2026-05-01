@@ -55,13 +55,6 @@ function getRoleIcons(player: Player, battingPosition: number, isWK: boolean): R
 
 // ── Text builders ──────────────────────────────────────────────────────────
 
-function getRoleText(player: Player, battingPosition: number, isWK: boolean): string {
-  const isBowler = player.bowlingType && player.bowlingType !== 'NONE' && !player.partTimeBowler;
-  const showBat = player.battingPosition !== 'LOWER_ORDER' || battingPosition <= 7;
-  if (isWK)     return showBat ? '🏏🧤' : '🧤';
-  if (isBowler) return showBat ? '🏏🔴' : '🔴';
-  return showBat ? '🏏' : '';
-}
 
 // ──────────────────────────────────────────────────────────────────────────
 

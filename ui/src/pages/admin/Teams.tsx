@@ -7,15 +7,14 @@ import {
   Autocomplete, TableSortLabel, TablePagination, Popover, FormGroup,
   Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme, Tabs, Tab, Chip, InputAdornment,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, Groups, Print, SportsCricket, ViewColumn, ContentCopy, Language, Facebook, Instagram, YouTube, HighlightOff } from '@mui/icons-material';
+import { Add, Edit, Delete, CloudUpload, Groups, Print, ViewColumn, ContentCopy, Language, Facebook, Instagram, YouTube, HighlightOff } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';
 import { teamApi } from '../../api/teamApi';
 import { clubApi } from '../../api/clubApi';
-import { playerApi } from '../../api/playerApi';
 import { fieldApi } from '../../api/fieldApi';
 import { paymentApi } from '../../api/paymentApi';
 import { sponsorApi } from '../../api/sponsorApi';
-import { Team, Club, Player, Field, Sponsor } from '../../types';
+import { Team, Club, Field, Sponsor } from '../../types';
 import { ManagerDTO } from '../../api/managerApi';
 import { useAuth } from '../../hooks/useAuth';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
@@ -50,7 +49,6 @@ export const Teams: React.FC = () => {
   const [filterClubId, setFilterClubId] = useState<number | ''>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [clubs, setClubs] = useState<Club[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Team>(empty);
@@ -77,7 +75,6 @@ export const Teams: React.FC = () => {
   useEffect(() => {
     load();
     clubApi.findAll().then(setClubs);
-    playerApi.findAll().then(setPlayers);
     fieldApi.findAll().then(setFields);
     sponsorApi.findAll().then(setSponsors);
   }, []);

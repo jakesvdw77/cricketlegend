@@ -24,7 +24,6 @@ public class SecurityConfig {
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/actuator/health",
-            "/api/v1/files/**",
             "/api/v1/matches/upcoming",
             "/api/v1/matches/live",
             "/api/v1/matches/recent-results",
@@ -50,6 +49,7 @@ public class SecurityConfig {
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/v1/files/proof/**").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/files/**").permitAll()
                     .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/**").authenticated()
                     .anyRequest().authenticated()
