@@ -1,5 +1,6 @@
 package com.cricketlegend.domain;
 
+import com.cricketlegend.domain.enums.ResultVisibility;
 import com.cricketlegend.domain.scorecard.ScorecardData;
 import jakarta.persistence.*;
 import lombok.*;
@@ -53,4 +54,8 @@ public class MatchResult {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "score_card", columnDefinition = "jsonb")
     private ScorecardData scoreCard;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "result_visibility", nullable = false)
+    private ResultVisibility resultVisibility = ResultVisibility.NOT_PUBLISHED;
 }

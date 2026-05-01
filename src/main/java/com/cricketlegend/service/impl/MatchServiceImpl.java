@@ -145,6 +145,7 @@ public class MatchServiceImpl implements MatchService {
         result.setOversBattingSecond(dto.getOversBattingSecond());
         result.setMatchOutcomeDescription(dto.getMatchOutcomeDescription());
         result.setScoreCard(dto.getScoreCard());
+        result.setResultVisibility(dto.getResultVisibility() != null ? dto.getResultVisibility() : com.cricketlegend.domain.enums.ResultVisibility.NOT_PUBLISHED);
 
         if (dto.getWinningTeamId() != null) {
             result.setWinningTeam(teamRepository.findById(dto.getWinningTeamId())

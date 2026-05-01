@@ -13,4 +13,5 @@ public class BowlingEntry {
     private Integer dots;
     private Integer wides;
     private Integer noBalls;
+    private Boolean topPerformer;
 }

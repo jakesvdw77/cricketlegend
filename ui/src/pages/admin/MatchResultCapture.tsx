@@ -1,19 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Divider, MenuItem, TextField,
   Switch, FormControlLabel, Alert, CircularProgress, Chip,
-  Tabs, Tab, IconButton, Autocomplete,
+  Tabs, Tab, Autocomplete,
 } from '@mui/material';
 import {
   ArrowBack, Save, EmojiEvents, SportsCricket, CalendarMonth, LocationOn, Leaderboard,
-  Add, Delete, AutoFixHigh,
+  AutoFixHigh, Sync, Upload,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { teamApi } from '../../api/teamApi';
-import { Match, MatchResult, Player, MatchSide, BattingEntry, BowlingEntry, TeamScorecard, TossWinner, TossDecision, Tournament } from '../../types';
+import { Match, MatchResult, Player, MatchSide, TeamScorecard, TossWinner, TossDecision, Tournament, ResultVisibility } from '../../types';
 import WhatsAppTemplate from './templates/WhatsAppTemplate';
 import FacebookTemplate from './templates/FacebookTemplate';
 import ScorecardTemplate from './templates/ScorecardTemplate';
@@ -36,6 +36,7 @@ const empty: MatchResult = {
   wicketsLostBattingSecond: undefined,
   oversBattingSecond: '',
   matchOutcomeDescription: '',
+  resultVisibility: 'NOT_PUBLISHED',
 };
 
 export const MatchResultCapture: React.FC = () => {
@@ -54,7 +55,9 @@ export const MatchResultCapture: React.FC = () => {
   const [saved, setSaved]         = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('whatsapp');
+  const [importError, setImportError] = useState<string | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('both');
 
   useEffect(() => {
@@ -94,8 +97,42 @@ export const MatchResultCapture: React.FC = () => {
     setResult(r => ({ ...r, ...patch }));
   };
 
-  const setScoreCard = (patch: Partial<{ teamA: TeamScorecard; teamB: TeamScorecard }>) =>
-    set({ scoreCard: { ...result.scoreCard, ...patch } });
+  const setScoreCard = useCallback(
+    (patch: Partial<{ teamA: TeamScorecard; teamB: TeamScorecard }>) => {
+      setSaved(false);
+      setResult(r => ({ ...r, scoreCard: { ...r.scoreCard, ...patch } }));
+    },
+    [],
+  );
+  const handleFirstCardChange  = useCallback((card: TeamScorecard) => setScoreCard({ teamA: card }), [setScoreCard]);
+  const handleSecondCardChange = useCallback((card: TeamScorecard) => setScoreCard({ teamB: card }), [setScoreCard]);
+
+  const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError(null);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        // Full ScorecardData: { teamA, teamB }
+        if (parsed.teamA || parsed.teamB) {
+          set({ scoreCard: { teamA: parsed.teamA ?? result.scoreCard?.teamA ?? {}, teamB: parsed.teamB ?? result.scoreCard?.teamB ?? {} } });
+        // Single TeamScorecard: { batting, bowling, score, … }
+        } else if (parsed.batting || parsed.bowling) {
+          set({ scoreCard: { teamA: parsed, teamB: result.scoreCard?.teamB ?? {} } });
+        } else {
+          setImportError('Unrecognised JSON format. Expected { teamA, teamB } or a single innings object.');
+        }
+      } catch {
+        setImportError('Invalid JSON file.');
+      } finally {
+        // reset so the same file can be re-imported if needed
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const patchMatch = (patch: Partial<Match>) => {
     setSaved(false);
@@ -164,7 +201,6 @@ export const MatchResultCapture: React.FC = () => {
   const firstTeamName  = firstInningsTeam?.name  ?? result.sideBattingFirstName ?? '1st Innings';
   const secondTeamName = secondInningsTeam?.name ?? '2nd Innings';
 
-  // Props shared by both template components
   const templateProps: TemplateProps = {
     match, result, tournament,
     firstTeamName, secondTeamName,
@@ -245,7 +281,6 @@ export const MatchResultCapture: React.FC = () => {
       >
         <Tab label="Match Details" />
         <Tab label="Scorecard" />
-        <Tab label="Performers" />
         <Tab label="Summary" />
       </Tabs>
 
@@ -344,6 +379,26 @@ export const MatchResultCapture: React.FC = () => {
               : <Alert severity="warning" sx={{ mb: 2, maxWidth: 420 }}>Set the toss in the Toss section to determine who bats first.</Alert>
             }
 
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Sync />}
+              disabled={!result.sideBattingFirstId || !!result.forfeited}
+              onClick={() => {
+                set({
+                  scoreBattingFirst:         firstCard.score,
+                  wicketsLostBattingFirst:   firstCard.wickets,
+                  oversBattingFirst:         firstCard.overs ?? '',
+                  scoreBattingSecond:        secondCard.score,
+                  wicketsLostBattingSecond:  secondCard.wickets,
+                  oversBattingSecond:        secondCard.overs ?? '',
+                });
+              }}
+              sx={{ mb: 2 }}
+            >
+              Populate from scorecard
+            </Button>
+
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               1st Innings{firstInningsTeam ? ` — ${firstInningsTeam.name}` : ''}
             </Typography>
@@ -365,6 +420,7 @@ export const MatchResultCapture: React.FC = () => {
 
           <Section title="Result">
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <TextField
                 select label="Winning Team" value={result.winningTeamId ?? ''}
                 disabled={!result.matchCompleted || !!result.matchDrawn}
@@ -378,10 +434,36 @@ export const MatchResultCapture: React.FC = () => {
                   }
                 }}
                 helperText={result.matchDrawn ? 'Not applicable for a draw' : result.forfeited ? 'Select the team that was awarded the win' : ''}
-                sx={{ maxWidth: 300 }}
+                sx={{ minWidth: 260 }}
               >
                 <MenuItem value=""><em>— No result / abandoned —</em></MenuItem>
                 {teams.map(t => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
+              </TextField>
+              <TextField
+                select
+                label="Man of the Match"
+                value={result.manOfTheMatchId ?? ''}
+                disabled={!result.matchCompleted || !!result.forfeited}
+                onChange={e => set({ manOfTheMatchId: e.target.value ? +e.target.value : undefined })}
+                sx={{ minWidth: 280 }}
+              >
+                <MenuItem value=""><em>— None —</em></MenuItem>
+                {motmPlayers.map(p => (
+                  <MenuItem key={p.playerId} value={p.playerId}>{p.name} {p.surname}</MenuItem>
+                ))}
+              </TextField>
+              </Box>
+
+              <TextField
+                select
+                label="Publish Result"
+                value={result.resultVisibility ?? 'NOT_PUBLISHED'}
+                onChange={e => set({ resultVisibility: e.target.value as ResultVisibility })}
+                sx={{ maxWidth: 380 }}
+              >
+                <MenuItem value="NOT_PUBLISHED">Do Not Publish Result</MenuItem>
+                <MenuItem value="SUMMARY_ONLY">Make Summary Available</MenuItem>
+                <MenuItem value="SCORECARD_AND_SUMMARY">Make Scorecard and Summary Available</MenuItem>
               </TextField>
 
               {result.decidedOnDLS && (
@@ -489,6 +571,32 @@ export const MatchResultCapture: React.FC = () => {
               Please set the toss and batting order in Match Details before capturing the scorecard.
             </Alert>
           )}
+
+          {/* Import */}
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={handleImportJson}
+          />
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Upload />}
+              disabled={!!result.forfeited}
+              onClick={() => { setImportError(null); importFileRef.current?.click(); }}
+            >
+              Import Scorecard JSON
+            </Button>
+            {importError && (
+              <Alert severity="error" onClose={() => setImportError(null)} sx={{ py: 0 }}>
+                {importError}
+              </Alert>
+            )}
+          </Box>
+
           <ScorecardCaptureTab
             firstInningsLabel={`1st Innings — ${firstTeamName} batting`}
             secondInningsLabel={`2nd Innings — ${secondTeamName} batting`}
@@ -499,64 +607,15 @@ export const MatchResultCapture: React.FC = () => {
             secondBatterOptions={secondInningsPlayers}
             secondBowlerOptions={firstInningsPlayers}
             disabled={!result.sideBattingFirstId || !!result.forfeited}
-            onFirstCardChange={card => setScoreCard({ teamA: card })}
-            onSecondCardChange={card => setScoreCard({ teamB: card })}
+            onFirstCardChange={handleFirstCardChange}
+            onSecondCardChange={handleSecondCardChange}
           />
           <Box>{saveButton}</Box>
         </Box>
       )}
 
-      {/* ── Tab 2: Performers ── */}
+      {/* ── Tab 2: Summary ── */}
       {activeTab === 2 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {!result.sideBattingFirstId && (
-            <Alert severity="info">
-              Please set "Side Batting First" in the Match Details tab before capturing performers.
-            </Alert>
-          )}
-          <InningsPerformersPanel
-            inningsLabel={`1st Innings${firstInningsTeam ? ` — ${firstInningsTeam.name} batting` : ''}`}
-            batters={firstCard.batting ?? []}
-            bowlers={firstCard.bowling ?? []}
-            batterOptions={firstInningsPlayers}
-            bowlerOptions={secondInningsPlayers}
-            onBattersChange={batting => setScoreCard({ teamA: { ...firstCard, batting } })}
-            onBowlersChange={bowling => setScoreCard({ teamA: { ...firstCard, bowling } })}
-            disabled={!result.sideBattingFirstId || !!result.forfeited}
-          />
-          <InningsPerformersPanel
-            inningsLabel={`2nd Innings${secondInningsTeam ? ` — ${secondInningsTeam.name} batting` : ''}`}
-            batters={secondCard.batting ?? []}
-            bowlers={secondCard.bowling ?? []}
-            batterOptions={secondInningsPlayers}
-            bowlerOptions={firstInningsPlayers}
-            onBattersChange={batting => setScoreCard({ teamB: { ...secondCard, batting } })}
-            onBowlersChange={bowling => setScoreCard({ teamB: { ...secondCard, bowling } })}
-            disabled={!result.sideBattingFirstId || !!result.forfeited}
-          />
-
-          <Section title="Man of the Match">
-            <TextField
-              select
-              label="Man of the Match"
-              value={result.manOfTheMatchId ?? ''}
-              disabled={!result.matchCompleted || !!result.forfeited}
-              onChange={e => set({ manOfTheMatchId: e.target.value ? +e.target.value : undefined })}
-              sx={{ minWidth: 280 }}
-            >
-              <MenuItem value=""><em>— None —</em></MenuItem>
-              {motmPlayers.map(p => (
-                <MenuItem key={p.playerId} value={p.playerId}>{p.name} {p.surname}</MenuItem>
-              ))}
-            </TextField>
-          </Section>
-
-          <Box>{saveButton}</Box>
-        </Box>
-      )}
-
-      {/* ── Tab 3: Summary ── */}
-      {activeTab === 3 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* Template + team filter selectors */}
           <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -567,6 +626,7 @@ export const MatchResultCapture: React.FC = () => {
                 onChange={e => setSelectedTemplate(e.target.value)}
                 sx={{ minWidth: 200 }}
               >
+                <MenuItem value=""><em>— Select template —</em></MenuItem>
                 <MenuItem value="whatsapp">📱 WhatsApp Template</MenuItem>
                 <MenuItem value="facebook">📘 Facebook Template</MenuItem>
                 <MenuItem value="scorecard">📺 Scorecard Template</MenuItem>
@@ -587,9 +647,14 @@ export const MatchResultCapture: React.FC = () => {
             </Box>
           </Paper>
 
-          {/* Active template */}
-          {selectedTemplate === 'whatsapp'  && <WhatsAppTemplate  key="whatsapp"  {...templateProps} />}
-          {selectedTemplate === 'facebook'  && <FacebookTemplate  key="facebook"  {...templateProps} />}
+          {/* Active template — only rendered once a template is selected */}
+          {selectedTemplate === '' && (
+            <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
+              <Typography variant="body1">Select a template above to generate the match summary.</Typography>
+            </Box>
+          )}
+          {selectedTemplate === 'whatsapp'   && <WhatsAppTemplate           key="whatsapp"   {...templateProps} />}
+          {selectedTemplate === 'facebook'   && <FacebookTemplate           key="facebook"   {...templateProps} />}
           {selectedTemplate === 'scorecard'  && <ScorecardTemplate          key="scorecard"  {...templateProps} />}
           {selectedTemplate === 'broadcast'  && <BroadcastScorecardTemplate key="broadcast"  {...templateProps} />}
         </Box>
@@ -647,94 +712,6 @@ const NumField: React.FC<NumFieldProps> = ({ label, value, onChange, width = 80,
     onChange={e => onChange(e.target.value ? +e.target.value : undefined)}
   />
 );
-
-// ── InningsPerformersPanel ───────────────────────────────────────────────────
-
-interface InningsPerformersPanelProps {
-  inningsLabel: string;
-  batters: BattingEntry[];
-  bowlers: BowlingEntry[];
-  batterOptions: Player[];
-  bowlerOptions: Player[];
-  onBattersChange: (entries: BattingEntry[]) => void;
-  onBowlersChange: (entries: BowlingEntry[]) => void;
-  disabled: boolean;
-}
-
-const InningsPerformersPanel: React.FC<InningsPerformersPanelProps> = ({
-  inningsLabel, batters, bowlers, batterOptions, bowlerOptions,
-  onBattersChange, onBowlersChange, disabled,
-}) => {
-  const updateBatter = (i: number, patch: Partial<BattingEntry>) => {
-    const next = [...batters]; next[i] = { ...next[i], ...patch }; onBattersChange(next);
-  };
-  const updateBowler = (i: number, patch: Partial<BowlingEntry>) => {
-    const next = [...bowlers]; next[i] = { ...next[i], ...patch }; onBowlersChange(next);
-  };
-
-  return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Typography variant="subtitle1" fontWeight={600} gutterBottom>{inningsLabel}</Typography>
-      <Divider sx={{ mb: 2 }} />
-
-      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Batting Performers</Typography>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
-        {batters.map((b, i) => (
-          <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-            <PlayerAutocomplete playerList={batterOptions} value={b.playerName ?? ''} disabled={disabled} onSelect={(name, playerId) => updateBatter(i, { playerName: name, playerId })} />
-            <NumField label="Runs"  value={b.score}      disabled={disabled} onChange={v => updateBatter(i, { score: v })} />
-            <NumField label="Balls" value={b.ballsFaced} disabled={disabled} onChange={v => updateBatter(i, { ballsFaced: v })} />
-            <NumField label="4s"   value={b.fours}      disabled={disabled} onChange={v => updateBatter(i, { fours: v })} width={70} />
-            <NumField label="6s"   value={b.sixes}      disabled={disabled} onChange={v => updateBatter(i, { sixes: v })} width={70} />
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={b.dismissed === false}
-                  disabled={disabled}
-                  onChange={e => updateBatter(i, { dismissed: e.target.checked ? false : true })}
-                />
-              }
-              label={<Typography variant="caption">{b.dismissed === false ? 'Not Out' : 'Out'}</Typography>}
-              sx={{ mx: 0 }}
-            />
-            {b.score != null && b.ballsFaced != null && b.ballsFaced > 0 && (
-              <Chip size="small" label={`SR: ${Math.round(b.score / b.ballsFaced * 100)}`} variant="outlined" color="info" />
-            )}
-            <IconButton size="small" color="error" disabled={disabled} onClick={() => onBattersChange(batters.filter((_, idx) => idx !== i))}>
-              <Delete fontSize="small" />
-            </IconButton>
-          </Box>
-        ))}
-      </Box>
-      <Button size="small" startIcon={<Add />} disabled={disabled} onClick={() => onBattersChange([...batters, {}])} sx={{ mb: 2 }}>
-        Add Batter
-      </Button>
-
-      <Divider sx={{ mb: 2 }} />
-
-      <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Bowling Performers</Typography>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
-        {bowlers.map((b, i) => (
-          <Box key={i} sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-            <PlayerAutocomplete playerList={bowlerOptions} value={b.playerName ?? ''} disabled={disabled} onSelect={(name, playerId) => updateBowler(i, { playerName: name, playerId })} />
-            <TextField label="Overs" size="small" sx={{ width: 90 }} value={b.overs ?? ''} disabled={disabled} placeholder="e.g. 4.5" onChange={e => updateBowler(i, { overs: e.target.value })} />
-            <NumField label="Maidens" value={b.maidens}  disabled={disabled} onChange={v => updateBowler(i, { maidens: v })} width={90} />
-            <NumField label="Dots"   value={b.dots}     disabled={disabled} onChange={v => updateBowler(i, { dots: v })}    width={75} />
-            <NumField label="Runs"   value={b.runs}     disabled={disabled} onChange={v => updateBowler(i, { runs: v })} />
-            <NumField label="Wkts"   value={b.wickets}  disabled={disabled} onChange={v => updateBowler(i, { wickets: v })} width={75} />
-            <IconButton size="small" color="error" disabled={disabled} onClick={() => onBowlersChange(bowlers.filter((_, idx) => idx !== i))}>
-              <Delete fontSize="small" />
-            </IconButton>
-          </Box>
-        ))}
-      </Box>
-      <Button size="small" startIcon={<Add />} disabled={disabled} onClick={() => onBowlersChange([...bowlers, {}])}>
-        Add Bowler
-      </Button>
-    </Paper>
-  );
-};
 
 // ── DLS calculation ──────────────────────────────────────────────────────────
 

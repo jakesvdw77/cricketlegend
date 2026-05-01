@@ -12,6 +12,7 @@ export type DismissalType = 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' 
 export type MatchStage = 'FRIENDLY' | 'POOL' | 'QUARTER_FINAL' | 'SEMI_FINAL' | 'FINAL';
 export type TossWinner = 'HOME' | 'OPPOSITION';
 export type TossDecision = 'BAT' | 'BOWL';
+export type ResultVisibility = 'NOT_PUBLISHED' | 'SUMMARY_ONLY' | 'SCORECARD_AND_SUMMARY';
 
 export type PaymentType = 'PLAYER' | 'SPONSOR' | 'AD_HOC';
 export type PaymentCategory = 'TOURNAMENT_FEE' | 'TOURNAMENT_REGISTRATION' | 'ANNUAL_SUBSCRIPTION' | 'SPONSORSHIP' | 'AD_HOC' | 'OTHER';
@@ -301,6 +302,7 @@ export interface BattingEntry {
   dismissalType?: string;
   dismissedBowler?: string;
   dismissedDescription?: string;
+  topPerformer?: boolean;
 }
 
 export interface BowlingEntry {
@@ -313,6 +315,7 @@ export interface BowlingEntry {
   dots?: number;
   wides?: number;
   noBalls?: number;
+  topPerformer?: boolean;
 }
 
 export interface TeamScorecard {
@@ -402,6 +405,7 @@ export interface MatchResult {
   oversBattingSecond?: string;
   matchOutcomeDescription?: string;
   scoreCard?: ScorecardData;
+  resultVisibility?: ResultVisibility;
 }
 
 export interface PlayerResult {

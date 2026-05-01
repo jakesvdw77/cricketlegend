@@ -1,6 +1,6 @@
 import React from 'react';
 import { BattingEntry, BowlingEntry } from '../../../types';
-import { TemplateProps } from './types';
+import { TemplateProps, topBatters, topBowlers } from './types';
 
 const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
   match, result, tournament, firstTeamName, secondTeamName, firstCard, secondCard, motmName,
@@ -324,8 +324,8 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
         result.scoreBattingFirst,
         result.wicketsLostBattingFirst,
         result.oversBattingFirst,
-        firstCard.batting ?? [],
-        firstCard.bowling ?? [],
+        topBatters(firstCard),
+        topBowlers(firstCard),
       )}
 
       <div style={s.gap} />
@@ -336,8 +336,8 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
         result.scoreBattingSecond,
         result.wicketsLostBattingSecond,
         result.oversBattingSecond,
-        secondCard.batting ?? [],
-        secondCard.bowling ?? [],
+        topBatters(secondCard),
+        topBowlers(secondCard),
       )}
 
       {/* Result */}

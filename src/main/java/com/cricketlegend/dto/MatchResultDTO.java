@@ -1,5 +1,6 @@
 package com.cricketlegend.dto;
 
+import com.cricketlegend.domain.enums.ResultVisibility;
 import com.cricketlegend.domain.scorecard.ScorecardData;
 import lombok.*;
 
@@ -27,4 +28,5 @@ public class MatchResultDTO {
     private String oversBattingSecond;
     private String matchOutcomeDescription;
     private ScorecardData scoreCard;
+    private ResultVisibility resultVisibility;
 }

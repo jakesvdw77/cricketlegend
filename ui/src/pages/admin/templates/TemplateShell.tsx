@@ -31,7 +31,7 @@ const TemplateShell: React.FC<Props> = ({
   card,
   downloadPrefix = 'match-report',
 }) => {
-  const [viewMode, setViewMode]   = useState<ViewMode>('editor');
+  const [viewMode, setViewMode]   = useState<ViewMode>('card');
   const [copied, setCopied]       = useState(false);
   const [downloading, setDownloading] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -66,11 +66,11 @@ const TemplateShell: React.FC<Props> = ({
       {/* View mode toggle */}
       <Box>
         <ToggleButtonGroup value={viewMode} exclusive size="small" onChange={(_, v) => v && setViewMode(v)}>
-          <ToggleButton value="editor">
-            <EditIcon fontSize="small" sx={{ mr: 0.5 }} />Rich Editor
-          </ToggleButton>
           <ToggleButton value="card">
             <CropOriginal fontSize="small" sx={{ mr: 0.5 }} />Card Preview
+          </ToggleButton>
+          <ToggleButton value="editor">
+            <EditIcon fontSize="small" sx={{ mr: 0.5 }} />Rich Editor
           </ToggleButton>
         </ToggleButtonGroup>
       </Box>

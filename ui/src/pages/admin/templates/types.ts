@@ -1,4 +1,17 @@
-import { Match, MatchResult, Tournament, TeamScorecard } from '../../../types';
+import { Match, MatchResult, Tournament, TeamScorecard, BattingEntry, BowlingEntry } from '../../../types';
+
+/** Returns only top-performer entries if any are marked; otherwise returns all with a name. */
+export const topBatters  = (card: TeamScorecard): BattingEntry[] => {
+  const named = (card.batting ?? []).filter(b => b.playerName);
+  const top   = named.filter(b => b.topPerformer);
+  return top.length ? top : named;
+};
+
+export const topBowlers = (card: TeamScorecard): BowlingEntry[] => {
+  const named = (card.bowling ?? []).filter(b => b.playerName);
+  const top   = named.filter(b => b.topPerformer);
+  return top.length ? top : named;
+};
 
 export type TeamFilter = 'both' | 'first' | 'second';
 

@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import {
   Box, Typography, Table, TableHead, TableBody, TableRow, TableCell,
   TextField, MenuItem, Chip, IconButton, Button, Paper, Divider,
-  Autocomplete, TableContainer,
+  Autocomplete, TableContainer, Tooltip,
 } from '@mui/material';
-import { Add, Delete } from '@mui/icons-material';
+import { Add, Delete, Star, StarBorder } from '@mui/icons-material';
 import { BattingEntry, BowlingEntry, Player, TeamScorecard } from '../../types';
 
 // ── Dismissal options ─────────────────────────────────────────────────────────
@@ -67,6 +67,17 @@ function parseFielder(desc: string | undefined, type: string | undefined): strin
 function calcSR(score?: number, balls?: number): string | null {
   if (score == null || balls == null || balls === 0) return null;
   return (score / balls * 100).toFixed(1);
+}
+
+function normaliseOvers(raw: string): string {
+  const [whole = '0', dec] = raw.split('.');
+  const w = parseInt(whole, 10);
+  if (isNaN(w) || dec === undefined) return raw;
+  const b = parseInt(dec, 10);
+  if (isNaN(b) || b <= 5) return raw;
+  const newOvers = w + Math.floor(b / 6);
+  const rem = b % 6;
+  return rem === 0 ? `${newOvers}` : `${newOvers}.${rem}`;
 }
 
 function parseOversDec(overs?: string): number | null {
@@ -162,9 +173,9 @@ interface BattingTableProps {
   onChange: (entries: BattingEntry[]) => void;
 }
 
-const BattingTable: React.FC<BattingTableProps> = ({
+const BattingTable = React.memo<BattingTableProps>(function BattingTable({
   entries, batterOptions, fieldingTeamPlayers, disabled, onChange,
-}) => {
+}) {
   const update = (i: number, patch: Partial<BattingEntry>) => {
     const next = [...entries];
     next[i] = { ...next[i], ...patch };
@@ -187,12 +198,16 @@ const BattingTable: React.FC<BattingTableProps> = ({
               <TableCell sx={{ ...hdrCell, textAlign: 'center' }} width={54}>4s</TableCell>
               <TableCell sx={{ ...hdrCell, textAlign: 'center' }} width={54}>6s</TableCell>
               <TableCell sx={{ ...hdrCell, textAlign: 'center' }} width={66}>SR</TableCell>
+              <TableCell sx={{ ...hdrCell, textAlign: 'center' }} width={38}>
+                <Tooltip title="Top performer (max 3)"><span>★</span></Tooltip>
+              </TableCell>
               <TableCell sx={hdrCell} width={38} />
             </TableRow>
           </TableHead>
           <TableBody>
             {entries.map((entry, i) => {
               const m       = dismissalMeta(entry.dismissalType);
+              const topCount = entries.filter(e => e.topPerformer).length;
               const fielder = parseFielder(entry.dismissedDescription, entry.dismissalType);
               const bowler  = entry.dismissedBowler ?? '';
               const strike  = calcSR(entry.score, entry.ballsFaced);
@@ -314,6 +329,22 @@ const BattingTable: React.FC<BattingTableProps> = ({
                     }
                   </TableCell>
 
+                  {/* Top performer */}
+                  <TableCell sx={{ ...dataCell, textAlign: 'center' }}>
+                    <Tooltip title={entry.topPerformer ? 'Remove top performer' : topCount >= 3 ? 'Max 3 top performers' : 'Mark as top performer'}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={disabled || (!entry.topPerformer && topCount >= 3)}
+                          onClick={() => update(i, { topPerformer: !entry.topPerformer })}
+                          sx={{ color: entry.topPerformer ? 'warning.main' : 'action.disabled' }}
+                        >
+                          {entry.topPerformer ? <Star fontSize="small" /> : <StarBorder fontSize="small" />}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </TableCell>
+
                   {/* Delete */}
                   <TableCell sx={dataCell}>
                     <IconButton size="small" color="error" disabled={disabled} onClick={() => onChange(entries.filter((_, idx) => idx !== i))}>
@@ -326,7 +357,7 @@ const BattingTable: React.FC<BattingTableProps> = ({
 
             {entries.length === 0 && (
               <TableRow>
-                <TableCell colSpan={11} sx={{ textAlign: 'center', py: 2, color: 'text.disabled', fontStyle: 'italic', fontSize: '0.8rem' }}>
+                <TableCell colSpan={12} sx={{ textAlign: 'center', py: 2, color: 'text.disabled', fontStyle: 'italic', fontSize: '0.8rem' }}>
                   No batters added yet
                 </TableCell>
               </TableRow>
@@ -344,7 +375,7 @@ const BattingTable: React.FC<BattingTableProps> = ({
       </Button>
     </Box>
   );
-};
+});
 
 // ── BowlingTable ──────────────────────────────────────────────────────────────
 
@@ -355,7 +386,7 @@ interface BowlingTableProps {
   onChange: (entries: BowlingEntry[]) => void;
 }
 
-const BowlingTable: React.FC<BowlingTableProps> = ({ entries, bowlerOptions, disabled, onChange }) => {
+const BowlingTable = React.memo<BowlingTableProps>(function BowlingTable({ entries, bowlerOptions, disabled, onChange }) {
   const update = (i: number, patch: Partial<BowlingEntry>) => {
     const next = [...entries];
     next[i] = { ...next[i], ...patch };
@@ -377,12 +408,16 @@ const BowlingTable: React.FC<BowlingTableProps> = ({ entries, bowlerOptions, dis
               <TableCell sx={{ ...hdrCell, textAlign: 'center' }} width={64}>NB</TableCell>
               <TableCell sx={{ ...hdrCell, textAlign: 'center' }} width={64}>Dots</TableCell>
               <TableCell sx={{ ...hdrCell, textAlign: 'center' }} width={70}>Econ</TableCell>
+              <TableCell sx={{ ...hdrCell, textAlign: 'center' }} width={38}>
+                <Tooltip title="Top performer (max 3)"><span>★</span></Tooltip>
+              </TableCell>
               <TableCell sx={hdrCell} width={38} />
             </TableRow>
           </TableHead>
           <TableBody>
             {entries.map((entry, i) => {
               const econVal = calcEcon(entry.runs, entry.overs);
+              const topCount = entries.filter(e => e.topPerformer).length;
               return (
                 <TableRow key={i} hover>
                   <TableCell sx={dataCell}>
@@ -403,6 +438,7 @@ const BowlingTable: React.FC<BowlingTableProps> = ({ entries, bowlerOptions, dis
                       inputProps={{ style: { textAlign: 'center', padding: '4px 6px' } }}
                       placeholder="0.0"
                       onChange={e => update(i, { overs: e.target.value })}
+                      onBlur={e => { const n = normaliseOvers(e.target.value); if (n !== e.target.value) update(i, { overs: n }); }}
                     />
                   </TableCell>
                   <TableCell sx={{ ...dataCell, textAlign: 'center' }}>
@@ -429,6 +465,22 @@ const BowlingTable: React.FC<BowlingTableProps> = ({ entries, bowlerOptions, dis
                       : <Typography variant="caption" color="text.disabled">—</Typography>
                     }
                   </TableCell>
+                  {/* Top performer */}
+                  <TableCell sx={{ ...dataCell, textAlign: 'center' }}>
+                    <Tooltip title={entry.topPerformer ? 'Remove top performer' : topCount >= 3 ? 'Max 3 top performers' : 'Mark as top performer'}>
+                      <span>
+                        <IconButton
+                          size="small"
+                          disabled={disabled || (!entry.topPerformer && topCount >= 3)}
+                          onClick={() => update(i, { topPerformer: !entry.topPerformer })}
+                          sx={{ color: entry.topPerformer ? 'warning.main' : 'action.disabled' }}
+                        >
+                          {entry.topPerformer ? <Star fontSize="small" /> : <StarBorder fontSize="small" />}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  </TableCell>
+
                   <TableCell sx={dataCell}>
                     <IconButton size="small" color="error" disabled={disabled} onClick={() => onChange(entries.filter((_, idx) => idx !== i))}>
                       <Delete fontSize="small" />
@@ -440,7 +492,7 @@ const BowlingTable: React.FC<BowlingTableProps> = ({ entries, bowlerOptions, dis
 
             {entries.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} sx={{ textAlign: 'center', py: 2, color: 'text.disabled', fontStyle: 'italic', fontSize: '0.8rem' }}>
+                <TableCell colSpan={11} sx={{ textAlign: 'center', py: 2, color: 'text.disabled', fontStyle: 'italic', fontSize: '0.8rem' }}>
                   No bowlers added yet
                 </TableCell>
               </TableRow>
@@ -458,7 +510,7 @@ const BowlingTable: React.FC<BowlingTableProps> = ({ entries, bowlerOptions, dis
       </Button>
     </Box>
   );
-};
+});
 
 // ── InningsScorecardSection ───────────────────────────────────────────────────
 
@@ -472,9 +524,13 @@ interface InningsSectionProps {
   accentColor: 'success' | 'primary';
 }
 
-const InningsScorecardSection: React.FC<InningsSectionProps> = ({
+const InningsScorecardSection = React.memo<InningsSectionProps>(function InningsScorecardSection({
   label, card, batterOptions, bowlerOptions, disabled, onChange, accentColor,
-}) => {
+}) {
+  // Keep a stable ref to the latest card so updateCard callback doesn't need to be recreated on every render
+  const cardRef = useRef(card);
+  cardRef.current = card;
+
   const batting  = card.batting  ?? [];
   const bowling  = card.bowling  ?? [];
 
@@ -508,23 +564,37 @@ const InningsScorecardSection: React.FC<InningsSectionProps> = ({
     ? `${Math.floor(totalBallsBowled / 6)}.${totalBallsBowled % 6} ov`
     : undefined;
 
-  // Recompute score and sync into card
-  const updateCard = (patch: Partial<TeamScorecard>) => {
-    const merged = { ...card, ...patch };
+  // Stable callback — reads from cardRef so it doesn't need to be recreated when card prop changes
+  const updateCard = useCallback((patch: Partial<TeamScorecard>) => {
+    const cur = cardRef.current;
+    const merged = { ...cur, ...patch };
     const batRuns = (merged.batting ?? []).reduce((s, b) => s + (b.score ?? 0), 0);
     const b2      = (merged.byes        ?? 0);
     const lb      = (merged.legByes     ?? 0);
-    const wd      = (merged.wides       ?? bowlerWides);
-    const nb      = (merged.noBalls     ?? bowlerNoBalls);
+    const mergedBowlerWides   = (merged.bowling ?? []).reduce((s, b) => s + (b.wides   ?? 0), 0);
+    const mergedBowlerNoBalls = (merged.bowling ?? []).reduce((s, b) => s + (b.noBalls ?? 0), 0);
+    const wd      = (merged.wides       ?? mergedBowlerWides);
+    const nb      = (merged.noBalls     ?? mergedBowlerNoBalls);
     const pen     = (merged.penaltyRuns ?? 0);
     const newWkts = (merged.batting ?? []).filter(b =>
       b.dismissalType && b.dismissalType !== 'NOT_OUT' && b.dismissalType !== 'RETIRED',
     ).length;
-    onChange({ ...merged, score: batRuns + b2 + lb + wd + nb + pen, wickets: newWkts });
-  };
+    const totalBalls = (merged.bowling ?? []).reduce((s, b) => {
+      const dec = parseOversDec(b.overs);
+      if (dec == null) return s;
+      return s + Math.floor(dec) * 6 + Math.round((dec % 1) * 6);
+    }, 0);
+    const computedOvers = totalBalls > 0
+      ? `${Math.floor(totalBalls / 6)}.${totalBalls % 6}`
+      : merged.overs;
+    onChange({ ...merged, score: batRuns + b2 + lb + wd + nb + pen, wickets: newWkts, overs: computedOvers });
+  }, [onChange]);
+
+  const onBattingChange = useCallback((entries: BattingEntry[]) => updateCard({ batting: entries }), [updateCard]);
+  const onBowlingChange = useCallback((entries: BowlingEntry[]) => updateCard({ bowling: entries }), [updateCard]);
 
   const setExtra = (field: keyof TeamScorecard, val: number | undefined) =>
-    updateCard({ [field]: val ?? 0 });
+    updateCard({ [field]: val });
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -552,7 +622,7 @@ const InningsScorecardSection: React.FC<InningsSectionProps> = ({
           batterOptions={batterOptions}
           fieldingTeamPlayers={bowlerOptions}
           disabled={disabled}
-          onChange={entries => updateCard({ batting: entries })}
+          onChange={onBattingChange}
         />
       </Box>
 
@@ -562,38 +632,31 @@ const InningsScorecardSection: React.FC<InningsSectionProps> = ({
       </Typography>
       <Box sx={{ mt: 0.75, display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
         {([
-          { label: 'Byes',      field: 'byes'        as const, value: card.byes        },
-          { label: 'Leg Byes',  field: 'legByes'     as const, value: card.legByes     },
-          { label: 'Wides',     field: 'wides'       as const, value: card.wides       },
-          { label: 'No Balls',  field: 'noBalls'     as const, value: card.noBalls     },
-          { label: 'Penalty',   field: 'penaltyRuns' as const, value: card.penaltyRuns },
-        ] as const).map(({ label: lbl, field, value }) => (
-          <TextField
-            key={field}
-            label={lbl}
-            type="number"
-            size="small"
-            value={value ?? ''}
-            disabled={disabled}
-            sx={{ width: 90 }}
-            inputProps={{ min: 0, style: { textAlign: 'center' } }}
-            onChange={e => setExtra(field, e.target.value !== '' ? +e.target.value : undefined)}
-          />
-        ))}
+          { label: 'Byes',      field: 'byes'        as const, value: card.byes,        autoVal: undefined      },
+          { label: 'Leg Byes',  field: 'legByes'     as const, value: card.legByes,     autoVal: undefined      },
+          { label: 'Wides',     field: 'wides'       as const, value: card.wides,       autoVal: bowlerWides    },
+          { label: 'No Balls',  field: 'noBalls'     as const, value: card.noBalls,     autoVal: bowlerNoBalls  },
+          { label: 'Penalty',   field: 'penaltyRuns' as const, value: card.penaltyRuns, autoVal: undefined      },
+        ] as const).map(({ label: lbl, field, value, autoVal }) => {
+          const displayVal = value ?? autoVal;
+          return (
+            <TextField
+              key={field}
+              label={lbl}
+              type="number"
+              size="small"
+              value={displayVal ?? ''}
+              disabled={disabled}
+              sx={{ width: 105 }}
+              inputProps={{ min: 0, style: { textAlign: 'center' } }}
+              onChange={e => setExtra(field, e.target.value !== '' ? +e.target.value : undefined)}
+            />
+          );
+        })}
         <Box sx={{ ml: 1, pl: 1.5, borderLeft: '2px solid', borderColor: 'divider' }}>
           <Typography variant="body2" fontWeight={700}>
             Total extras: {totalExtras}
           </Typography>
-          {bowlerWides > 0 && (card.wides == null) && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-              Wides auto-filled from bowling ({bowlerWides})
-            </Typography>
-          )}
-          {bowlerNoBalls > 0 && (card.noBalls == null) && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-              No Balls auto-filled from bowling ({bowlerNoBalls})
-            </Typography>
-          )}
         </Box>
       </Box>
 
@@ -622,12 +685,12 @@ const InningsScorecardSection: React.FC<InningsSectionProps> = ({
           entries={bowling}
           bowlerOptions={bowlerOptions}
           disabled={disabled}
-          onChange={entries => updateCard({ bowling: entries })}
+          onChange={onBowlingChange}
         />
       </Box>
     </Paper>
   );
-};
+});
 
 // ── Main export ───────────────────────────────────────────────────────────────
 

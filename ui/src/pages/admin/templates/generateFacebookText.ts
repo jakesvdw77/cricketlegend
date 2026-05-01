@@ -1,5 +1,5 @@
 import { Match, MatchResult, Tournament, TeamScorecard } from '../../../types';
-import { TeamFilter } from './types';
+import { TeamFilter, topBatters, topBowlers } from './types';
 
 const srLabel = (sr: number): string | null => {
   if (sr >= 175) return `an incredible strike rate of ${sr}`;
@@ -10,7 +10,7 @@ const srLabel = (sr: number): string | null => {
 };
 
 const battingHighlights = (card: TeamScorecard): string => {
-  const batters = (card.batting ?? []).filter(b => b.playerName);
+  const batters = topBatters(card);
   if (!batters.length) return '';
   return batters.map(b => {
     const parts: string[] = [];
@@ -29,7 +29,7 @@ const battingHighlights = (card: TeamScorecard): string => {
 };
 
 const bowlingHighlights = (card: TeamScorecard): string => {
-  const bowlers = (card.bowling ?? []).filter(b => b.playerName);
+  const bowlers = topBowlers(card);
   if (!bowlers.length) return '';
   return bowlers.map(b => {
     const parts: string[] = [];
@@ -106,7 +106,7 @@ export const generateFacebookText = (
     const bats = battingHighlights(firstCard);
     if (bats) para += ` The batting was highlighted by fine contributions from ${bats}.`;
     paras.push(para);
-    const bowls = bowlingHighlights(secondCard);
+    const bowls = bowlingHighlights(firstCard);
     if (bowls) paras.push(`🔴 With the ball, ${secondTeamName} were led by ${bowls}.`);
   }
 
@@ -120,7 +120,7 @@ export const generateFacebookText = (
     const bats = battingHighlights(secondCard);
     if (bats) para += ` Standout performances with the bat came from ${bats}.`;
     paras.push(para);
-    const bowls = bowlingHighlights(firstCard);
+    const bowls = bowlingHighlights(secondCard);
     if (bowls) paras.push(`🔴 ${firstTeamName}'s bowling attack was led by ${bowls}.`);
   }
 

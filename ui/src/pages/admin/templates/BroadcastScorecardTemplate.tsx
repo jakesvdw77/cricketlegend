@@ -1,7 +1,7 @@
 import React from 'react';
 import TemplateShell from './TemplateShell';
 import BroadcastScorecardPreview from './BroadcastScorecardPreview';
-import { TemplateProps } from './types';
+import { TemplateProps, topBatters, topBowlers } from './types';
 
 const BroadcastScorecardTemplate: React.FC<TemplateProps> = (props) => {
   const { match, result, firstTeamName, secondTeamName, firstCard, secondCard, motmName, teamFilter } = props;
@@ -49,8 +49,8 @@ const BroadcastScorecardTemplate: React.FC<TemplateProps> = (props) => {
       lines.push('');
     };
 
-    if (showFirst)  innings(firstTeamName,  result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  firstCard.batting,  firstCard.bowling);
-    if (showSecond) innings(secondTeamName, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, secondCard.batting, secondCard.bowling);
+    if (showFirst)  innings(firstTeamName,  result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  topBatters(firstCard),  topBowlers(firstCard));
+    if (showSecond) innings(secondTeamName, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, topBatters(secondCard), topBowlers(secondCard));
 
     if (result.matchDrawn)                lines.push('MATCH DRAWN');
     else if (result.matchOutcomeDescription) lines.push(result.matchOutcomeDescription.toUpperCase());

@@ -1,6 +1,6 @@
 import React from 'react';
 import { TeamScorecard } from '../../../types';
-import { TemplateProps } from './types';
+import { TemplateProps, topBatters, topBowlers } from './types';
 
 const MatchCardPreview: React.FC<TemplateProps> = ({
   match, result, tournament, firstTeamName, secondTeamName, firstCard, secondCard, motmName,
@@ -62,7 +62,7 @@ const MatchCardPreview: React.FC<TemplateProps> = ({
   const stageMap: Record<string, string> = { FRIENDLY: 'Friendly', POOL: 'Pool Stage', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
 
   const renderBatting = (card: TeamScorecard) =>
-    (card.batting ?? []).filter(b => b.playerName).map((b, i) => {
+    topBatters(card).map((b, i) => {
       const stat = [
         b.score      != null && `${b.score}${b.ballsFaced != null ? `(${b.ballsFaced})` : ''}`,
         b.fours != null && b.fours > 0 && `${b.fours}×4`,
@@ -78,7 +78,7 @@ const MatchCardPreview: React.FC<TemplateProps> = ({
     });
 
   const renderBowling = (card: TeamScorecard) =>
-    (card.bowling ?? []).filter(b => b.playerName).map((b, i) => {
+    topBowlers(card).map((b, i) => {
       const stat = [
         b.wickets != null && `${b.wickets}/${b.runs ?? '?'}`,
         b.overs           && `${b.overs} ov`,

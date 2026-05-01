@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import TemplateShell from './TemplateShell';
 import MatchCardPreview from './MatchCardPreview';
-import { TemplateProps, plainTextToHtml } from './types';
+import { TemplateProps, plainTextToHtml, topBatters, topBowlers } from './types';
 
 const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
   const { match, result, tournament, firstTeamName, secondTeamName, firstCard, secondCard, motmName, teamFilter } = props;
@@ -102,7 +102,7 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
       add();
       add(heading);
       if (score != null) add(`${score}/${wkts ?? '?'}  (${overs ?? '?'} overs)`);
-      const batting = (batCard.batting ?? []).filter(b => b.playerName);
+      const batting = topBatters(batCard);
       if (batting.length) {
         add();
         add('  🏏 Batting');
@@ -120,7 +120,7 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
           add(`  • ${b.playerName}${stats ? `  —  ${stats}` : ''}`);
         });
       }
-      const bowling = (bowlCard.bowling ?? []).filter(b => b.playerName);
+      const bowling = topBowlers(bowlCard);
       if (bowling.length) {
         add();
         add('  🎯 Bowling');

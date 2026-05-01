@@ -1,7 +1,7 @@
 import React from 'react';
 import TemplateShell from './TemplateShell';
 import ScorecardCardPreview from './ScorecardCardPreview';
-import { TemplateProps } from './types';
+import { TemplateProps, topBatters, topBowlers } from './types';
 
 /** Scorecard template — the Card Preview is the primary output.
  *  The plain-text view shows a simple tabular scorecard for copy/paste. */
@@ -55,8 +55,8 @@ const ScorecardTemplate: React.FC<TemplateProps> = (props) => {
       lines.push('');
     };
 
-    if (showFirst)  renderInnings(firstTeamName,  result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  firstCard.batting,  firstCard.bowling);
-    if (showSecond) renderInnings(secondTeamName, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, secondCard.batting, secondCard.bowling);
+    if (showFirst)  renderInnings(firstTeamName,  result.scoreBattingFirst,  result.wicketsLostBattingFirst,  result.oversBattingFirst,  topBatters(firstCard),  topBowlers(firstCard));
+    if (showSecond) renderInnings(secondTeamName, result.scoreBattingSecond, result.wicketsLostBattingSecond, result.oversBattingSecond, topBatters(secondCard), topBowlers(secondCard));
 
     if (result.matchOutcomeDescription) lines.push(`RESULT: ${result.matchOutcomeDescription}`);
     if (result.matchDrawn)              lines.push('RESULT: Match Drawn');
