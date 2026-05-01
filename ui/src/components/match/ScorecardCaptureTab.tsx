@@ -1,10 +1,10 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Box, Typography, Table, TableHead, TableBody, TableRow, TableCell,
   TextField, MenuItem, Chip, IconButton, Button, Paper, Divider,
-  Autocomplete, TableContainer, Tooltip,
+  Autocomplete, TableContainer, Tooltip, Collapse, Tabs, Tab,
 } from '@mui/material';
-import { Add, Delete, Star, StarBorder } from '@mui/icons-material';
+import { Add, Delete, Star, StarBorder, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { BattingEntry, BowlingEntry, Player, TeamScorecard } from '../../types';
 
 // ── Dismissal options ─────────────────────────────────────────────────────────
@@ -527,6 +527,9 @@ interface InningsSectionProps {
 const InningsScorecardSection = React.memo<InningsSectionProps>(function InningsScorecardSection({
   label, card, batterOptions, bowlerOptions, disabled, onChange, accentColor,
 }) {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab]   = useState(0);
+
   // Keep a stable ref to the latest card so updateCard callback doesn't need to be recreated on every render
   const cardRef = useRef(card);
   cardRef.current = card;
@@ -599,8 +602,11 @@ const InningsScorecardSection = React.memo<InningsSectionProps>(function Innings
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       {/* ── Header ── */}
-      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, mb: 1 }}>
-        <Typography variant="h6" fontWeight={700} color={`${accentColor}.main`}>
+      <Box
+        sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: open ? 1 : 0, cursor: 'pointer' }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <Typography variant="h6" fontWeight={700} color={`${accentColor}.main`} sx={{ flex: 1 }}>
           {label}
         </Typography>
         {(batting.length > 0 || totalExtras > 0) && (
@@ -609,85 +615,82 @@ const InningsScorecardSection = React.memo<InningsSectionProps>(function Innings
             {oversDisplay && ` (${oversDisplay})`}
           </Typography>
         )}
+        <IconButton size="small" onClick={e => { e.stopPropagation(); setOpen(o => !o); }}>
+          {open ? <ExpandLess /> : <ExpandMore />}
+        </IconButton>
       </Box>
-      <Divider sx={{ mb: 2 }} />
+      <Collapse in={open}>
+        <Divider sx={{ mb: 1 }} />
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Tab label="Batting" />
+          <Tab label="Bowling" />
+          <Tab label="Extras" />
+        </Tabs>
 
-      {/* ── Batting ── */}
-      <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: 1 }}>
-        Batting
-      </Typography>
-      <Box sx={{ mt: 0.5 }}>
-        <BattingTable
-          entries={batting}
-          batterOptions={batterOptions}
-          fieldingTeamPlayers={bowlerOptions}
-          disabled={disabled}
-          onChange={onBattingChange}
-        />
-      </Box>
+        {/* ── Batting tab ── */}
+        {tab === 0 && (
+          <BattingTable
+            entries={batting}
+            batterOptions={batterOptions}
+            fieldingTeamPlayers={bowlerOptions}
+            disabled={disabled}
+            onChange={onBattingChange}
+          />
+        )}
 
-      {/* ── Extras ── */}
-      <Typography variant="overline" color="text.secondary" sx={{ mt: 3, display: 'block', fontWeight: 700, letterSpacing: 1 }}>
-        Extras
-      </Typography>
-      <Box sx={{ mt: 0.75, display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-        {([
-          { label: 'Byes',      field: 'byes'        as const, value: card.byes,        autoVal: undefined      },
-          { label: 'Leg Byes',  field: 'legByes'     as const, value: card.legByes,     autoVal: undefined      },
-          { label: 'Wides',     field: 'wides'       as const, value: card.wides,       autoVal: bowlerWides    },
-          { label: 'No Balls',  field: 'noBalls'     as const, value: card.noBalls,     autoVal: bowlerNoBalls  },
-          { label: 'Penalty',   field: 'penaltyRuns' as const, value: card.penaltyRuns, autoVal: undefined      },
-        ] as const).map(({ label: lbl, field, value, autoVal }) => {
-          const displayVal = value ?? autoVal;
-          return (
-            <TextField
-              key={field}
-              label={lbl}
-              type="number"
-              size="small"
-              value={displayVal ?? ''}
-              disabled={disabled}
-              sx={{ width: 105 }}
-              inputProps={{ min: 0, style: { textAlign: 'center' } }}
-              onChange={e => setExtra(field, e.target.value !== '' ? +e.target.value : undefined)}
-            />
-          );
-        })}
-        <Box sx={{ ml: 1, pl: 1.5, borderLeft: '2px solid', borderColor: 'divider' }}>
-          <Typography variant="body2" fontWeight={700}>
-            Total extras: {totalExtras}
-          </Typography>
-        </Box>
-      </Box>
+        {/* ── Bowling tab ── */}
+        {tab === 1 && (
+          <BowlingTable
+            entries={bowling}
+            bowlerOptions={bowlerOptions}
+            disabled={disabled}
+            onChange={onBowlingChange}
+          />
+        )}
 
-      {/* Totals strip */}
-      {(batting.length > 0 || totalExtras > 0) && (
-        <Box sx={{ mt: 1.5, pl: 0.5, display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Typography variant="caption" color="text.secondary">
-            <strong>Total: {totalScore}</strong>
-            {` (bat ${totalRuns} + extras ${totalExtras})`}
-          </Typography>
-          {totalFours > 0 && (
-            <Typography variant="caption" color="text.secondary">4s: {totalFours}</Typography>
-          )}
-          {totalSixes > 0 && (
-            <Typography variant="caption" color="text.secondary">6s: {totalSixes}</Typography>
-          )}
-        </Box>
-      )}
-
-      {/* ── Bowling ── */}
-      <Typography variant="overline" color="text.secondary" sx={{ mt: 3, display: 'block', fontWeight: 700, letterSpacing: 1 }}>
-        Bowling
-      </Typography>
-      <Box sx={{ mt: 0.5 }}>
-        <BowlingTable
-          entries={bowling}
-          bowlerOptions={bowlerOptions}
-          disabled={disabled}
-          onChange={onBowlingChange}
-        />
-      </Box>
+        {/* ── Extras tab ── */}
+        {tab === 2 && (
+          <Box>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+              {([
+                { label: 'Byes',      field: 'byes'        as const, value: card.byes,        autoVal: undefined     },
+                { label: 'Leg Byes',  field: 'legByes'     as const, value: card.legByes,     autoVal: undefined     },
+                { label: 'Wides',     field: 'wides'       as const, value: card.wides,       autoVal: bowlerWides   },
+                { label: 'No Balls',  field: 'noBalls'     as const, value: card.noBalls,     autoVal: bowlerNoBalls },
+                { label: 'Penalty',   field: 'penaltyRuns' as const, value: card.penaltyRuns, autoVal: undefined     },
+              ] as const).map(({ label: lbl, field, value, autoVal }) => {
+                const displayVal = value ?? autoVal;
+                return (
+                  <TextField
+                    key={field}
+                    label={lbl}
+                    type="number"
+                    size="small"
+                    value={displayVal ?? ''}
+                    disabled={disabled}
+                    sx={{ width: 105 }}
+                    inputProps={{ min: 0, style: { textAlign: 'center' } }}
+                    onChange={e => setExtra(field, e.target.value !== '' ? +e.target.value : undefined)}
+                  />
+                );
+              })}
+              <Box sx={{ ml: 1, pl: 1.5, borderLeft: '2px solid', borderColor: 'divider' }}>
+                <Typography variant="body2" fontWeight={700}>Total extras: {totalExtras}</Typography>
+              </Box>
+            </Box>
+            {(batting.length > 0 || totalExtras > 0) && (
+              <Box sx={{ mt: 1.5, pl: 0.5, display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                  <strong>Total: {totalScore}</strong>
+                  {` (bat ${totalRuns} + extras ${totalExtras})`}
+                </Typography>
+                {totalFours > 0 && <Typography variant="caption" color="text.secondary">4s: {totalFours}</Typography>}
+                {totalSixes > 0 && <Typography variant="caption" color="text.secondary">6s: {totalSixes}</Typography>}
+              </Box>
+            )}
+          </Box>
+        )}
+      </Collapse>
     </Paper>
   );
 });

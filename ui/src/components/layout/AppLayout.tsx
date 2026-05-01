@@ -1,27 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Box, Toolbar, Typography, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet } from 'react-router-dom';
 import { useColorMode } from '../../context/ColorModeContext';
+import { SidebarProvider, useSidebar } from '../../context/SidebarContext';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 
 const version = import.meta.env.VITE_APP_VERSION;
 
-export const AppLayout: React.FC = () => {
+const AppLayoutInner: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { mode } = useColorMode();
   const isDark = mode === 'dark';
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { open: sidebarOpen, locked, setOpen } = useSidebar();
 
   useEffect(() => {
-    if (isMobile) setSidebarOpen(false);
-  }, [isMobile]);
+    if (isMobile) setOpen(false);
+  }, [isMobile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Box sx={{ display: 'flex' }}>
-      <Header sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Header sidebarOpen={sidebarOpen} onToggleSidebar={() => { if (!locked) setOpen(!sidebarOpen); }} />
+      <Sidebar open={sidebarOpen} onClose={() => { if (!locked) setOpen(false); }} />
       <Box
         component="main"
         sx={{
@@ -55,3 +56,9 @@ export const AppLayout: React.FC = () => {
     </Box>
   );
 };
+
+export const AppLayout: React.FC = () => (
+  <SidebarProvider>
+    <AppLayoutInner />
+  </SidebarProvider>
+);

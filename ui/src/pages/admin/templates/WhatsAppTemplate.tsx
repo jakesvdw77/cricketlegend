@@ -123,7 +123,7 @@ const WhatsAppTemplate: React.FC<TemplateProps> = (props) => {
       const bowling = topBowlers(bowlCard);
       if (bowling.length) {
         add();
-        add('  🎯 Bowling');
+        add('  🔴 Bowling');
         bowling.forEach(b => {
           const stats = [
             b.overs           && `${b.overs} ov`,

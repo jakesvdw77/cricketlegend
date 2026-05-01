@@ -3,12 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Divider, MenuItem, TextField,
   Switch, FormControlLabel, Alert, CircularProgress, Chip,
-  Tabs, Tab, Autocomplete,
+  Tabs, Tab, Autocomplete, Collapse, IconButton,
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material';
 import {
   ArrowBack, Save, EmojiEvents, SportsCricket, CalendarMonth, LocationOn, Leaderboard,
-  AutoFixHigh, Sync, Upload,
+  AutoFixHigh, Sync, Upload, ExpandMore, ExpandLess,
 } from '@mui/icons-material';
+import { useSidebarLock } from '../../context/SidebarContext';
+import { useAuth } from '../../hooks/useAuth';
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -42,6 +45,8 @@ const empty: MatchResult = {
 export const MatchResultCapture: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  useSidebarLock();
 
   const [match, setMatch]         = useState<Match | null>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -59,6 +64,13 @@ export const MatchResultCapture: React.FC = () => {
   const importFileRef = useRef<HTMLInputElement>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('both');
+  const [tossOpen, setTossOpen]         = useState(true);
+  const [scoresOpen, setScoresOpen]     = useState(false);
+  const [resultOpen, setResultOpen]     = useState(false);
+  const [dirty, setDirty]               = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [unlinkedPlayers, setUnlinkedPlayers] = useState<UnlinkedPlayer[]>([]);
+  const [unlinkedDialogOpen, setUnlinkedDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!matchId) return;
@@ -94,12 +106,14 @@ export const MatchResultCapture: React.FC = () => {
 
   const set = (patch: Partial<MatchResult>) => {
     setSaved(false);
+    setDirty(true);
     setResult(r => ({ ...r, ...patch }));
   };
 
   const setScoreCard = useCallback(
     (patch: Partial<{ teamA: TeamScorecard; teamB: TeamScorecard }>) => {
       setSaved(false);
+      setDirty(true);
       setResult(r => ({ ...r, scoreCard: { ...r.scoreCard, ...patch } }));
     },
     [],
@@ -115,14 +129,25 @@ export const MatchResultCapture: React.FC = () => {
     reader.onload = (ev) => {
       try {
         const parsed = JSON.parse(ev.target?.result as string);
+        let newScoreCard: { teamA?: TeamScorecard; teamB?: TeamScorecard } | null = null;
         // Full ScorecardData: { teamA, teamB }
         if (parsed.teamA || parsed.teamB) {
-          set({ scoreCard: { teamA: parsed.teamA ?? result.scoreCard?.teamA ?? {}, teamB: parsed.teamB ?? result.scoreCard?.teamB ?? {} } });
+          newScoreCard = { teamA: parsed.teamA ?? result.scoreCard?.teamA ?? {}, teamB: parsed.teamB ?? result.scoreCard?.teamB ?? {} };
         // Single TeamScorecard: { batting, bowling, score, … }
         } else if (parsed.batting || parsed.bowling) {
-          set({ scoreCard: { teamA: parsed, teamB: result.scoreCard?.teamB ?? {} } });
+          newScoreCard = { teamA: parsed, teamB: result.scoreCard?.teamB ?? {} };
         } else {
           setImportError('Unrecognised JSON format. Expected { teamA, teamB } or a single innings object.');
+        }
+        if (newScoreCard) {
+          set({ scoreCard: newScoreCard });
+          if (match) {
+            const unlinked = detectUnlinkedPlayers(newScoreCard, result, match, homeSquad, awaySquad);
+            if (unlinked.length > 0) {
+              setUnlinkedPlayers(unlinked);
+              setUnlinkedDialogOpen(true);
+            }
+          }
         }
       } catch {
         setImportError('Invalid JSON file.');
@@ -134,8 +159,87 @@ export const MatchResultCapture: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const handleCreateAndLink = async (index: number, player: UnlinkedPlayer) => {
+    if (!match) return;
+    setUnlinkedPlayers(prev => prev.map((p, i) => i === index ? { ...p, creating: true } : p));
+    try {
+      const parts = player.name.trim().split(/\s+/);
+      const firstName = parts[0];
+      const surname   = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
+      const created   = await playerApi.create({ name: firstName, surname } as Player);
+      await teamApi.addToSquad(player.teamId, created.playerId!);
+
+      // Update squad + allPlayers so autocompletes reflect the new player
+      if (Number(player.teamId) === Number(match.homeTeamId)) {
+        setHomeSquad(prev => [...prev, created]);
+      } else {
+        setAwaySquad(prev => [...prev, created]);
+      }
+      setAllPlayers(prev => [...prev, created]);
+
+      // Patch playerId into all matching scorecard entries
+      setSaved(false);
+      setDirty(true);
+      setResult(r => {
+        const link = <T extends { playerName?: string; playerId?: number }>(entries: T[]): T[] =>
+          entries.map(e => e.playerName === player.name ? { ...e, playerId: created.playerId } : e);
+        return {
+          ...r,
+          scoreCard: {
+            teamA: { ...r.scoreCard?.teamA, batting: link(r.scoreCard?.teamA?.batting ?? []), bowling: link(r.scoreCard?.teamA?.bowling ?? []) },
+            teamB: { ...r.scoreCard?.teamB, batting: link(r.scoreCard?.teamB?.batting ?? []), bowling: link(r.scoreCard?.teamB?.bowling ?? []) },
+          },
+        };
+      });
+
+      setUnlinkedPlayers(prev => prev.map((p, i) => i === index ? { ...p, creating: false, created: true } : p));
+    } catch {
+      setUnlinkedPlayers(prev => prev.map((p, i) => i === index ? { ...p, creating: false } : p));
+      setError('Failed to create player. Please try again.');
+    }
+  };
+
+  const handleLinkExisting = async (index: number, player: UnlinkedPlayer, existing: Player) => {
+    if (!match) return;
+    setUnlinkedPlayers(prev => prev.map((p, i) => i === index ? { ...p, creating: true, findMode: false } : p));
+    try {
+      const squad = Number(player.teamId) === Number(match.homeTeamId) ? homeSquad : awaySquad;
+      const alreadyInSquad = squad.some(s => s.playerId === existing.playerId);
+      if (!alreadyInSquad) {
+        await teamApi.addToSquad(player.teamId, existing.playerId!);
+        if (Number(player.teamId) === Number(match.homeTeamId)) {
+          setHomeSquad(prev => [...prev, existing]);
+        } else {
+          setAwaySquad(prev => [...prev, existing]);
+        }
+      }
+
+      // Patch playerId + correct the playerName in scorecard entries
+      const linkedName = `${existing.name} ${existing.surname}`;
+      setSaved(false);
+      setDirty(true);
+      setResult(r => {
+        const link = <T extends { playerName?: string; playerId?: number }>(entries: T[]): T[] =>
+          entries.map(e => e.playerName === player.name ? { ...e, playerId: existing.playerId, playerName: linkedName } : e);
+        return {
+          ...r,
+          scoreCard: {
+            teamA: { ...r.scoreCard?.teamA, batting: link(r.scoreCard?.teamA?.batting ?? []), bowling: link(r.scoreCard?.teamA?.bowling ?? []) },
+            teamB: { ...r.scoreCard?.teamB, batting: link(r.scoreCard?.teamB?.batting ?? []), bowling: link(r.scoreCard?.teamB?.bowling ?? []) },
+          },
+        };
+      });
+
+      setUnlinkedPlayers(prev => prev.map((p, i) => i === index ? { ...p, creating: false, created: true } : p));
+    } catch {
+      setUnlinkedPlayers(prev => prev.map((p, i) => i === index ? { ...p, creating: false } : p));
+      setError('Failed to link player. Please try again.');
+    }
+  };
+
   const patchMatch = (patch: Partial<Match>) => {
     setSaved(false);
+    setDirty(true);
     setMatch(m => m ? { ...m, ...patch } : m);
   };
 
@@ -148,6 +252,7 @@ export const MatchResultCapture: React.FC = () => {
       const saved = await matchApi.saveResult(+matchId, result);
       setResult(saved);
       setSaved(true);
+      setDirty(false);
     } catch {
       setError('Failed to save. Please try again.');
     } finally {
@@ -198,6 +303,13 @@ export const MatchResultCapture: React.FC = () => {
   const motmName   = result.manOfTheMatchName
     ?? (motmPlayer ? `${motmPlayer.name} ${motmPlayer.surname}` : null);
 
+  const scorecardNames = Array.from(new Set([
+    ...(firstCard.batting  ?? []).map(b => b.playerName),
+    ...(firstCard.bowling  ?? []).map(b => b.playerName),
+    ...(secondCard.batting ?? []).map(b => b.playerName),
+    ...(secondCard.bowling ?? []).map(b => b.playerName),
+  ].filter(Boolean) as string[]));
+
   const firstTeamName  = firstInningsTeam?.name  ?? result.sideBattingFirstName ?? '1st Innings';
   const secondTeamName = secondInningsTeam?.name ?? '2nd Innings';
 
@@ -238,9 +350,56 @@ export const MatchResultCapture: React.FC = () => {
 
   const num = (val: number | undefined) => val ?? '';
 
+  const handleAutoCalculate = () => {
+    const { scoreBattingFirst, scoreBattingSecond, wicketsLostBattingSecond } = result;
+
+    if (result.decidedOnDLS && dlsPar != null && scoreBattingSecond != null) {
+      const firstTeam  = teams.find(t => t.id === result.sideBattingFirstId);
+      const secondTeam = teams.find(t => t.id !== result.sideBattingFirstId);
+      if (scoreBattingSecond > dlsPar) {
+        const wicketsLeft = 10 - (wicketsLostBattingSecond ?? 0);
+        const runMargin   = scoreBattingSecond - dlsPar;
+        const desc = (wicketsLeft > 0 && (wicketsLostBattingSecond ?? 0) < 10)
+          ? `${secondTeam?.name} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''} (DLS)`
+          : `${secondTeam?.name} won by ${runMargin} run${runMargin !== 1 ? 's' : ''} (DLS)`;
+        set({ winningTeamId: secondTeam?.id, matchOutcomeDescription: desc });
+      } else if (scoreBattingSecond < dlsPar) {
+        const margin = dlsPar - scoreBattingSecond;
+        set({ winningTeamId: firstTeam?.id, matchOutcomeDescription: `${firstTeam?.name} won by ${margin} run${margin !== 1 ? 's' : ''} (DLS)` });
+      } else {
+        set({ matchDrawn: true, winningTeamId: undefined, matchOutcomeDescription: 'Match drawn (DLS)' });
+      }
+      return;
+    }
+
+    if (scoreBattingFirst == null || scoreBattingSecond == null) {
+      const outcome = calculateOutcome();
+      if (outcome) set({ matchOutcomeDescription: outcome });
+      return;
+    }
+
+    const firstTeam  = teams.find(t => t.id === result.sideBattingFirstId);
+    const secondTeam = teams.find(t => t.id !== result.sideBattingFirstId);
+    const superOver  = result.decidedBySuperOver ? ' (Super Over)' : '';
+    const bonusEligible = !result.decidedBySuperOver;
+    const hasBonusPoint = (winnerScore: number, loserScore: number) =>
+      bonusEligible && loserScore > 0 && (winnerScore - loserScore) > 0.8 * loserScore;
+
+    if (scoreBattingFirst === scoreBattingSecond) {
+      set({ matchDrawn: true, winningTeamId: undefined, matchOutcomeDescription: 'Match drawn' });
+    } else if (scoreBattingFirst > scoreBattingSecond) {
+      const margin = scoreBattingFirst - scoreBattingSecond;
+      set({ winningTeamId: firstTeam?.id, wonWithBonusPoint: hasBonusPoint(scoreBattingFirst, scoreBattingSecond), matchOutcomeDescription: `${firstTeam?.name} won by ${margin} run${margin !== 1 ? 's' : ''}${superOver}` });
+    } else {
+      const wicketsLeft = 10 - (wicketsLostBattingSecond ?? 0);
+      set({ winningTeamId: secondTeam?.id, wonWithBonusPoint: hasBonusPoint(scoreBattingSecond, scoreBattingFirst), matchOutcomeDescription: `${secondTeam?.name} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}${superOver}` });
+    }
+  };
+
   const saveButton = (
     <Button
-      variant="contained"
+      variant="outlined"
+      size="small"
       startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
       onClick={save}
       disabled={saving}
@@ -249,40 +408,161 @@ export const MatchResultCapture: React.FC = () => {
     </Button>
   );
 
+  const syncScorecardButton = (
+    <Button
+      variant="outlined"
+      size="small"
+      startIcon={<Sync />}
+      disabled={!result.sideBattingFirstId || !!result.forfeited}
+      onClick={() => {
+        set({
+          scoreBattingFirst:        firstCard.score,
+          wicketsLostBattingFirst:  firstCard.wickets,
+          oversBattingFirst:        firstCard.overs ?? '',
+          scoreBattingSecond:       secondCard.score,
+          wicketsLostBattingSecond: secondCard.wickets,
+          oversBattingSecond:       secondCard.overs ?? '',
+        });
+        setTossOpen(false);
+        setScoresOpen(true);
+        setResultOpen(false);
+      }}
+    >
+      Sync Scorecard
+    </Button>
+  );
+
+  const autoCalculateButton = (
+    <Button
+      variant="outlined"
+      size="small"
+      startIcon={<AutoFixHigh />}
+      disabled={!!result.forfeited || !!result.noResult}
+      onClick={() => { handleAutoCalculate(); setTossOpen(false); setScoresOpen(false); setResultOpen(true); }}
+    >
+      Calculate Result
+    </Button>
+  );
+
+  const viewStandingsButton = saved && match?.tournamentId ? (
+    <Button variant="outlined" size="small" startIcon={<Leaderboard />} onClick={() => navigate(`/tournaments/${match.tournamentId}/standings`)}>
+      View Standings
+    </Button>
+  ) : null;
+
   return (
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)} size="small">Back</Button>
+        <Button startIcon={<ArrowBack />} onClick={() => dirty ? setConfirmLeave(true) : navigate(-1)} size="small">Back</Button>
         <Typography variant="h5">Capture Result</Typography>
       </Box>
 
-      {/* Match banner */}
-      <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: 'action.hover' }}>
-        <Typography variant="h6" fontWeight={700} gutterBottom>
-          {match.homeTeamName} <Typography component="span" color="text.secondary">vs</Typography> {match.oppositionTeamName}
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-          {match.tournamentName      && <Chip icon={<EmojiEvents />}    label={match.tournamentName}            size="small" color="primary" variant="outlined" />}
-          {match.matchDate           && <Chip icon={<CalendarMonth />}  label={String(match.matchDate)}          size="small" variant="outlined" />}
-          {match.fieldName           && <Chip icon={<LocationOn />}     label={match.fieldName}                  size="small" variant="outlined" />}
-          {match.umpire              && <Chip icon={<SportsCricket />}  label={`Umpire: ${match.umpire}`}        size="small" variant="outlined" />}
-          {tournament?.cricketFormat && <Chip icon={<SportsCricket />}  label={tournament.cricketFormat}         size="small" variant="outlined" />}
-        </Box>
-      </Paper>
+      <Dialog open={confirmLeave} onClose={() => setConfirmLeave(false)}>
+        <DialogTitle>Unsaved Changes</DialogTitle>
+        <DialogContent>
+          <DialogContentText>You have unsaved changes. Would you like to save before leaving?</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmLeave(false)}>Cancel</Button>
+          <Button color="error" onClick={() => { setConfirmLeave(false); navigate(-1); }}>Discard</Button>
+          <Button variant="contained" onClick={async () => { await save(); navigate(-1); }}>Save & Leave</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={unlinkedDialogOpen} onClose={() => setUnlinkedDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Unlinked Players Found</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            The following players from the imported scorecard are not in their team's squad. Create them as new players, or find an existing player if the name differs.
+          </DialogContentText>
+          {unlinkedPlayers.map((p, i) => (
+            <Box key={i} sx={{ mb: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography sx={{ flex: 1 }}>{p.name}</Typography>
+                <Chip label={p.teamName} size="small" variant="outlined" />
+                {p.created ? (
+                  <Chip label="Linked" color="success" size="small" />
+                ) : p.creating ? (
+                  <CircularProgress size={20} />
+                ) : p.findMode ? null : (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button size="small" variant="outlined" onClick={() => handleCreateAndLink(i, p)}>
+                      Create & Link
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setUnlinkedPlayers(prev => prev.map((x, j) => j === i ? { ...x, findMode: true } : x))}
+                    >
+                      Find Player
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+              {p.findMode && (
+                <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
+                  <Autocomplete
+                    options={allPlayers}
+                    getOptionLabel={op => `${op.name} ${op.surname}`}
+                    size="small"
+                    sx={{ flex: 1 }}
+                    onChange={(_, val) => { if (val) handleLinkExisting(i, p, val as Player); }}
+                    renderInput={params => <TextField {...params} label="Search existing players" size="small" />}
+                  />
+                  <Button
+                    size="small"
+                    onClick={() => setUnlinkedPlayers(prev => prev.map((x, j) => j === i ? { ...x, findMode: false } : x))}
+                  >
+                    Cancel
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUnlinkedDialogOpen(false)}>Done</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Sticky header: banner + tabs */}
+      <Box sx={{ position: 'sticky', top: { xs: 56, sm: 64 }, zIndex: 10, bgcolor: 'background.default', mb: 2 }}>
+        <Paper variant="outlined" sx={{ p: 2, mb: 0, bgcolor: 'background.paper' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
+            <Box>
+              <Typography variant="h6" fontWeight={700} gutterBottom>
+                {match.homeTeamName} <Typography component="span" color="text.secondary">vs</Typography> {match.oppositionTeamName}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                {match.tournamentName      && <Chip icon={<EmojiEvents />}    label={match.tournamentName}            size="small" color="primary" variant="outlined" />}
+                {match.matchDate           && <Chip icon={<CalendarMonth />}  label={String(match.matchDate)}          size="small" variant="outlined" />}
+                {match.fieldName           && <Chip icon={<LocationOn />}     label={match.fieldName}                  size="small" variant="outlined" />}
+                {match.umpire              && <Chip icon={<SportsCricket />}  label={`Umpire: ${match.umpire}`}        size="small" variant="outlined" />}
+                {tournament?.cricketFormat && <Chip icon={<SportsCricket />}  label={tournament.cricketFormat}         size="small" variant="outlined" />}
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+              {syncScorecardButton}
+              {autoCalculateButton}
+              {viewStandingsButton}
+              {saveButton}
+            </Box>
+          </Box>
+        </Paper>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab label="Match Details" />
+          <Tab label="Scorecard" />
+          <Tab label="Summary" />
+        </Tabs>
+      </Box>
 
       {error && <Alert severity="error"   sx={{ mb: 2 }}>{error}</Alert>}
       {saved  && <Alert severity="success" sx={{ mb: 2 }}>Result saved successfully.</Alert>}
-
-      <Tabs
-        value={activeTab}
-        onChange={(_, v) => setActiveTab(v)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
-      >
-        <Tab label="Match Details" />
-        <Tab label="Scorecard" />
-        <Tab label="Summary" />
-      </Tabs>
 
       {/* ── Tab 0: Match Details ── */}
       {activeTab === 0 && (
@@ -345,7 +625,7 @@ export const MatchResultCapture: React.FC = () => {
             </Box>
           </Section>
 
-          <Section title="Toss">
+          <Section title="Toss" collapsible open={tossOpen} onToggle={() => setTossOpen(o => !o)}>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <TextField
                 select label="Toss Won By" value={match.tossWonBy ?? ''}
@@ -370,7 +650,7 @@ export const MatchResultCapture: React.FC = () => {
             </Box>
           </Section>
 
-          <Section title="Innings">
+          <Section title="Scores" collapsible open={scoresOpen} onToggle={() => setScoresOpen(o => !o)}>
             {result.sideBattingFirstId
               ? <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                   <Chip label={`Batting first: ${teams.find(t => t.id === result.sideBattingFirstId)?.name ?? '—'}`} color="primary" variant="outlined" />
@@ -378,26 +658,6 @@ export const MatchResultCapture: React.FC = () => {
                 </Box>
               : <Alert severity="warning" sx={{ mb: 2, maxWidth: 420 }}>Set the toss in the Toss section to determine who bats first.</Alert>
             }
-
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Sync />}
-              disabled={!result.sideBattingFirstId || !!result.forfeited}
-              onClick={() => {
-                set({
-                  scoreBattingFirst:         firstCard.score,
-                  wicketsLostBattingFirst:   firstCard.wickets,
-                  oversBattingFirst:         firstCard.overs ?? '',
-                  scoreBattingSecond:        secondCard.score,
-                  wicketsLostBattingSecond:  secondCard.wickets,
-                  oversBattingSecond:        secondCard.overs ?? '',
-                });
-              }}
-              sx={{ mb: 2 }}
-            >
-              Populate from scorecard
-            </Button>
 
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               1st Innings{firstInningsTeam ? ` — ${firstInningsTeam.name}` : ''}
@@ -418,53 +678,52 @@ export const MatchResultCapture: React.FC = () => {
             </Box>
           </Section>
 
-          <Section title="Result">
+          <Section title="Match Result" collapsible open={resultOpen} onToggle={() => setResultOpen(o => !o)}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <TextField
-                select label="Winning Team" value={result.winningTeamId ?? ''}
-                disabled={!result.matchCompleted || !!result.matchDrawn}
-                onChange={e => {
-                  const id = e.target.value ? +e.target.value : undefined;
-                  if (result.forfeited) {
-                    const name = teams.find(t => t.id === id)?.name ?? '';
-                    set({ winningTeamId: id, matchOutcomeDescription: id ? `${name} won` : '' });
-                  } else {
-                    set({ winningTeamId: id });
-                  }
-                }}
-                helperText={result.matchDrawn ? 'Not applicable for a draw' : result.forfeited ? 'Select the team that was awarded the win' : ''}
-                sx={{ minWidth: 260 }}
-              >
-                <MenuItem value=""><em>— No result / abandoned —</em></MenuItem>
-                {teams.map(t => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
-              </TextField>
-              <TextField
-                select
-                label="Man of the Match"
-                value={result.manOfTheMatchId ?? ''}
-                disabled={!result.matchCompleted || !!result.forfeited}
-                onChange={e => set({ manOfTheMatchId: e.target.value ? +e.target.value : undefined })}
-                sx={{ minWidth: 280 }}
-              >
-                <MenuItem value=""><em>— None —</em></MenuItem>
-                {motmPlayers.map(p => (
-                  <MenuItem key={p.playerId} value={p.playerId}>{p.name} {p.surname}</MenuItem>
-                ))}
-              </TextField>
+              {/* Three dropdowns in a row */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+                <TextField
+                  select label="Winning Team" value={result.winningTeamId ?? ''}
+                  disabled={!result.matchCompleted || !!result.matchDrawn}
+                  onChange={e => {
+                    const id = e.target.value ? +e.target.value : undefined;
+                    if (result.forfeited) {
+                      const name = teams.find(t => t.id === id)?.name ?? '';
+                      set({ winningTeamId: id, matchOutcomeDescription: id ? `${name} won` : '' });
+                    } else {
+                      set({ winningTeamId: id });
+                    }
+                  }}
+                  helperText={result.matchDrawn ? 'Not applicable for a draw' : result.forfeited ? 'Select the team that was awarded the win' : ''}
+                >
+                  <MenuItem value=""><em>— No result / abandoned —</em></MenuItem>
+                  {teams.map(t => <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
+                </TextField>
+                <Autocomplete
+                  freeSolo
+                  disabled={!result.matchCompleted || !!result.forfeited}
+                  options={scorecardNames}
+                  inputValue={result.manOfTheMatchName ?? ''}
+                  onInputChange={(_, val, reason) => {
+                    if (reason === 'reset') return;
+                    set({ manOfTheMatchName: val || undefined, manOfTheMatchId: undefined });
+                  }}
+                  onChange={(_, val) => {
+                    set({ manOfTheMatchName: (val as string) || undefined, manOfTheMatchId: undefined });
+                  }}
+                  renderInput={params => <TextField {...params} label="Man of the Match" />}
+                />
+                <TextField
+                  select
+                  label="Publish Result"
+                  value={result.resultVisibility ?? 'NOT_PUBLISHED'}
+                  onChange={e => set({ resultVisibility: e.target.value as ResultVisibility })}
+                >
+                  <MenuItem value="NOT_PUBLISHED">Do Not Publish Result</MenuItem>
+                  <MenuItem value="SUMMARY_ONLY">Make Summary Available</MenuItem>
+                  <MenuItem value="SCORECARD_AND_SUMMARY">Make Scorecard and Summary Available</MenuItem>
+                </TextField>
               </Box>
-
-              <TextField
-                select
-                label="Publish Result"
-                value={result.resultVisibility ?? 'NOT_PUBLISHED'}
-                onChange={e => set({ resultVisibility: e.target.value as ResultVisibility })}
-                sx={{ maxWidth: 380 }}
-              >
-                <MenuItem value="NOT_PUBLISHED">Do Not Publish Result</MenuItem>
-                <MenuItem value="SUMMARY_ONLY">Make Summary Available</MenuItem>
-                <MenuItem value="SCORECARD_AND_SUMMARY">Make Scorecard and Summary Available</MenuItem>
-              </TextField>
 
               {result.decidedOnDLS && (
                 <Alert
@@ -483,83 +742,16 @@ export const MatchResultCapture: React.FC = () => {
                 </Alert>
               )}
 
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, maxWidth: 500 }}>
-                <TextField
-                  label="Match Outcome Description" multiline rows={2}
-                  value={result.matchOutcomeDescription ?? ''}
-                  disabled={!result.matchCompleted || !!result.forfeited}
-                  onChange={e => set({ matchOutcomeDescription: e.target.value })}
-                  placeholder="e.g. Team A won by 32 runs"
-                />
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<AutoFixHigh />}
-                  disabled={!!result.forfeited || !!result.noResult}
-                  onClick={() => {
-                    const { scoreBattingFirst, scoreBattingSecond, wicketsLostBattingSecond } = result;
-
-                    // DLS: determine winner from par score
-                    if (result.decidedOnDLS && dlsPar != null && scoreBattingSecond != null) {
-                      const firstTeam  = teams.find(t => t.id === result.sideBattingFirstId);
-                      const secondTeam = teams.find(t => t.id !== result.sideBattingFirstId);
-                      if (scoreBattingSecond > dlsPar) {
-                        const wicketsLeft = 10 - (wicketsLostBattingSecond ?? 0);
-                        const runMargin   = scoreBattingSecond - dlsPar;
-                        // Still had wickets in hand when match was stopped → win by wickets
-                        const desc = (wicketsLeft > 0 && (wicketsLostBattingSecond ?? 0) < 10)
-                          ? `${secondTeam?.name} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''} (DLS)`
-                          : `${secondTeam?.name} won by ${runMargin} run${runMargin !== 1 ? 's' : ''} (DLS)`;
-                        set({ winningTeamId: secondTeam?.id, matchOutcomeDescription: desc });
-                      } else if (scoreBattingSecond < dlsPar) {
-                        const margin = dlsPar - scoreBattingSecond;
-                        set({ winningTeamId: firstTeam?.id, matchOutcomeDescription: `${firstTeam?.name} won by ${margin} run${margin !== 1 ? 's' : ''} (DLS)` });
-                      } else {
-                        set({ matchDrawn: true, winningTeamId: undefined, matchOutcomeDescription: 'Match drawn (DLS)' });
-                      }
-                      return;
-                    }
-
-                    // Non-DLS: derive winner from scores
-                    if (scoreBattingFirst == null || scoreBattingSecond == null) {
-                      const outcome = calculateOutcome();
-                      if (outcome) set({ matchOutcomeDescription: outcome });
-                      return;
-                    }
-
-                    const firstTeam  = teams.find(t => t.id === result.sideBattingFirstId);
-                    const secondTeam = teams.find(t => t.id !== result.sideBattingFirstId);
-                    const superOver  = result.decidedBySuperOver ? ' (Super Over)' : '';
-                    const bonusEligible = !result.decidedBySuperOver;
-                    const hasBonusPoint = (winnerScore: number, loserScore: number) =>
-                      bonusEligible && loserScore > 0 && (winnerScore - loserScore) > 0.8 * loserScore;
-
-                    if (scoreBattingFirst === scoreBattingSecond) {
-                      set({ matchDrawn: true, winningTeamId: undefined, matchOutcomeDescription: 'Match drawn' });
-                    } else if (scoreBattingFirst > scoreBattingSecond) {
-                      const margin = scoreBattingFirst - scoreBattingSecond;
-                      set({ winningTeamId: firstTeam?.id, wonWithBonusPoint: hasBonusPoint(scoreBattingFirst, scoreBattingSecond), matchOutcomeDescription: `${firstTeam?.name} won by ${margin} run${margin !== 1 ? 's' : ''}${superOver}` });
-                    } else {
-                      const wicketsLeft = 10 - (wicketsLostBattingSecond ?? 0);
-                      set({ winningTeamId: secondTeam?.id, wonWithBonusPoint: hasBonusPoint(scoreBattingSecond, scoreBattingFirst), matchOutcomeDescription: `${secondTeam?.name} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}${superOver}` });
-                    }
-                  }}
-                  sx={{ alignSelf: 'flex-start' }}
-                >
-                  Auto-calculate result
-                </Button>
-              </Box>
+              {/* Description spans the full width of the 3-column grid */}
+              <TextField
+                label="Match Outcome Description" multiline rows={2}
+                value={result.matchOutcomeDescription ?? ''}
+                disabled={!result.matchCompleted || !!result.forfeited}
+                onChange={e => set({ matchOutcomeDescription: e.target.value })}
+                placeholder="e.g. Team A won by 32 runs"
+              />
             </Box>
           </Section>
-
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            {saveButton}
-            {saved && match?.tournamentId && (
-              <Button variant="outlined" startIcon={<Leaderboard />} onClick={() => navigate(`/tournaments/${match.tournamentId}/standings`)}>
-                View Updated Standings
-              </Button>
-            )}
-          </Box>
         </Box>
       )}
 
@@ -572,7 +764,7 @@ export const MatchResultCapture: React.FC = () => {
             </Alert>
           )}
 
-          {/* Import */}
+          {/* Import — admin only */}
           <input
             ref={importFileRef}
             type="file"
@@ -581,15 +773,17 @@ export const MatchResultCapture: React.FC = () => {
             onChange={handleImportJson}
           />
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Upload />}
-              disabled={!!result.forfeited}
-              onClick={() => { setImportError(null); importFileRef.current?.click(); }}
-            >
-              Import Scorecard JSON
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Upload />}
+                disabled={!!result.forfeited}
+                onClick={() => { setImportError(null); importFileRef.current?.click(); }}
+              >
+                Import Scorecard JSON
+              </Button>
+            )}
             {importError && (
               <Alert severity="error" onClose={() => setImportError(null)} sx={{ py: 0 }}>
                 {importError}
@@ -745,12 +939,87 @@ function parseOvers(s: string | undefined): number | null {
   return w + b / 6;
 }
 
+// ── Unlinked player detection ────────────────────────────────────────────────
+
+interface UnlinkedPlayer {
+  name: string;
+  teamId: number;
+  teamName: string;
+  creating: boolean;
+  created: boolean;
+  findMode: boolean;
+}
+
+function detectUnlinkedPlayers(
+  scoreCard: { teamA?: TeamScorecard; teamB?: TeamScorecard },
+  result: MatchResult,
+  match: Match,
+  homeSquad: Player[],
+  awaySquad: Player[],
+): UnlinkedPlayer[] {
+  const firstTeamId  = result.sideBattingFirstId ?? match.homeTeamId;
+  const secondTeamId = Number(firstTeamId) === Number(match.homeTeamId) ? match.oppositionTeamId : match.homeTeamId;
+
+  const getSquad = (id?: number) => {
+    if (!id) return [];
+    return Number(id) === Number(match.homeTeamId) ? homeSquad : awaySquad;
+  };
+
+  const firstSquadNames  = new Set(getSquad(firstTeamId).map(p => `${p.name} ${p.surname}`));
+  const secondSquadNames = new Set(getSquad(secondTeamId).map(p => `${p.name} ${p.surname}`));
+
+  // First team: batters in teamA innings + bowlers in teamB innings
+  const firstTeamNames = new Set([
+    ...(scoreCard.teamA?.batting ?? []).map(b => b.playerName).filter(Boolean) as string[],
+    ...(scoreCard.teamB?.bowling ?? []).map(b => b.playerName).filter(Boolean) as string[],
+  ]);
+
+  // Second team: batters in teamB innings + bowlers in teamA innings
+  const secondTeamNames = new Set([
+    ...(scoreCard.teamB?.batting ?? []).map(b => b.playerName).filter(Boolean) as string[],
+    ...(scoreCard.teamA?.bowling ?? []).map(b => b.playerName).filter(Boolean) as string[],
+  ]);
+
+  const firstTeamName  = Number(firstTeamId)  === Number(match.homeTeamId) ? match.homeTeamName  : match.oppositionTeamName;
+  const secondTeamName = Number(secondTeamId) === Number(match.homeTeamId) ? match.homeTeamName  : match.oppositionTeamName;
+
+  const unlinked: UnlinkedPlayer[] = [];
+  for (const name of firstTeamNames) {
+    if (!firstSquadNames.has(name) && firstTeamId) {
+      unlinked.push({ name, teamId: firstTeamId, teamName: firstTeamName ?? 'Team A', creating: false, created: false, findMode: false });
+    }
+  }
+  for (const name of secondTeamNames) {
+    if (!secondSquadNames.has(name) && secondTeamId) {
+      unlinked.push({ name, teamId: secondTeamId, teamName: secondTeamName ?? 'Team B', creating: false, created: false, findMode: false });
+    }
+  }
+
+  // Deduplicate
+  return unlinked.filter((p, i) => unlinked.findIndex(x => x.name === p.name && x.teamId === p.teamId) === i);
+}
+
 // ── Section ──────────────────────────────────────────────────────────────────
 
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <Paper variant="outlined" sx={{ p: 2 }}>
-    <Typography variant="subtitle1" fontWeight={600} gutterBottom>{title}</Typography>
-    <Divider sx={{ mb: 2 }} />
-    {children}
-  </Paper>
-);
+const Section: React.FC<{ title: string; children: React.ReactNode; collapsible?: boolean; defaultOpen?: boolean; open?: boolean; onToggle?: () => void }> = ({ title, children, collapsible, defaultOpen = true, open: controlledOpen, onToggle }) => {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const toggle = isControlled ? onToggle : () => setInternalOpen(o => !o);
+  return (
+    <Paper variant="outlined" sx={{ p: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: open ? 0 : undefined, cursor: collapsible ? 'pointer' : undefined }} onClick={collapsible ? toggle : undefined}>
+        <Typography variant="subtitle1" fontWeight={600}>{title}</Typography>
+        {collapsible && (
+          <IconButton size="small" onClick={e => { e.stopPropagation(); toggle?.(); }}>
+            {open ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
+        )}
+      </Box>
+      <Collapse in={!collapsible || open}>
+        <Divider sx={{ my: 2 }} />
+        {children}
+      </Collapse>
+    </Paper>
+  );
+};

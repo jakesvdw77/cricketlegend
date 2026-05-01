@@ -89,9 +89,11 @@ const TemplateShell: React.FC<Props> = ({
             {copied ? 'Copied!' : 'Copy to Clipboard'}
           </Button>
         )}
-        <Button variant="outlined" size="small" startIcon={<Refresh />} onClick={onRegenerate}>
-          Regenerate
-        </Button>
+        {viewMode === 'editor' && (
+          <Button variant="outlined" size="small" startIcon={<Refresh />} onClick={onRegenerate}>
+            Regenerate
+          </Button>
+        )}
         {viewMode === 'card' && (
           <Button
             variant="contained" size="small" color="secondary"

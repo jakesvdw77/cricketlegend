@@ -8,7 +8,7 @@ import {
 import { Menu as MenuIcon, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode, DoneAll, DeleteSweep } from '@mui/icons-material';
 import { useColorMode } from '../../context/ColorModeContext';
 import { useAuth } from '../../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useMatch } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
 import { PlayerNotification } from '../../types';
 
@@ -69,6 +69,7 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
   const [notifications, setNotifications] = useState<PlayerNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
+  const onCapturePage = !!useMatch('/admin/matches/:matchId/result');
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || username.charAt(0).toUpperCase();
 
   const loadNotifications = useCallback(() => {
@@ -126,12 +127,14 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
             {mode === 'dark' ? <LightMode /> : <DarkMode />}
           </IconButton>
         </Tooltip>
-        <Tooltip title="Notifications">
-          <IconButton color="inherit" onClick={openNotifications} sx={{ mr: 0.5 }}>
-            <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="error">
-              <Notifications />
-            </Badge>
-          </IconButton>
+        <Tooltip title={onCapturePage ? 'Notifications disabled while capturing a match' : 'Notifications'}>
+          <span>
+            <IconButton color="inherit" onClick={openNotifications} sx={{ mr: 0.5 }} disabled={onCapturePage}>
+              <Badge badgeContent={unreadCount > 0 ? unreadCount : undefined} color="error">
+                <Notifications />
+              </Badge>
+            </IconButton>
+          </span>
         </Tooltip>
         <Tooltip title="Help">
           <IconButton color="inherit" onClick={() => setHelpOpen(true)} sx={{ mr: 0.5 }}>
@@ -152,7 +155,7 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
             <Typography variant="caption" color="text.secondary">Role: {isAdmin ? 'Admin' : 'Player'}</Typography>
           </Box>
           <MenuItem divider disabled />
-          <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile'); }}>
+          <MenuItem disabled={onCapturePage} onClick={() => { setAnchorEl(null); navigate('/profile'); }}>
             <Person fontSize="small" sx={{ mr: 1 }} /> My Profile
           </MenuItem>
           <MenuItem onClick={logout}>Logout</MenuItem>

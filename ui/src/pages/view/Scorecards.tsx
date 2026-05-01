@@ -17,25 +17,39 @@ const InningsTable: React.FC<{ title: string; innings: TeamScorecard }> = ({ tit
         <TableHead>
           <TableRow>
             <TableCell>#</TableCell><TableCell>Batsman</TableCell><TableCell>Dismissal</TableCell>
-            <TableCell align="right">R</TableCell><TableCell align="right">4s</TableCell>
-            <TableCell align="right">6s</TableCell><TableCell align="right">Dots</TableCell>
+            <TableCell align="right">R</TableCell><TableCell align="right">B</TableCell>
+            <TableCell align="right">4s</TableCell><TableCell align="right">6s</TableCell>
+            <TableCell align="right">SR</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {(innings.batting ?? []).map((b, i) => (
-            <TableRow key={i}>
-              <TableCell>{b.battingPosition}</TableCell>
-              <TableCell>{b.playerName}</TableCell>
-              <TableCell>
-                {b.dismissed ? <Typography variant="caption">{b.dismissalType} — {b.dismissedDescription}</Typography>
-                  : <Chip label="not out" size="small" color="success" />}
-              </TableCell>
-              <TableCell align="right"><strong>{b.score ?? 0}</strong></TableCell>
-              <TableCell align="right">{b.fours ?? 0}</TableCell>
-              <TableCell align="right">{b.sixes ?? 0}</TableCell>
-              <TableCell align="right">{b.dots ?? 0}</TableCell>
-            </TableRow>
-          ))}
+          {(innings.batting ?? []).map((b, i) => {
+            const noStats = !b.dismissed && !b.ballsFaced;
+            return (
+              <TableRow key={i}>
+                <TableCell>{b.battingPosition}</TableCell>
+                <TableCell>{b.playerName}</TableCell>
+                {noStats ? (
+                  <TableCell colSpan={6} sx={{ bgcolor: 'inherit' }} />
+                ) : (
+                  <>
+                    <TableCell>
+                      {b.dismissed
+                        ? <Typography variant="caption">{b.dismissalType?.replace(/_/g, ' ')} — {b.dismissedDescription}</Typography>
+                        : <Chip label="not out" size="small" color="success" />}
+                    </TableCell>
+                    <TableCell align="right"><strong>{b.score ?? 0}</strong></TableCell>
+                    <TableCell align="right">{b.ballsFaced ?? 0}</TableCell>
+                    <TableCell align="right">{b.fours ?? 0}</TableCell>
+                    <TableCell align="right">{b.sixes ?? 0}</TableCell>
+                    <TableCell align="right">
+                      {b.ballsFaced ? (((b.score ?? 0) / b.ballsFaced) * 100).toFixed(1) : '—'}
+                    </TableCell>
+                  </>
+                )}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </TableContainer>

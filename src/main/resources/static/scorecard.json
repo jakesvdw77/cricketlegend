@@ -1,0 +1,214 @@
+{
+  "teamA": {
+    "score": 82,
+    "wickets": 8,
+    "overs": "35.0",
+    "byes": 0,
+    "legByes": 1,
+    "wides": 8,
+    "noBalls": 1,
+    "batting": [
+      {
+        "playerName": "Gavin Macaulay",
+        "battingPosition": 1,
+        "batted": true,
+        "score": 9,
+        "ballsFaced": 33,
+        "fours": 1,
+        "sixes": 0,
+        "dismissed": true,
+        "dismissalType": "CAUGHT",
+        "dismissedBowler": "Piet Botha",
+        "dismissedDescription": "c Leon De Bruyn b Piet Botha"
+      },
+      {
+        "playerName": "Richard Mosterd1",
+        "battingPosition": 2,
+        "batted": true,
+        "score": 10,
+        "ballsFaced": 67,
+        "fours": 0,
+        "sixes": 0,
+        "dismissed": true,
+        "dismissalType": "STUMPED",
+        "dismissedBowler": "Piet Botha",
+        "dismissedDescription": "st Roger Dowman b Piet Botha"
+      },
+      {
+        "playerName": "Carl Mellors",
+        "battingPosition": 3,
+        "batted": true,
+        "score": 3,
+        "ballsFaced": 14,
+        "fours": 0,
+        "sixes": 0,
+        "dismissed": true,
+        "dismissalType": "CAUGHT",
+        "dismissedBowler": "Piet Botha",
+        "dismissedDescription": "c Roger Dowman b Piet Botha"
+      },
+      {
+        "playerName": "Mark Tessendorf",
+        "battingPosition": 4,
+        "batted": true,
+        "score": 0,
+        "ballsFaced": 2,
+        "fours": 0,
+        "sixes": 0,
+        "dismissed": true,
+        "dismissalType": "RUN_OUT",
+        "dismissedDescription": "run out (Roger Dowman/Justin Gordon)"
+      },
+      {
+        "playerName": "Trevor Poole",
+        "battingPosition": 5,
+        "batted": true,
+        "score": 20,
+        "ballsFaced": 25,
+        "fours": 0,
+        "sixes": 1,
+        "dismissed": true,
+        "dismissalType": "CAUGHT",
+        "dismissedBowler": "Andre Botha",
+        "dismissedDescription": "c Justin Gordon b Andre Botha"
+      },
+      {
+        "playerName": "Irshadul Haq",
+        "battingPosition": 6,
+        "batted": true,
+        "score": 8,
+        "ballsFaced": 17,
+        "fours": 0,
+        "sixes": 0,
+        "dismissed": true,
+        "dismissalType": "CAUGHT",
+        "dismissedBowler": "Andre Botha",
+        "dismissedDescription": "c & b Andre Botha"
+      },
+      {
+        "playerName": "Derick Pettitt",
+        "battingPosition": 7,
+        "batted": true,
+        "score": 0,
+        "ballsFaced": 4,
+        "fours": 0,
+        "sixes": 0,
+        "dismissed": true,
+        "dismissalType": "BOWLED",
+        "dismissedBowler": "Piet Botha",
+        "dismissedDescription": "b Piet Botha"
+      },
+      {
+        "playerName": "Shane Love",
+        "battingPosition": 8,
+        "batted": true,
+        "score": 3,
+        "ballsFaced": 19,
+        "fours": 0,
+        "sixes": 0,
+        "dismissed": true,
+        "dismissalType": "RUN_OUT",
+        "dismissedDescription": "run out (Dries Schoeman/Roger Dowman)"
+      },
+      {
+        "playerName": "Roelf Van Der Merwe",
+        "battingPosition": 9,
+        "batted": true,
+        "score": 15,
+        "ballsFaced": 18,
+        "fours": 1,
+        "sixes": 1,
+        "dismissed": false,
+        "dismissalType": "NOT_OUT",
+        "dismissedDescription": "not out"
+      },
+      {
+        "playerName": "Andre Du Plessis",
+        "battingPosition": 10,
+        "batted": true,
+        "score": 4,
+        "ballsFaced": 12,
+        "fours": 0,
+        "sixes": 0,
+        "dismissed": false,
+        "dismissalType": "NOT_OUT",
+        "dismissedDescription": "not out"
+      },
+      {
+        "playerName": "Johan Van Zyl",
+        "battingPosition": 11,
+        "batted": false
+      }
+    ],
+    "bowling": [
+      { "playerName": "Riaan Davel",    "overs": "7.0", "maidens": 3, "dots": 34, "runs": 15, "wickets": 0, "wides": 1, "noBalls": 0 },
+      { "playerName": "Will Giessing",  "overs": "7.0", "maidens": 0, "dots": 37, "runs": 13, "wickets": 0, "wides": 4, "noBalls": 0 },
+      { "playerName": "Juan Coetser",   "overs": "7.0", "maidens": 0, "dots": 27, "runs": 17, "wickets": 0, "wides": 0, "noBalls": 0 },
+      { "playerName": "Piet Botha",     "overs": "7.0", "maidens": 1, "dots": 33, "runs": 10, "wickets": 4, "wides": 0, "noBalls": 0 },
+      { "playerName": "Andre Botha",    "overs": "5.0", "maidens": 1, "dots": 22, "runs": 14, "wickets": 2, "wides": 1, "noBalls": 0 },
+      { "playerName": "Hennie Smith",   "overs": "2.0", "maidens": 0, "dots":  6, "runs": 12, "wickets": 0, "wides": 2, "noBalls": 1 }
+    ]
+  },
+  "teamB": {
+    "score": 83,
+    "wickets": 1,
+    "overs": "16.0",
+    "byes": 1,
+    "legByes": 2,
+    "wides": 3,
+    "noBalls": 0,
+    "batting": [
+      {
+        "playerName": "Leon De Bruyn",
+        "battingPosition": 1,
+        "batted": true,
+        "score": 13,
+        "ballsFaced": 16,
+        "fours": 1,
+        "sixes": 0,
+        "dismissed": true,
+        "dismissalType": "CAUGHT",
+        "dismissedBowler": "Roelf Van Der Merwe",
+        "dismissedDescription": "c Carl Mellors b Roelf Van Der Merwe"
+      },
+      {
+        "playerName": "Hennie Smith",
+        "battingPosition": 2,
+        "batted": true,
+        "score": 30,
+        "ballsFaced": 53,
+        "fours": 3,
+        "sixes": 0,
+        "dismissed": false,
+        "dismissalType": "NOT_OUT",
+        "dismissedDescription": "not out"
+      },
+      {
+        "playerName": "Braam Eberson",
+        "battingPosition": 3,
+        "batted": true,
+        "score": 34,
+        "ballsFaced": 27,
+        "fours": 2,
+        "sixes": 3,
+        "dismissed": false,
+        "dismissalType": "NOT_OUT",
+        "dismissedDescription": "not out"
+      },
+      { "playerName": "Piet Botha",     "battingPosition": 4,  "batted": false },
+      { "playerName": "Will Giessing",  "battingPosition": 5,  "batted": false },
+      { "playerName": "Andre Botha",    "battingPosition": 6,  "batted": false },
+      { "playerName": "Juan Coetser",   "battingPosition": 7,  "batted": false },
+      { "playerName": "Roger Dowman",   "battingPosition": 8,  "batted": false },
+      { "playerName": "Riaan Davel",    "battingPosition": 9,  "batted": false },
+      { "playerName": "Dries Schoeman", "battingPosition": 10, "batted": false },
+      { "playerName": "Justin Gordon",  "battingPosition": 11, "batted": false }
+    ],
+    "bowling": [
+      { "playerName": "Roelf Van Der Merwe", "overs": "7.0", "maidens": 1, "dots": 28, "runs": 23, "wickets": 1, "wides": 1, "noBalls": 0 },
+      { "playerName": "Johan Van Zyl",       "overs": "2.0", "maidens": 0, "dots":  6, "runs": 16, "wickets": 0, "wides": 0, "noBalls": 0 },
+      { "playerName": "Shane Love",          "overs": "6.0", "maidens": 0, "dots": 18, "runs": 34, "wickets": 0, "wides": 2, "noBalls": 0 },
+      { "playerName": "Trevor Poole",        "overs": "1.0", "maidens": 0, "dots":  4, "runs":  7, "wickets": 0, "wides": 0, "noBalls": 0 }
+    ]
+  }
+}
