@@ -262,9 +262,11 @@ export interface Match {
   tossDecision?: TossDecision;
   homeTeamId?: number;
   homeTeamName?: string;
+  homeTeamAbbreviation?: string;
   homeTeamLogoUrl?: string;
   oppositionTeamId?: number;
   oppositionTeamName?: string;
+  oppositionTeamAbbreviation?: string;
   oppositionTeamLogoUrl?: string;
   fieldId?: number;
   fieldName?: string;

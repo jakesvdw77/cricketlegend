@@ -3,11 +3,12 @@ import {
   Box, Typography, TextField, Button, Alert, Paper,
   FormControl, InputLabel, Select, MenuItem, Chip,
 } from '@mui/material';
-import { Send, People, Groups } from '@mui/icons-material';
+import { Send, People, Groups, Visibility } from '@mui/icons-material';
 import { pollApi } from '../../api/pollApi';
 import { clubApi } from '../../api/clubApi';
 import { teamApi } from '../../api/teamApi';
 import { useAuth } from '../../hooks/useAuth';
+import { RichContentDialog } from '../../components/RichContentDialog';
 import { Club, Team, ManagerTeamDTO } from '../../types';
 import RichEditor from './templates/RichEditor';
 
@@ -20,6 +21,7 @@ export const SendNotification: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Admin targeting
   const [adminAudience, setAdminAudience] = useState<AdminAudience>('all');
@@ -51,7 +53,7 @@ export const SendNotification: React.FC = () => {
   };
 
   const handleSend = async () => {
-    if (!subject.trim()) { setError('Subject is required.'); return; }
+    if (subject.trim().length < 5) { setError('Subject must be at least 5 characters.'); return; }
     if (!message || message === '<p></p>') { setError('Message is required.'); return; }
 
     if (isAdmin) {
@@ -101,12 +103,25 @@ export const SendNotification: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Send Notification</Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        {isAdmin
-          ? 'Send a message to all players, a specific club, or a specific team.'
-          : 'Send a message to players in your squad. Select a specific team or send to all your managed teams.'}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Typography variant="h5" sx={{ mr: 'auto' }}>Send Notification</Typography>
+        <Button
+          variant="outlined"
+          startIcon={<Visibility />}
+          onClick={() => setPreviewOpen(true)}
+          disabled={!message || message === '<p></p>'}
+        >
+          Preview
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<Send />}
+          onClick={handleSend}
+          disabled={sending}
+        >
+          {sending ? 'Sending…' : 'Send'}
+        </Button>
+      </Box>
 
       {success && (
         <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(false)}>
@@ -184,42 +199,37 @@ export const SendNotification: React.FC = () => {
           </FormControl>
         )}
 
-        {/* Audience badge + Send button */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-          <Chip
-            icon={isAdmin && adminAudience === 'all' ? <People /> : <Groups />}
-            label={`Recipients: ${audienceLabel}`}
-            color={isAdmin && adminAudience === 'all' ? 'error' : 'primary'}
-            variant="outlined"
-            size="small"
-          />
-          <Button
-            variant="contained"
-            startIcon={<Send />}
-            onClick={handleSend}
-            disabled={sending}
-          >
-            {sending ? 'Sending…' : `Send to ${audienceLabel}`}
-          </Button>
-        </Box>
+        <Chip
+          icon={isAdmin && adminAudience === 'all' ? <People /> : <Groups />}
+          label={`Recipients: ${audienceLabel}`}
+          color={isAdmin && adminAudience === 'all' ? 'error' : 'primary'}
+          variant="outlined"
+          size="small"
+          sx={{ mb: 3 }}
+        />
 
         <TextField
           label="Subject"
           fullWidth
           value={subject}
           onChange={e => setSubject(e.target.value)}
-          sx={{
-            mb: 3,
-            '& .MuiInputBase-root': { bgcolor: '#f5f5f5' },
-            '& .MuiInputBase-input': { color: '#000000' },
-          }}
+          sx={{ mb: 3 }}
           inputProps={{ maxLength: 255 }}
+          error={subject.length > 0 && subject.trim().length < 5}
+          helperText={subject.length > 0 && subject.trim().length < 5 ? 'Subject must be at least 5 characters.' : ''}
         />
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
           Message
         </Typography>
         <RichEditor initialHtml={message} onChange={setMessage} />
       </Paper>
+
+      <RichContentDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        title={subject || '(No subject)'}
+        html={message}
+      />
     </Box>
   );
 };

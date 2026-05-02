@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { Menu as MenuIcon, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode, DoneAll, DeleteSweep } from '@mui/icons-material';
 import { useColorMode } from '../../context/ColorModeContext';
+import { RichContentDialog } from '../RichContentDialog';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate, useMatch } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
@@ -67,6 +68,7 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<PlayerNotification[]>([]);
+  const [selectedMessage, setSelectedMessage] = useState<PlayerNotification | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const onCapturePage = !!useMatch('/admin/matches/:matchId/result');
@@ -95,7 +97,9 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
       }).catch(() => {});
     }
     if (n.type === 'MANAGER_MESSAGE') {
-      // message content shown inline, no navigation needed
+      setNotifAnchor(null);
+      setSelectedMessage(n);
+      return;
     } else if (n.type === 'TEAM_ANNOUNCED' && n.matchId) {
       navigate(`/matches/${n.matchId}/teamsheet`);
     } else if (n.matchId && n.teamId) {
@@ -217,24 +221,12 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
                       border: n.read ? '1.5px solid' : 'none',
                       borderColor: 'divider',
                     }} />
-                    <Box sx={{ flex: 1 }}>
-                      <ListItemText
-                        primary={notifLabel(n)}
-                        secondary={n.type === 'MANAGER_MESSAGE' ? undefined : (n.matchDate ?? '')}
-                        primaryTypographyProps={{ variant: 'body2', fontWeight: n.read ? 'normal' : 'bold' }}
-                        secondaryTypographyProps={{ variant: 'caption' }}
-                      />
-                      {n.type === 'MANAGER_MESSAGE' && n.message && (
-                        <Box
-                          sx={{
-                            mt: 0.5, fontSize: '0.75rem', color: 'text.secondary',
-                            maxHeight: 80, overflow: 'hidden',
-                            '& p': { m: 0 }, '& ul, & ol': { pl: 2, m: 0 },
-                          }}
-                          dangerouslySetInnerHTML={{ __html: n.message }}
-                        />
-                      )}
-                    </Box>
+                    <ListItemText
+                      primary={notifLabel(n)}
+                      secondary={n.type === 'MANAGER_MESSAGE' ? (n.createdAt ? new Date(n.createdAt).toLocaleDateString() : undefined) : (n.matchDate ?? '')}
+                      primaryTypographyProps={{ variant: 'body2', fontWeight: n.read ? 'normal' : 'bold' }}
+                      secondaryTypographyProps={{ variant: 'caption' }}
+                    />
                   </ListItem>
                   <Divider component="li" />
                 </React.Fragment>
@@ -243,6 +235,13 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
           )}
         </Box>
       </Popover>
+
+      <RichContentDialog
+        open={!!selectedMessage}
+        onClose={() => setSelectedMessage(null)}
+        title={selectedMessage?.subject ?? 'Message'}
+        html={selectedMessage?.message ?? ''}
+      />
 
       <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} maxWidth="sm" fullWidth scroll="paper">
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

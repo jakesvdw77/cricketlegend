@@ -23,9 +23,11 @@ public class MatchDTO {
     private TossDecision tossDecision;
     private Long homeTeamId;
     private String homeTeamName;
+    private String homeTeamAbbreviation;
     private String homeTeamLogoUrl;
     private Long oppositionTeamId;
     private String oppositionTeamName;
+    private String oppositionTeamAbbreviation;
     private String oppositionTeamLogoUrl;
     private Long fieldId;
     private String fieldName;

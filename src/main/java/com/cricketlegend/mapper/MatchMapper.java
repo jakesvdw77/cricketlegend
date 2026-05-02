@@ -9,9 +9,11 @@ import org.mapstruct.Mapping;
 public interface MatchMapper {
     @Mapping(source = "homeTeam.teamId", target = "homeTeamId")
     @Mapping(source = "homeTeam.teamName", target = "homeTeamName")
+    @Mapping(source = "homeTeam.abbreviation", target = "homeTeamAbbreviation")
     @Mapping(source = "homeTeam.logoUrl", target = "homeTeamLogoUrl")
     @Mapping(source = "oppositionTeam.teamId", target = "oppositionTeamId")
     @Mapping(source = "oppositionTeam.teamName", target = "oppositionTeamName")
+    @Mapping(source = "oppositionTeam.abbreviation", target = "oppositionTeamAbbreviation")
     @Mapping(source = "oppositionTeam.logoUrl", target = "oppositionTeamLogoUrl")
     @Mapping(source = "field.fieldId", target = "fieldId")
     @Mapping(source = "field.name", target = "fieldName")

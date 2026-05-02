@@ -7,17 +7,109 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import {
   Box, Typography, CircularProgress, Dialog, DialogTitle, DialogContent,
   DialogActions, Button, Chip, Divider, Avatar, Stack,
+  Select, MenuItem, IconButton as MuiIconButton, useMediaQuery, useTheme,
 } from '@mui/material';
 import {
   SportsCricket, LocationOn, EmojiEvents, AccessTime, CalendarMonth,
   CheckCircle, Cancel, HelpOutline, Groups, HowToVote, AssignmentInd,
-  FileDownload,
+  FileDownload, Cake, ChevronLeft, ChevronRight,
 } from '@mui/icons-material';
+
+const CalendarEventComponent: React.FC<{ event: CalendarEvent }> = ({ event }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  let label = event.title;
+  if (isMobile && event.type === 'birthday' && event.player) {
+    label = `🎂 ${event.player.name}`;
+  }
+  return <span style={{ fontSize: 11 }}>{label}</span>;
+};
+
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+
+const VIEWS: View[] = ['month', 'week', 'day'];
+
+interface CalendarToolbarProps {
+  date: Date;
+  view: View;
+  onDateChange: (date: Date) => void;
+  onViewChange: (view: View) => void;
+}
+
+const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ date, view, onDateChange, onViewChange }) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
+
+  const shift = (dir: -1 | 1) => {
+    const next = new Date(date);
+    if (view === 'month') next.setMonth(next.getMonth() + dir);
+    else if (view === 'week') next.setDate(next.getDate() + dir * 7);
+    else next.setDate(next.getDate() + dir);
+    onDateChange(next);
+  };
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+      <MuiIconButton size="small" onClick={() => shift(-1)} sx={{ color: '#e4f4df' }}>
+        <ChevronLeft />
+      </MuiIconButton>
+      <Button size="small" onClick={() => onDateChange(new Date())}
+        sx={{ color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', border: '1px solid', minWidth: 0, px: 1, py: 0.25, fontSize: 12 }}>
+        Today
+      </Button>
+      <MuiIconButton size="small" onClick={() => shift(1)} sx={{ color: '#e4f4df' }}>
+        <ChevronRight />
+      </MuiIconButton>
+
+      <Select
+        value={month}
+        onChange={e => { const next = new Date(date); next.setMonth(e.target.value as number); onDateChange(next); }}
+        size="small"
+        variant="outlined"
+        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: 130 }}
+      >
+        {MONTHS.map((m, i) => <MenuItem key={i} value={i}>{m}</MenuItem>)}
+      </Select>
+
+      <Select
+        value={year}
+        onChange={e => { const next = new Date(date); next.setFullYear(e.target.value as number); onDateChange(next); }}
+        size="small"
+        variant="outlined"
+        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: 90 }}
+      >
+        {years.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+      </Select>
+
+      <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
+        {VIEWS.map(v => (
+          <Button
+            key={v}
+            size="small"
+            variant={v === view ? 'contained' : 'outlined'}
+            onClick={() => onViewChange(v)}
+            sx={v === view
+              ? { bgcolor: '#28b463', color: '#0e1f0e', fontWeight: 'bold', minWidth: 60 }
+              : { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', minWidth: 60 }}
+          >
+            {v.charAt(0).toUpperCase() + v.slice(1)}
+          </Button>
+        ))}
+      </Box>
+    </Box>
+  );
+};
 import { matchApi } from '../api/matchApi';
 import { pollApi } from '../api/pollApi';
 import { playerApi } from '../api/playerApi';
 import { eventApi } from '../api/eventApi';
-import { Match, MatchSide, Player, PlayerAvailabilityEntry, AvailabilityStatus, ClubEvent } from '../types';
+import { mediaApi } from '../api/mediaApi';
+import { Match, MatchSide, Player, PlayerAvailabilityEntry, AvailabilityStatus, ClubEvent, MediaContent } from '../types';
 
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales: { 'en-US': enUS } });
 
@@ -30,6 +122,7 @@ interface CalendarEvent {
   type: 'match' | 'birthday' | 'club_event';
   resource?: Match;
   clubEvent?: ClubEvent;
+  player?: Player;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -79,6 +172,9 @@ export const MySchedule: React.FC = () => {
   const [myAvailability, setMyAvailability] = useState<PlayerAvailabilityEntry | null | undefined>(undefined);
   const [pollTeamId, setPollTeamId] = useState<number | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [selectedBirthday, setSelectedBirthday] = useState<Player | null>(null);
+  const [birthdayMedia, setBirthdayMedia] = useState<MediaContent[]>([]);
+  const [birthdayMediaLoading, setBirthdayMediaLoading] = useState(false);
 
   useEffect(() => {
     matchApi.getMySchedule()
@@ -102,7 +198,7 @@ export const MySchedule: React.FC = () => {
 
   const matchEvents: CalendarEvent[] = matches.map(m => ({
     id: `match-${m.matchId}`,
-    title: `🏏 ${m.homeTeamName ?? '—'} vs ${m.oppositionTeamName ?? '—'}`,
+    title: `🏏 ${m.homeTeamAbbreviation ?? m.homeTeamName ?? '—'} vs ${m.oppositionTeamAbbreviation ?? m.oppositionTeamName ?? '—'}`,
     start: toDate(m),
     end: toEndDate(m),
     type: 'match',
@@ -121,6 +217,7 @@ export const MySchedule: React.FC = () => {
         end: bday,
         allDay: true,
         type: 'birthday' as const,
+        player: p,
       };
     });
   });
@@ -160,6 +257,16 @@ export const MySchedule: React.FC = () => {
       setPollTeamId(null);
     } else if (event.type === 'club_event' && event.clubEvent) {
       setSelectedClubEvent(event.clubEvent);
+    } else if (event.type === 'birthday' && event.player) {
+      setSelectedBirthday(event.player);
+      setBirthdayMedia([]);
+      if (event.player.playerId) {
+        setBirthdayMediaLoading(true);
+        mediaApi.search({ playerId: event.player.playerId, mediaType: 'IMAGE' })
+          .then(setBirthdayMedia)
+          .catch(() => {})
+          .finally(() => setBirthdayMediaLoading(false));
+      }
     }
   }, []);
 
@@ -301,7 +408,7 @@ export const MySchedule: React.FC = () => {
         border: 'none',
         fontSize: 12,
         padding: '2px 6px',
-        cursor: event.type === 'birthday' ? 'default' : 'pointer',
+        cursor: 'pointer',
       },
     };
   };
@@ -349,20 +456,51 @@ export const MySchedule: React.FC = () => {
         <Box sx={{
           flex: 1,
           minHeight: 560,
-          '& .rbc-toolbar': { mb: 1 },
-          '& .rbc-toolbar button': {
-            color: 'primary.main',
-            borderColor: 'divider',
+          bgcolor: '#0e1f0e',
+          borderRadius: 2,
+          p: 2,
+          color: '#e4f4df',
+
+          '& .rbc-toolbar': { display: 'none' },
+
+          // grid lines & borders
+          '& .rbc-month-view, & .rbc-time-view, & .rbc-agenda-view': {
+            borderColor: 'rgba(100,180,90,0.2)',
             borderRadius: 1,
           },
-          '& .rbc-toolbar button.rbc-active': {
-            bgcolor: 'primary.main',
-            color: '#fff',
+          '& .rbc-header': {
+            fontWeight: 'bold',
+            fontSize: 13,
+            color: '#e4f4df',
+            borderColor: 'rgba(100,180,90,0.2)',
+            bgcolor: '#1e3a1e',
           },
-          '& .rbc-today': { bgcolor: 'primary.light', opacity: 0.15 },
-          '& .rbc-header': { fontWeight: 'bold', fontSize: 13 },
-          '& .rbc-month-view': { borderRadius: 1 },
+          '& .rbc-month-row': { borderColor: 'rgba(100,180,90,0.15)' },
+          '& .rbc-day-bg': { borderColor: 'rgba(100,180,90,0.15)' },
+          '& .rbc-off-range-bg': { bgcolor: '#0a160a' },
+          '& .rbc-today': { bgcolor: 'rgba(40,180,99,0.12)' },
+
+          // date numbers & labels
+          '& .rbc-date-cell': { color: '#e4f4df' },
+          '& .rbc-date-cell.rbc-off-range': { color: 'rgba(228,244,223,0.35)' },
+          '& .rbc-label': { color: '#e4f4df' },
+
+          // time view
+          '& .rbc-time-content': { borderColor: 'rgba(100,180,90,0.2)' },
+          '& .rbc-timeslot-group': { borderColor: 'rgba(100,180,90,0.15)' },
+          '& .rbc-time-slot': { color: 'rgba(228,244,223,0.6)' },
+          '& .rbc-current-time-indicator': { bgcolor: '#28b463' },
+
+          // agenda
+          '& .rbc-agenda-table': { color: '#e4f4df' },
+          '& .rbc-agenda-date-cell, & .rbc-agenda-time-cell': { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.2)' },
         }}>
+          <CalendarToolbar
+            date={date}
+            view={view}
+            onDateChange={onNavigate}
+            onViewChange={onView}
+          />
           <Calendar
             localizer={localizer}
             events={events}
@@ -373,8 +511,15 @@ export const MySchedule: React.FC = () => {
             onNavigate={onNavigate}
             onView={onView}
             onSelectEvent={onSelectEvent}
+            components={{ event: CalendarEventComponent }}
             eventPropGetter={eventStyleGetter}
+            tooltipAccessor={(e: CalendarEvent) =>
+              e.type === 'match' && e.resource
+                ? `${e.resource.homeTeamName ?? '—'} vs ${e.resource.oppositionTeamName ?? '—'}`
+                : e.title
+            }
             views={['month', 'week', 'day']}
+            toolbar={false}
             style={{ height: 600 }}
             popup
           />
@@ -549,6 +694,69 @@ export const MySchedule: React.FC = () => {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Birthday dialog */}
+      <Dialog open={!!selectedBirthday} onClose={() => setSelectedBirthday(null)} maxWidth="xs" fullWidth>
+        {selectedBirthday && (() => {
+          const dob = new Date(selectedBirthday.dateOfBirth!);
+          const age = new Date().getFullYear() - dob.getFullYear();
+          return (
+            <>
+              <DialogTitle sx={{ bgcolor: '#7b1fa2', color: '#fff', pb: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Cake />
+                  <Typography variant="h6">Birthday</Typography>
+                </Box>
+              </DialogTitle>
+              <DialogContent sx={{ pt: 2 }}>
+                <Stack alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+                  <Avatar
+                    src={selectedBirthday.profilePictureUrl ?? ''}
+                    sx={{ width: 80, height: 80, fontSize: 32 }}
+                  >
+                    {selectedBirthday.name.charAt(0)}
+                  </Avatar>
+                  <Typography variant="h6" fontWeight="bold">
+                    {selectedBirthday.name} {selectedBirthday.surname}
+                  </Typography>
+                  <Chip
+                    icon={<Cake />}
+                    label={`${format(dob, 'dd MMMM')} · turns ${age}`}
+                    sx={{ bgcolor: '#7b1fa2', color: '#fff', '& .MuiChip-icon': { color: '#fff' } }}
+                  />
+                </Stack>
+                {birthdayMediaLoading && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                )}
+                {!birthdayMediaLoading && birthdayMedia.length > 0 && (
+                  <>
+                    <Divider sx={{ mb: 1.5 }}>
+                      <Typography variant="caption" color="text.secondary">Photos</Typography>
+                    </Divider>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {birthdayMedia.slice(0, 6).map(m => (
+                        <Box
+                          key={m.id}
+                          component="img"
+                          src={m.url}
+                          alt={m.caption ?? ''}
+                          sx={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 1, cursor: 'pointer' }}
+                          onClick={() => window.open(m.url, '_blank')}
+                        />
+                      ))}
+                    </Box>
+                  </>
+                )}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setSelectedBirthday(null)}>Close</Button>
+              </DialogActions>
+            </>
+          );
+        })()}
       </Dialog>
 
       {/* Club event detail dialog */}
