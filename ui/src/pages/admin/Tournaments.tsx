@@ -2,13 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
-  TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
+  TableBody, TableContainer, Paper, IconButton, Dialog,
   DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete,
   Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
-  Tabs, Tab, Tooltip, useMediaQuery, useTheme,
+  Tabs, Tab, Tooltip, useMediaQuery, useTheme, Link,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff, ReceiptLong } from '@mui/icons-material';
+import { Add, ArrowBack, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff, ReceiptLong, FilterList } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -16,6 +16,7 @@ import { sponsorApi } from '../../api/sponsorApi';
 import { teamApi } from '../../api/teamApi';
 import { paymentApi } from '../../api/paymentApi';
 import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender, Payment } from '../../types';
+import { DetailSection, DetailGrid, DetailField } from '../../components/admin/DetailView';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(v);
@@ -110,8 +111,11 @@ export const Tournaments: React.FC = () => {
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const [generatingPdfId, setGeneratingPdfId] = useState<number | null>(null);
+  const [viewing, setViewing] = useState(false);
+  const [viewItem, setViewItem] = useState<Tournament | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(!isMobile);
 
-  const col = (key: ColKey) => visibleCols.has(key);
+  const col = (key: ColKey) => isMobile ? key === 'name' : visibleCols.has(key);
 
   const toggleCol = (key: ColKey) => {
     setVisibleCols(prev => {
@@ -502,78 +506,382 @@ export const Tournaments: React.FC = () => {
 
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  if (open) {
+    return (
+      <>
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)}>Back</Button>
+            <Typography variant="h6" sx={{ flex: 1 }}>{editing.tournamentId ? 'Edit' : 'New'} Tournament</Typography>
+            <Button variant="contained" onClick={save}>Save</Button>
+          </Box>
+          <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <Tab label="General Info" />
+            <Tab label="Pools" />
+            <Tab label="Media & Links" />
+            <Tab label="Sponsors" />
+            <Tab label="Cost" />
+            {editing.tournamentId && <Tab label="Result" />}
+          </Tabs>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 700 }}>
+
+          {activeTab === 0 && (
+            <>
+              <Box>
+                <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleLogoUpload} />
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Avatar src={editing.logoUrl ?? ''} variant="rounded"
+                    sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.logoUrl ? 'pointer' : 'default' }}
+                    onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}>
+                    {editing.name.charAt(0)}
+                  </Avatar>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button variant="outlined" size="small"
+                      startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                      onClick={() => logoInputRef.current?.click()} disabled={uploading}>
+                      {uploading ? 'Uploading…' : 'Upload Logo'}
+                    </Button>
+                    {editing.logoUrl && (
+                      <Tooltip title="Remove logo">
+                        <IconButton size="small" color="error" onClick={() => set({ logoUrl: undefined })}>
+                          <HighlightOff fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+              <TextField label="Name" value={editing.name} required error={!!nameError} helperText={nameError}
+                onChange={e => { set({ name: e.target.value }); setNameError(''); }} />
+              <TextField label="Description" value={editing.description ?? ''} multiline rows={2}
+                onChange={e => set({ description: e.target.value })} />
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField select label="Format" value={editing.cricketFormat ?? ''} fullWidth
+                  onChange={e => set({ cricketFormat: e.target.value as CricketFormat })}>
+                  {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+                </TextField>
+                <TextField select label="Gender" value={editing.tournamentGender ?? ''} fullWidth
+                  onChange={e => set({ tournamentGender: e.target.value as TournamentGender || undefined })}>
+                  <MenuItem value="">— None —</MenuItem>
+                  <MenuItem value="MEN">Men</MenuItem>
+                  <MenuItem value="WOMEN">Women</MenuItem>
+                  <MenuItem value="BOYS">Boys</MenuItem>
+                  <MenuItem value="GIRLS">Girls</MenuItem>
+                </TextField>
+              </Box>
+              <TextField select label="Age Group" value={editing.ageGroup ?? ''}
+                onChange={e => set({ ageGroup: e.target.value as AgeGroup || undefined })}>
+                <MenuItem value="">— None —</MenuItem>
+                <MenuItem value="UNDER_9">Under 9</MenuItem>
+                <MenuItem value="UNDER_10">Under 10</MenuItem>
+                <MenuItem value="UNDER_11">Under 11</MenuItem>
+                <MenuItem value="UNDER_12">Under 12</MenuItem>
+                <MenuItem value="UNDER_13">Under 13</MenuItem>
+                <MenuItem value="UNDER_14">Under 14</MenuItem>
+                <MenuItem value="UNDER_15">Under 15</MenuItem>
+                <MenuItem value="UNDER_16">Under 16</MenuItem>
+                <MenuItem value="UNDER_18">Under 18</MenuItem>
+                <MenuItem value="UNDER_19">Under 19</MenuItem>
+                <MenuItem value="OPEN">Open</MenuItem>
+                <MenuItem value="VETERANS">Veterans</MenuItem>
+                <MenuItem value="OVER_50">Over 50</MenuItem>
+                <MenuItem value="OVER_60">Over 60</MenuItem>
+              </TextField>
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField label="Start Date" type="date" value={editing.startDate ?? ''} fullWidth
+                  InputLabelProps={{ shrink: true }} inputProps={{ max: editing.endDate || undefined }}
+                  error={!!dateError} onChange={e => { set({ startDate: e.target.value }); setDateError(''); }} />
+                <TextField label="End Date" type="date" value={editing.endDate ?? ''} fullWidth
+                  InputLabelProps={{ shrink: true }} inputProps={{ min: editing.startDate || undefined }}
+                  error={!!dateError} helperText={dateError}
+                  onChange={e => { set({ endDate: e.target.value }); setDateError(''); }} />
+              </Box>
+              <Divider />
+              <Typography variant="subtitle2" color="text.secondary">Scoring</Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField label="Win Pts" type="number" value={editing.pointsForWin ?? 2}
+                  onChange={e => set({ pointsForWin: +e.target.value })} />
+                <TextField label="Draw Pts" type="number" value={editing.pointsForDraw ?? 1}
+                  onChange={e => set({ pointsForDraw: +e.target.value })} />
+                <TextField label="No Result Pts" type="number" value={editing.pointsForNoResult ?? 1}
+                  onChange={e => set({ pointsForNoResult: +e.target.value })} />
+                <TextField label="Bonus Pts" type="number" value={editing.pointsForBonus ?? 1}
+                  onChange={e => set({ pointsForBonus: +e.target.value })} />
+              </Box>
+            </>
+          )}
+
+          {activeTab === 1 && (
+            <>
+              {localPools.map((pool, poolIdx) => (
+                <Paper key={poolIdx} variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TextField label="Pool Name" value={pool.poolName} size="small" sx={{ flex: 1 }}
+                      onChange={e => setLocalPools(pools => pools.map((p, i) =>
+                        i === poolIdx ? { ...p, poolName: e.target.value } : p))} />
+                    <IconButton size="small" color="error" onClick={() => removePool(poolIdx)}>
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', minHeight: 28 }}>
+                    {pool.teams.map(t => (
+                      <Chip key={t.teamId} label={t.teamName} size="small"
+                        onDelete={() => removeTeamFromLocalPool(poolIdx, t.teamId)} />
+                    ))}
+                  </Box>
+                  <Autocomplete
+                    options={allTeams.filter(t => !localPools.some(p => p.teams.find(pt => pt.teamId === t.teamId)))}
+                    getOptionLabel={t => t.teamName} onChange={(_, team) => { if (team) addTeamToLocalPool(poolIdx, team); }}
+                    value={null} blurOnSelect
+                    renderInput={params => <TextField {...params} label="Add team to pool" size="small" />} />
+                </Paper>
+              ))}
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <TextField label="New Pool Name" value={newPoolName} size="small" sx={{ flex: 1 }}
+                  onChange={e => setNewPoolName(e.target.value)}
+                  placeholder={`Pool ${String.fromCharCode(65 + localPools.length)}`}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPool(); } }} />
+                <Button variant="outlined" size="small" startIcon={<Add />} onClick={addPool}>Add Pool</Button>
+              </Box>
+            </>
+          )}
+
+          {activeTab === 2 && (
+            <>
+              <input type="file" ref={pdfInputRef} style={{ display: 'none' }} accept="application/pdf" onChange={handlePdfUpload} />
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box sx={{ width: 64, height: 64, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {editing.playingConditionsUrl ? (
+                    <IconButton component="a" href={editing.playingConditionsUrl} target="_blank" rel="noopener noreferrer" color="error" size="large">
+                      <PictureAsPdf sx={{ fontSize: 40 }} />
+                    </IconButton>
+                  ) : (
+                    <PictureAsPdf sx={{ fontSize: 40, color: 'text.disabled' }} />
+                  )}
+                </Box>
+                <Button variant="outlined" size="small"
+                  startIcon={uploadingPdf ? <CircularProgress size={14} /> : <CloudUpload />}
+                  onClick={() => pdfInputRef.current?.click()} disabled={uploadingPdf} sx={{ alignSelf: 'flex-start' }}>
+                  {uploadingPdf ? 'Uploading…' : 'Upload Playing Conditions'}
+                </Button>
+              </Box>
+              <TextField label="Website" value={editing.websiteLink ?? ''} onChange={e => set({ websiteLink: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Language fontSize="small" /></InputAdornment> }} />
+              <TextField label="Facebook" value={editing.facebookLink ?? ''} onChange={e => set({ facebookLink: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="Instagram" value={editing.instagramLink ?? ''} onChange={e => set({ instagramLink: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="YouTube" value={editing.youtubeLink ?? ''} onChange={e => set({ youtubeLink: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="Registration Page URL" value={editing.registrationPageUrl ?? ''}
+                onChange={e => set({ registrationPageUrl: e.target.value })} />
+            </>
+          )}
+
+          {activeTab === 3 && (
+            <Autocomplete multiple options={sponsors} getOptionLabel={s => s.name}
+              value={editing.sponsors ?? []} onChange={(_, value) => set({ sponsors: value })}
+              isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
+              renderTags={(value, getTagProps) =>
+                value.map((s, idx) => <Chip label={s.name} size="small" {...getTagProps({ index: idx })} key={s.sponsorId} />)
+              }
+              renderInput={params => <TextField {...params} label="Sponsors" />}
+            />
+          )}
+
+          {activeTab === 4 && (
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+              <TextField label="Entry Fee" type="number" value={editing.entryFee ?? ''} fullWidth
+                onChange={e => set({ entryFee: e.target.value ? +e.target.value : undefined })}
+                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }} />
+              <TextField label="Registration Fee" type="number" value={editing.registrationFee ?? ''} fullWidth
+                onChange={e => set({ registrationFee: e.target.value ? +e.target.value : undefined })}
+                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }} />
+              <TextField label="Match Fee" type="number" value={editing.matchFee ?? ''} fullWidth
+                onChange={e => set({ matchFee: e.target.value ? +e.target.value : undefined })}
+                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }} />
+            </Box>
+          )}
+
+          {activeTab === 5 && (
+            <Autocomplete options={allTeams} getOptionLabel={t => t.teamName}
+              value={allTeams.find(t => t.teamId === editing.winningTeamId) ?? null}
+              onChange={(_, team) => set({ winningTeamId: team?.teamId ?? undefined, winningTeamName: team?.teamName ?? undefined })}
+              isOptionEqualToValue={(o, v) => o.teamId === v.teamId}
+              renderInput={params => (
+                <TextField {...params} label="Winning Team"
+                  InputProps={{ ...params.InputProps, startAdornment: <><EmojiEvents sx={{ color: 'warning.main', mr: 0.5, fontSize: 20 }} />{params.InputProps.startAdornment}</> }} />
+              )}
+            />
+          )}
+
+          </Box>
+        </Box>
+
+        <Dialog open={!!viewLogoUrl} onClose={() => setViewLogoUrl(null)} maxWidth="sm">
+          <DialogContent sx={{ p: 0, lineHeight: 0 }}>
+            <img src={viewLogoUrl ?? ''} alt="Tournament logo" style={{ display: 'block', maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
+          </DialogContent>
+          <DialogActions><Button onClick={() => setViewLogoUrl(null)}>Close</Button></DialogActions>
+        </Dialog>
+      </>
+    );
+  }
+
+  if (viewing && viewItem) {
+    const fmtZAR = (v?: number) => v != null ? new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(v) : undefined;
+    const hasLinks = viewItem.websiteLink || viewItem.facebookLink || viewItem.instagramLink || viewItem.youtubeLink || viewItem.registrationPageUrl || viewItem.playingConditionsUrl;
+    const hasFees = viewItem.entryFee != null || viewItem.registrationFee != null || viewItem.matchFee != null;
+    return (
+      <Box sx={{ maxWidth: 800 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)}>Back</Button>
+          <Typography variant="h6" sx={{ flex: 1 }}>Tournament</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Header card */}
+          <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={viewItem.logoUrl ?? ''} variant="rounded" sx={{ width: 64, height: 64, flexShrink: 0 }}>
+              {viewItem.name.charAt(0)}
+            </Avatar>
+            <Box>
+              <Typography variant="h5">{viewItem.name}</Typography>
+              {viewItem.description && <Typography variant="subtitle2" color="text.secondary">{viewItem.description}</Typography>}
+            </Box>
+          </Paper>
+
+          {/* Overview */}
+          <DetailSection title="Overview">
+            <DetailGrid>
+              <DetailField label="Category" value={formatCategory(viewItem.ageGroup, viewItem.tournamentGender) || undefined} />
+              <DetailField label="Format" value={viewItem.cricketFormat} />
+              <DetailField label="Start Date" value={viewItem.startDate} />
+              <DetailField label="End Date" value={viewItem.endDate} />
+              <DetailField label="Winner" value={viewItem.winningTeamName} />
+            </DetailGrid>
+          </DetailSection>
+
+          {/* Points System */}
+          <DetailSection title="Points System">
+            <DetailGrid>
+              <DetailField label="Points for Win" value={viewItem.pointsForWin} />
+              <DetailField label="Points for Draw" value={viewItem.pointsForDraw} />
+              <DetailField label="Points for No Result" value={viewItem.pointsForNoResult} />
+              <DetailField label="Bonus Points" value={viewItem.pointsForBonus} />
+            </DetailGrid>
+          </DetailSection>
+
+          {/* Fees */}
+          {hasFees && (
+            <DetailSection title="Fees">
+              <DetailGrid>
+                <DetailField label="Entry Fee" value={fmtZAR(viewItem.entryFee)} />
+                <DetailField label="Registration Fee" value={fmtZAR(viewItem.registrationFee)} />
+                <DetailField label="Match Fee" value={fmtZAR(viewItem.matchFee)} />
+              </DetailGrid>
+            </DetailSection>
+          )}
+
+          {/* Pools */}
+          {(viewItem.pools?.length ?? 0) > 0 && (
+            <DetailSection title="Pools">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {viewItem.pools!.map(pool => (
+                  <Box key={pool.poolId}>
+                    <Typography variant="subtitle2">{pool.poolName}</Typography>
+                    {(pool.teams ?? []).map(t => (
+                      <Typography key={t.teamId} variant="body2">{t.teamName}</Typography>
+                    ))}
+                  </Box>
+                ))}
+              </Box>
+            </DetailSection>
+          )}
+
+          {/* Links */}
+          {hasLinks && (
+            <DetailSection title="Links">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                {viewItem.websiteLink && <Link href={viewItem.websiteLink} target="_blank" rel="noopener" underline="hover">Website</Link>}
+                {viewItem.facebookLink && <Link href={viewItem.facebookLink} target="_blank" rel="noopener" underline="hover">Facebook</Link>}
+                {viewItem.instagramLink && <Link href={viewItem.instagramLink} target="_blank" rel="noopener" underline="hover">Instagram</Link>}
+                {viewItem.youtubeLink && <Link href={viewItem.youtubeLink} target="_blank" rel="noopener" underline="hover">YouTube</Link>}
+                {viewItem.registrationPageUrl && <Link href={viewItem.registrationPageUrl} target="_blank" rel="noopener" underline="hover">Registration Page</Link>}
+                {viewItem.playingConditionsUrl && <Link href={viewItem.playingConditionsUrl} target="_blank" rel="noopener" underline="hover">Playing Conditions</Link>}
+              </Box>
+            </DetailSection>
+          )}
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <Typography variant="h5" sx={{ mr: 'auto' }}>Tournaments</Typography>
-        <TextField
-          select
-          size="small"
-          label="Format"
-          value={filterFormat}
-          onChange={e => { setFilterFormat(e.target.value as CricketFormat | ''); setPage(0); }}
-          sx={{ width: { xs: '100%', sm: 110 } }}
-        >
-          <MenuItem value="">All</MenuItem>
-          {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label="Year"
-          value={filterYear}
-          onChange={e => { setFilterYear(e.target.value === '' ? '' : Number(e.target.value)); setPage(0); }}
-          sx={{ width: { xs: '100%', sm: 100 } }}
-        >
-          <MenuItem value="">All</MenuItem>
-          {Array.from(new Set(rows.map(r => r.startDate?.slice(0, 4)).filter(Boolean)))
-            .sort((a, b) => Number(b) - Number(a))
-            .map(y => <MenuItem key={y} value={Number(y)}>{y}</MenuItem>)}
-        </TextField>
-        <TextField
-          size="small"
-          placeholder="Search name…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
-          sx={{ width: { xs: '100%', sm: 220 } }}
-        />
-        <IconButton
-          size="small"
-          title="Toggle columns"
-          onClick={e => setColAnchor(e.currentTarget)}
-        >
-          <ViewColumn />
-        </IconButton>
-        <Popover
-          open={Boolean(colAnchor)}
-          anchorEl={colAnchor}
-          onClose={() => setColAnchor(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <Box sx={{ p: 2, minWidth: 160 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>Columns</Typography>
-            <FormGroup>
-              {ALL_COLUMNS.map(c => (
-                <FormControlLabel
-                  key={c.key}
-                  control={
-                    <Checkbox
-                      size="small"
-                      checked={visibleCols.has(c.key)}
-                      onChange={() => toggleCol(c.key)}
-                    />
-                  }
-                  label={c.label}
-                />
-              ))}
-            </FormGroup>
-          </Box>
-        </Popover>
+        {!isMobile && (
+          <IconButton size="small" title="Toggle columns" onClick={e => setColAnchor(e.currentTarget)}>
+            <ViewColumn />
+          </IconButton>
+        )}
         <Button variant="contained" startIcon={<Add />} onClick={() => openDialog(empty)}>
           Add Tournament
         </Button>
       </Box>
+
+      <Popover
+        open={Boolean(colAnchor)}
+        anchorEl={colAnchor}
+        onClose={() => setColAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Box sx={{ p: 2, minWidth: 160 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Columns</Typography>
+          <FormGroup>
+            {ALL_COLUMNS.map(c => (
+              <FormControlLabel key={c.key}
+                control={<Checkbox size="small" checked={visibleCols.has(c.key)} onChange={() => toggleCol(c.key)} />}
+                label={c.label}
+              />
+            ))}
+          </FormGroup>
+        </Box>
+      </Popover>
+
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: filtersOpen ? 2 : 0 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mr: 'auto' }}>Filters</Typography>
+          <Tooltip title={filtersOpen ? 'Collapse' : 'Expand'}>
+            <IconButton size="small" onClick={() => setFiltersOpen(o => !o)}>
+              <FilterList fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        {filtersOpen && (
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <TextField select size="small" label="Format" value={filterFormat}
+              onChange={e => { setFilterFormat(e.target.value as CricketFormat | ''); setPage(0); }}
+              sx={{ width: { xs: '100%', sm: 110 } }}>
+              <MenuItem value="">All</MenuItem>
+              {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+            </TextField>
+            <TextField select size="small" label="Year" value={filterYear}
+              onChange={e => { setFilterYear(e.target.value === '' ? '' : Number(e.target.value)); setPage(0); }}
+              sx={{ width: { xs: '100%', sm: 100 } }}>
+              <MenuItem value="">All</MenuItem>
+              {Array.from(new Set(rows.map(r => r.startDate?.slice(0, 4)).filter(Boolean)))
+                .sort((a, b) => Number(b) - Number(a))
+                .map(y => <MenuItem key={y} value={Number(y)}>{y}</MenuItem>)}
+            </TextField>
+            <TextField size="small" placeholder="Search name…" value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
+              sx={{ width: { xs: '100%', sm: 220 } }} />
+          </Box>
+        )}
+      </Paper>
 
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
@@ -613,7 +921,7 @@ export const Tournaments: React.FC = () => {
                     {r.name.charAt(0)}
                   </Avatar>
                 </TableCell>
-                {col('name') && <TableCell>{r.name}</TableCell>}
+                {col('name') && <TableCell><Link component="button" underline="hover" onClick={() => { setViewItem(r); setViewing(true); }} sx={{ textAlign: 'left' }}>{r.name}</Link></TableCell>}
                 {col('category') && (
                   <TableCell>
                     {formatCategory(r.ageGroup, r.tournamentGender) && (
@@ -723,315 +1031,11 @@ export const Tournaments: React.FC = () => {
         />
       </TableContainer>
 
-      {/* Add / Edit dialog */}
-      <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') setOpen(false); }} maxWidth="md" fullWidth>
-        <DialogTitle>{editing.tournamentId ? 'Edit' : 'New'} Tournament</DialogTitle>
-        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}>
-          <Tab label="General Info" />
-          <Tab label="Pools" />
-          <Tab label="Media & Links" />
-          <Tab label="Sponsors" />
-          <Tab label="Cost" />
-          {editing.tournamentId && <Tab label="Result" />}
-        </Tabs>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2, minHeight: 520, overflowY: 'auto' }}>
-
-          {/* Tab 0: General Info */}
-          {activeTab === 0 && (
-            <>
-              {/* Logo upload + preview */}
-              <Box>
-                <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleLogoUpload} />
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <Avatar
-                    src={editing.logoUrl ?? ''}
-                    variant="rounded"
-                    sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.logoUrl ? 'pointer' : 'default' }}
-                    onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}
-                  >
-                    {editing.name.charAt(0)}
-                  </Avatar>
-                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                        onClick={() => logoInputRef.current?.click()}
-                        disabled={uploading}
-                      >
-                        {uploading ? 'Uploading…' : 'Upload Logo'}
-                      </Button>
-                      {editing.logoUrl && (
-                        <Tooltip title="Remove logo">
-                          <IconButton size="small" color="error" onClick={() => set({ logoUrl: undefined })}>
-                            <HighlightOff fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  </Box>
-                </Box>
-              </Box>
-
-              <TextField
-                label="Name"
-                value={editing.name}
-                onChange={e => { set({ name: e.target.value }); setNameError(''); }}
-                required
-                error={!!nameError}
-                helperText={nameError}
-              />
-              <TextField label="Description" value={editing.description ?? ''} multiline rows={2}
-                onChange={e => set({ description: e.target.value })} />
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField select label="Format" value={editing.cricketFormat ?? ''} fullWidth onChange={e => set({ cricketFormat: e.target.value as CricketFormat })}>
-                  {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
-                </TextField>
-                <TextField select label="Gender" value={editing.tournamentGender ?? ''} fullWidth onChange={e => set({ tournamentGender: e.target.value as TournamentGender || undefined })}>
-                  <MenuItem value="">— None —</MenuItem>
-                  <MenuItem value="MEN">Men</MenuItem>
-                  <MenuItem value="WOMEN">Women</MenuItem>
-                  <MenuItem value="BOYS">Boys</MenuItem>
-                  <MenuItem value="GIRLS">Girls</MenuItem>
-                </TextField>
-              </Box>
-              <TextField select label="Age Group" value={editing.ageGroup ?? ''} onChange={e => set({ ageGroup: e.target.value as AgeGroup || undefined })}>
-                <MenuItem value="">— None —</MenuItem>
-                <MenuItem value="UNDER_9">Under 9</MenuItem>
-                <MenuItem value="UNDER_10">Under 10</MenuItem>
-                <MenuItem value="UNDER_11">Under 11</MenuItem>
-                <MenuItem value="UNDER_12">Under 12</MenuItem>
-                <MenuItem value="UNDER_13">Under 13</MenuItem>
-                <MenuItem value="UNDER_14">Under 14</MenuItem>
-                <MenuItem value="UNDER_15">Under 15</MenuItem>
-                <MenuItem value="UNDER_16">Under 16</MenuItem>
-                <MenuItem value="UNDER_18">Under 18</MenuItem>
-                <MenuItem value="UNDER_19">Under 19</MenuItem>
-                <MenuItem value="OPEN">Open</MenuItem>
-                <MenuItem value="VETERANS">Veterans</MenuItem>
-                <MenuItem value="OVER_50">Over 50</MenuItem>
-                <MenuItem value="OVER_60">Over 60</MenuItem>
-              </TextField>
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField
-                  label="Start Date" type="date" value={editing.startDate ?? ''} fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  inputProps={{ max: editing.endDate || undefined }}
-                  error={!!dateError}
-                  onChange={e => { set({ startDate: e.target.value }); setDateError(''); }}
-                />
-                <TextField
-                  label="End Date" type="date" value={editing.endDate ?? ''} fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  inputProps={{ min: editing.startDate || undefined }}
-                  error={!!dateError}
-                  helperText={dateError}
-                  onChange={e => { set({ endDate: e.target.value }); setDateError(''); }}
-                />
-              </Box>
-
-              <Divider />
-              <Typography variant="subtitle2" color="text.secondary">Scoring</Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <TextField label="Win Pts" type="number" value={editing.pointsForWin ?? 2}
-                  onChange={e => set({ pointsForWin: +e.target.value })} />
-                <TextField label="Draw Pts" type="number" value={editing.pointsForDraw ?? 1}
-                  onChange={e => set({ pointsForDraw: +e.target.value })} />
-                <TextField label="No Result Pts" type="number" value={editing.pointsForNoResult ?? 1}
-                  onChange={e => set({ pointsForNoResult: +e.target.value })} />
-                <TextField label="Bonus Pts" type="number" value={editing.pointsForBonus ?? 1}
-                  onChange={e => set({ pointsForBonus: +e.target.value })} />
-              </Box>
-
-            </>
-          )}
-
-          {/* Tab 1: Pools */}
-          {activeTab === 1 && (
-            <>
-              {localPools.map((pool, poolIdx) => (
-                <Paper key={poolIdx} variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TextField
-                      label="Pool Name"
-                      value={pool.poolName}
-                      size="small"
-                      sx={{ flex: 1 }}
-                      onChange={e => setLocalPools(pools => pools.map((p, i) =>
-                        i === poolIdx ? { ...p, poolName: e.target.value } : p
-                      ))}
-                    />
-                    <IconButton size="small" color="error" onClick={() => removePool(poolIdx)}>
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', minHeight: 28 }}>
-                    {pool.teams.map(t => (
-                      <Chip
-                        key={t.teamId}
-                        label={t.teamName}
-                        size="small"
-                        onDelete={() => removeTeamFromLocalPool(poolIdx, t.teamId)}
-                      />
-                    ))}
-                  </Box>
-                  <Autocomplete
-                    options={allTeams.filter(t => !localPools.some(p => p.teams.find(pt => pt.teamId === t.teamId)))}
-                    getOptionLabel={t => t.teamName}
-                    onChange={(_, team) => { if (team) addTeamToLocalPool(poolIdx, team); }}
-                    value={null}
-                    blurOnSelect
-                    renderInput={params => <TextField {...params} label="Add team to pool" size="small" />}
-                  />
-                </Paper>
-              ))}
-
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField
-                  label="New Pool Name"
-                  value={newPoolName}
-                  size="small"
-                  sx={{ flex: 1 }}
-                  onChange={e => setNewPoolName(e.target.value)}
-                  placeholder={`Pool ${String.fromCharCode(65 + localPools.length)}`}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPool(); } }}
-                />
-                <Button variant="outlined" size="small" startIcon={<Add />} onClick={addPool}>
-                  Add Pool
-                </Button>
-              </Box>
-            </>
-          )}
-
-          {/* Tab 2: Media & Links */}
-          {activeTab === 2 && (
-            <>
-              <input type="file" ref={pdfInputRef} style={{ display: 'none' }} accept="application/pdf" onChange={handlePdfUpload} />
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Box sx={{ width: 64, height: 64, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {editing.playingConditionsUrl ? (
-                    <IconButton
-                      component="a"
-                      href={editing.playingConditionsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      color="error"
-                      size="large"
-                    >
-                      <PictureAsPdf sx={{ fontSize: 40 }} />
-                    </IconButton>
-                  ) : (
-                    <PictureAsPdf sx={{ fontSize: 40, color: 'text.disabled' }} />
-                  )}
-                </Box>
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={uploadingPdf ? <CircularProgress size={14} /> : <CloudUpload />}
-                    onClick={() => pdfInputRef.current?.click()}
-                    disabled={uploadingPdf}
-                    sx={{ alignSelf: 'flex-start' }}
-                  >
-                    {uploadingPdf ? 'Uploading…' : 'Upload Playing Conditions'}
-                  </Button>
-                </Box>
-              </Box>
-
-              <TextField label="Website" value={editing.websiteLink ?? ''} onChange={e => set({ websiteLink: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Language fontSize="small" /></InputAdornment> }} />
-              <TextField label="Facebook" value={editing.facebookLink ?? ''} onChange={e => set({ facebookLink: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField label="Instagram" value={editing.instagramLink ?? ''} onChange={e => set({ instagramLink: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField label="YouTube" value={editing.youtubeLink ?? ''} onChange={e => set({ youtubeLink: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField
-                label="Registration Page URL"
-                value={editing.registrationPageUrl ?? ''}
-                onChange={e => set({ registrationPageUrl: e.target.value })}
-              />
-            </>
-          )}
-
-          {/* Tab 3: Sponsors */}
-          {activeTab === 3 && (
-            <Autocomplete
-              multiple
-              options={sponsors}
-              getOptionLabel={s => s.name}
-              value={editing.sponsors ?? []}
-              onChange={(_, value) => set({ sponsors: value })}
-              isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
-              renderTags={(value, getTagProps) =>
-                value.map((s, idx) => (
-                  <Chip label={s.name} size="small" {...getTagProps({ index: idx })} key={s.sponsorId} />
-                ))
-              }
-              renderInput={params => <TextField {...params} label="Sponsors" />}
-            />
-          )}
-
-          {/* Tab 4: Cost */}
-          {activeTab === 4 && (
-            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-              <TextField
-                label="Entry Fee"
-                type="number"
-                value={editing.entryFee ?? ''}
-                onChange={e => set({ entryFee: e.target.value ? +e.target.value : undefined })}
-                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-                fullWidth
-              />
-              <TextField
-                label="Registration Fee"
-                type="number"
-                value={editing.registrationFee ?? ''}
-                onChange={e => set({ registrationFee: e.target.value ? +e.target.value : undefined })}
-                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-                fullWidth
-              />
-              <TextField
-                label="Match Fee"
-                type="number"
-                value={editing.matchFee ?? ''}
-                onChange={e => set({ matchFee: e.target.value ? +e.target.value : undefined })}
-                InputProps={{ startAdornment: <InputAdornment position="start">R</InputAdornment> }}
-                fullWidth
-              />
-            </Box>
-          )}
-
-          {/* Tab 5: Result */}
-          {activeTab === 5 && (
-            <Autocomplete
-              options={allTeams}
-              getOptionLabel={t => t.teamName}
-              value={allTeams.find(t => t.teamId === editing.winningTeamId) ?? null}
-              onChange={(_, team) => set({ winningTeamId: team?.teamId ?? undefined, winningTeamName: team?.teamName ?? undefined })}
-              isOptionEqualToValue={(o, v) => o.teamId === v.teamId}
-              renderInput={params => (
-                <TextField {...params} label="Winning Team" InputProps={{ ...params.InputProps, startAdornment: <><EmojiEvents sx={{ color: 'warning.main', mr: 0.5, fontSize: 20 }} />{params.InputProps.startAdornment}</> }} />
-              )}
-            />
-          )}
-
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={save}>Save</Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Logo viewer */}
       <Dialog open={!!viewLogoUrl} onClose={() => setViewLogoUrl(null)} maxWidth="sm">
         <DialogContent sx={{ p: 0, lineHeight: 0 }}>
-          <img
-            src={viewLogoUrl ?? ''}
-            alt="Tournament logo"
-            style={{ display: 'block', maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
-          />
+          <img src={viewLogoUrl ?? ''} alt="Tournament logo"
+            style={{ display: 'block', maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setViewLogoUrl(null)}>Close</Button>

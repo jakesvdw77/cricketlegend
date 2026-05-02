@@ -4,14 +4,15 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Link, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
-  Avatar, CircularProgress, Tooltip,
+  Avatar, CircularProgress, Tooltip, useMediaQuery, useTheme,
 } from '@mui/material';
-import { Add, Edit, Delete, OpenInNew, ViewColumn, CloudUpload, HighlightOff } from '@mui/icons-material';
+import { Add, ArrowBack, Edit, Delete, OpenInNew, ViewColumn, CloudUpload, HighlightOff, FilterList } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { fieldApi } from '../../api/fieldApi';
 import { clubApi } from '../../api/clubApi';
 import { paymentApi } from '../../api/paymentApi';
 import { Field, Club } from '../../types';
+import { DetailSection, DetailGrid, DetailField } from '../../components/admin/DetailView';
 
 const empty: Field = { name: '' };
 
@@ -27,6 +28,8 @@ const DEFAULT_VISIBLE = new Set<ColKey>(['icon', 'name', 'address', 'homeClub', 
 
 export const Fields: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Field[]>([]);
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -42,6 +45,9 @@ export const Fields: React.FC = () => {
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Field | null>(null);
   const [nameError, setNameError] = useState('');
+  const [viewing, setViewing] = useState(false);
+  const [viewItem, setViewItem] = useState<Field | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(!isMobile);
 
   const load = () => fieldApi.findAll().then(setRows);
   useEffect(() => {
@@ -105,7 +111,7 @@ export const Fields: React.FC = () => {
     });
   };
 
-  const col = (key: ColKey) => visibleCols.has(key);
+  const col = (key: ColKey) => isMobile ? key === 'name' : visibleCols.has(key);
 
   const filtered = [...rows].filter(r => {
     const q = search.toLowerCase();
@@ -119,50 +125,134 @@ export const Fields: React.FC = () => {
 
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  if (open) {
+    return (
+      <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)}>Back</Button>
+          <Typography variant="h6" sx={{ flex: 1 }}>{editing.fieldId ? 'Edit' : 'New'} Field</Typography>
+          <Button variant="contained" onClick={save} disabled={!editing.name}>Save</Button>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 600 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={editing.iconUrl ?? ''} variant="rounded" sx={{ width: 64, height: 64, flexShrink: 0 }}>
+              {!editing.iconUrl && editing.name.substring(0, 2).toUpperCase()}
+            </Avatar>
+            <input ref={iconInputRef} type="file" accept="image/*" hidden onChange={handleIconUpload} />
+            <Button variant="outlined" size="small"
+              startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+              onClick={() => iconInputRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Uploading…' : 'Upload Icon'}
+            </Button>
+            {editing.iconUrl && (
+              <Tooltip title="Remove icon">
+                <IconButton size="small" color="error" onClick={() => set({ iconUrl: undefined })}>
+                  <HighlightOff fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+          <TextField label="Name" value={editing.name} required error={!!nameError} helperText={nameError}
+            onChange={e => { set({ name: e.target.value }); setNameError(''); }} />
+          <TextField select label="Home Club" value={editing.homeClubId ?? ''}
+            onChange={e => set({ homeClubId: +e.target.value })}>
+            <MenuItem value="">— None —</MenuItem>
+            {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
+          </TextField>
+          <TextField label="Address" value={editing.address ?? ''} multiline rows={2}
+            onChange={e => set({ address: e.target.value })} />
+          <TextField label="Google Maps URL" value={editing.googleMapsUrl ?? ''}
+            onChange={e => set({ googleMapsUrl: e.target.value })} placeholder="https://maps.google.com/..." />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (viewing && viewItem) {
+    return (
+      <Box sx={{ maxWidth: 800 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)}>Back</Button>
+          <Typography variant="h6" sx={{ flex: 1 }}>Field / Ground</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Header card */}
+          <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={viewItem.iconUrl ?? ''} variant="rounded" sx={{ width: 64, height: 64, flexShrink: 0 }}>
+              {!viewItem.iconUrl && viewItem.name.substring(0, 2).toUpperCase()}
+            </Avatar>
+            <Box>
+              <Typography variant="h5">{viewItem.name}</Typography>
+            </Box>
+          </Paper>
+
+          {/* Details section */}
+          <DetailSection title="Details">
+            <DetailGrid>
+              <DetailField label="Home Club" value={viewItem.homeClubName} />
+              <DetailField label="Address" value={viewItem.address} />
+            </DetailGrid>
+          </DetailSection>
+
+          {/* Location section */}
+          {viewItem.googleMapsUrl && (
+            <DetailSection title="Location">
+              <Link href={viewItem.googleMapsUrl} target="_blank" rel="noopener" underline="hover">
+                View on Google Maps
+              </Link>
+            </DetailSection>
+          )}
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <Typography variant="h5" sx={{ mr: 'auto' }}>Fields / Grounds</Typography>
-        <TextField
-          size="small"
-          placeholder="Search name, club…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
-          sx={{ width: { xs: '100%', sm: 260 } }}
-        />
-        <IconButton
-          title="Toggle columns"
-          onClick={e => setColAnchor(e.currentTarget)}
-        >
-          <ViewColumn />
-        </IconButton>
-        <Popover
-          open={Boolean(colAnchor)}
-          anchorEl={colAnchor}
-          onClose={() => setColAnchor(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <FormGroup sx={{ px: 2, py: 1 }}>
-            {ALL_COLUMNS.map(c => (
-              <FormControlLabel
-                key={c.key}
-                control={
-                  <Checkbox
-                    checked={visibleCols.has(c.key)}
-                    onChange={() => toggleCol(c.key)}
-                    size="small"
-                  />
-                }
-                label={c.label}
-              />
-            ))}
-          </FormGroup>
-        </Popover>
+        {!isMobile && (
+          <IconButton title="Toggle columns" onClick={e => setColAnchor(e.currentTarget)}>
+            <ViewColumn />
+          </IconButton>
+        )}
         <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
           Add Field
         </Button>
       </Box>
+
+      <Popover
+        open={Boolean(colAnchor)}
+        anchorEl={colAnchor}
+        onClose={() => setColAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <FormGroup sx={{ px: 2, py: 1 }}>
+          {ALL_COLUMNS.map(c => (
+            <FormControlLabel
+              key={c.key}
+              control={<Checkbox checked={visibleCols.has(c.key)} onChange={() => toggleCol(c.key)} size="small" />}
+              label={c.label}
+            />
+          ))}
+        </FormGroup>
+      </Popover>
+
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: filtersOpen ? 2 : 0 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mr: 'auto' }}>Filters</Typography>
+          <Tooltip title={filtersOpen ? 'Collapse' : 'Expand'}>
+            <IconButton size="small" onClick={() => setFiltersOpen(o => !o)}>
+              <FilterList fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        {filtersOpen && (
+          <TextField size="small" fullWidth placeholder="Search name, club…" value={search}
+            onChange={e => { setSearch(e.target.value); setPage(0); }} />
+        )}
+      </Paper>
 
       <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
         <Table size="small" sx={{ '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' }, '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' }, '& .MuiTableHead-root .MuiTableSortLabel-root': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root:hover': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-root.Mui-active': { color: 'inherit' }, '& .MuiTableHead-root .MuiTableSortLabel-icon': { color: 'inherit !important' } }}>
@@ -190,7 +280,7 @@ export const Fields: React.FC = () => {
                     </Avatar>
                   </TableCell>
                 )}
-                {col('name') && <TableCell>{r.name}</TableCell>}
+                {col('name') && <TableCell><Link component="button" underline="hover" onClick={() => { setViewItem(r); setViewing(true); }} sx={{ textAlign: 'left' }}>{r.name}</Link></TableCell>}
                 {col('address') && <TableCell>{r.address}</TableCell>}
                 {col('homeClub') && (
                   <TableCell>
@@ -232,72 +322,6 @@ export const Fields: React.FC = () => {
           rowsPerPageOptions={[10, 20, 50, 100]}
         />
       </TableContainer>
-
-      <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') setOpen(false); }} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing.fieldId ? 'Edit' : 'New'} Field</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-          {/* Icon upload */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar src={editing.iconUrl ?? ''} variant="rounded" sx={{ width: 64, height: 64, flexShrink: 0 }}>
-              {!editing.iconUrl && editing.name.substring(0, 2).toUpperCase()}
-            </Avatar>
-            <input ref={iconInputRef} type="file" accept="image/*" hidden onChange={handleIconUpload} />
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-              onClick={() => iconInputRef.current?.click()}
-              disabled={uploading}
-            >
-              {uploading ? 'Uploading…' : 'Upload Icon'}
-            </Button>
-            {editing.iconUrl && (
-              <Tooltip title="Remove icon">
-                <IconButton size="small" color="error" onClick={() => set({ iconUrl: undefined })}>
-                  <HighlightOff fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Box>
-          <TextField
-            label="Name"
-            value={editing.name}
-            onChange={e => { set({ name: e.target.value }); setNameError(''); }}
-            required
-            error={!!nameError}
-            helperText={nameError}
-          />
-          <TextField
-              select
-              label="Home Club"
-              value={editing.homeClubId ?? ''}
-              onChange={e => set({ homeClubId: +e.target.value })}
-          >
-            <MenuItem value="">— None —</MenuItem>
-            {clubs.map(c => (
-                <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            label="Address"
-            value={editing.address ?? ''}
-            onChange={e => set({ address: e.target.value })}
-            multiline
-            rows={2}
-          />
-          <TextField
-            label="Google Maps URL"
-            value={editing.googleMapsUrl ?? ''}
-            onChange={e => set({ googleMapsUrl: e.target.value })}
-            placeholder="https://maps.google.com/..."
-          />
-
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={save} disabled={!editing.name}>Save</Button>
-        </DialogActions>
-      </Dialog>
 
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>Delete Field</DialogTitle>

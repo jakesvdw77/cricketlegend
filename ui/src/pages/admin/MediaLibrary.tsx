@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Paper, TextField, MenuItem, Chip,
   CircularProgress, Alert, IconButton, Dialog, DialogTitle,
-  DialogContent, DialogActions, Tooltip, Divider, LinearProgress,
+  DialogContent, DialogActions, Tooltip, Divider, LinearProgress, useMediaQuery, useTheme,
 } from '@mui/material';
 import {
   CloudUpload, Delete, FilterList, FilterListOff, PlayCircle,
@@ -35,6 +35,8 @@ const emptyUpload = (): Partial<MediaContent> => ({
 });
 
 export const MediaLibrary: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   // Reference data
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -46,7 +48,7 @@ export const MediaLibrary: React.FC = () => {
   // Gallery state
   const [items, setItems] = useState<MediaContent[]>([]);
   const [filters, setFilters] = useState<MediaSearchParams>({});
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(!isMobile);
   const [loadingGallery, setLoadingGallery] = useState(false);
   const [galleryError, setGalleryError] = useState<string | null>(null);
 

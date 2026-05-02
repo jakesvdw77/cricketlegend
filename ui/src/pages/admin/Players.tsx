@@ -4,9 +4,9 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Avatar,
   Tooltip, TableSortLabel, TablePagination,
-  Popover, FormGroup, Checkbox, FormControlLabel, useMediaQuery, useTheme,
+  Popover, FormGroup, Checkbox, FormControlLabel, useMediaQuery, useTheme, Link, Chip,
 } from '@mui/material';
-import { Add, Edit, Delete, OpenInNew, ViewColumn } from '@mui/icons-material';
+import { Add, ArrowBack, Edit, Delete, OpenInNew, ViewColumn, FilterList } from '@mui/icons-material';
 import { playerApi } from '../../api/playerApi';
 import { clubApi } from '../../api/clubApi';
 import { teamApi } from '../../api/teamApi';
@@ -15,6 +15,7 @@ import { formatEnum } from '../../utils/formatEnum';
 import { PlayerEditForm } from '../../components/player/PlayerEditForm';
 import { useAuth } from '../../hooks/useAuth';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
+import { DetailSection, DetailGrid, DetailField } from '../../components/admin/DetailView';
 
 const empty: Player = { name: '', surname: '' };
 
@@ -58,6 +59,9 @@ export const Players: React.FC = () => {
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Player | null>(null);
+  const [viewing, setViewing] = useState(false);
+  const [viewItem, setViewItem] = useState<Player | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(!isMobile);
 
   const load = () => playerApi.findAll().then(setRows);
   useEffect(() => {
@@ -121,62 +125,165 @@ export const Players: React.FC = () => {
 
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
-  const col = (key: ColKey) => visibleCols.has(key);
+  const col = (key: ColKey) => isMobile ? (key === 'name' || key === 'surname') : visibleCols.has(key);
+
+  if (open) {
+    return (
+      <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)}>Back</Button>
+          <Typography variant="h6" sx={{ flex: 1 }}>{editing.playerId ? 'Edit' : 'New'} Player</Typography>
+          <Button variant="contained" onClick={save}>Save</Button>
+        </Box>
+        <PlayerEditForm editing={editing} onChange={set} clubs={clubs} readOnlyConsent />
+      </Box>
+    );
+  }
+
+  if (viewing && viewItem) {
+    const hasContact = viewItem.email || viewItem.contactNumber || viewItem.alternativeContactNumber;
+    const hasApparel = viewItem.shirtSize || viewItem.pantSize;
+    return (
+      <Box sx={{ maxWidth: 800 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)}>Back</Button>
+          <Typography variant="h6" sx={{ flex: 1 }}>Player</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Header card */}
+          <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={viewItem.profilePictureUrl ?? ''} sx={{ width: 64, height: 64, flexShrink: 0 }}>
+              {viewItem.name.charAt(0)}
+            </Avatar>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h5">{viewItem.name} {viewItem.surname}</Typography>
+              {viewItem.homeClubName && <Typography variant="subtitle2" color="text.secondary">{viewItem.homeClubName}</Typography>}
+            </Box>
+            {viewItem.shirtNumber != null && (
+              <Chip label={`#${viewItem.shirtNumber}`} variant="outlined" />
+            )}
+          </Paper>
+
+          {/* Batting */}
+          <DetailSection title="Batting">
+            <DetailGrid>
+              <DetailField label="Stance" value={formatEnum(viewItem.battingStance)} />
+              <DetailField label="Position" value={formatEnum(viewItem.battingPosition)} />
+            </DetailGrid>
+          </DetailSection>
+
+          {/* Bowling */}
+          <DetailSection title="Bowling">
+            <DetailGrid>
+              <DetailField label="Arm" value={viewItem.bowlingArm ? `${formatEnum(viewItem.bowlingArm)} Arm` : undefined} />
+              <DetailField label="Type" value={formatEnum(viewItem.bowlingType)} />
+              {viewItem.partTimeBowler && <DetailField label="Part-time Bowler" value="Yes" />}
+            </DetailGrid>
+          </DetailSection>
+
+          {/* Fielding */}
+          {viewItem.wicketKeeper && (
+            <DetailSection title="Fielding">
+              <DetailField label="Wicket Keeper" value="Yes" />
+            </DetailSection>
+          )}
+
+          {/* Details */}
+          <DetailSection title="Details">
+            <DetailGrid>
+              <DetailField label="Club" value={viewItem.homeClubName} />
+              <DetailField label="Date of Birth" value={viewItem.dateOfBirth} />
+              <DetailField label="Gender" value={formatEnum(viewItem.gender)} />
+              <DetailField label="Shirt Number" value={viewItem.shirtNumber != null ? String(viewItem.shirtNumber) : undefined} />
+            </DetailGrid>
+          </DetailSection>
+
+          {/* Contact */}
+          {hasContact && (
+            <DetailSection title="Contact">
+              <DetailGrid>
+                <DetailField label="Email" value={viewItem.email} />
+                <DetailField label="Contact Number" value={viewItem.contactNumber} />
+                <DetailField label="Alternative Contact" value={viewItem.alternativeContactNumber} />
+              </DetailGrid>
+            </DetailSection>
+          )}
+
+          {/* Apparel */}
+          {hasApparel && (
+            <DetailSection title="Apparel">
+              <DetailGrid>
+                <DetailField label="Shirt Size" value={viewItem.shirtSize} />
+                <DetailField label="Pant Size" value={viewItem.pantSize} />
+              </DetailGrid>
+            </DetailSection>
+          )}
+
+          {/* Links */}
+          {viewItem.careerUrl && (
+            <DetailSection title="Links">
+              <Link href={viewItem.careerUrl} target="_blank" rel="noopener" underline="hover">
+                Career Profile
+              </Link>
+            </DetailSection>
+          )}
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <Typography variant="h5" sx={{ mr: 'auto' }}>Players</Typography>
-        <TextField
-          size="small"
-          placeholder="Search name, surname, club, #…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
-          sx={{ width: { xs: '100%', sm: 280 } }}
-        />
-        <TextField
-          select
-          size="small"
-          label="Club"
-          value={clubFilter}
-          onChange={e => {
-            const id = e.target.value === '' ? '' : +e.target.value;
-            setClubFilter(id);
-            setPage(0);
-            const selectedTeam = teams.find(t => t.teamId === teamFilter);
-            if (id && selectedTeam?.associatedClubId !== id) {
-              handleTeamFilter('');
-            }
-          }}
-          sx={{ width: { xs: '100%', sm: 200 } }}
-        >
-          <MenuItem value="">All Clubs</MenuItem>
-          {clubs.map(c => (
-            <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          size="small"
-          label="Team"
-          value={teamFilter}
-          onChange={e => handleTeamFilter(e.target.value === '' ? '' : +e.target.value)}
-          sx={{ width: { xs: '100%', sm: 200 } }}
-        >
-          <MenuItem value="">All Teams</MenuItem>
-          {(clubFilter ? teams.filter(t => t.associatedClubId === clubFilter) : teams).map(t => (
-            <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>
-          ))}
-        </TextField>
-        <Tooltip title="Toggle columns">
-          <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
-        </Tooltip>
+        {!isMobile && (
+          <Tooltip title="Toggle columns">
+            <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+          </Tooltip>
+        )}
         {isAdmin && (
           <Button variant="contained" startIcon={<Add />} onClick={() => { setEditing(empty); setOpen(true); }}>
             Add Player
           </Button>
         )}
       </Box>
+
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: filtersOpen ? 2 : 0 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mr: 'auto' }}>Filters</Typography>
+          <Tooltip title={filtersOpen ? 'Collapse' : 'Expand'}>
+            <IconButton size="small" onClick={() => setFiltersOpen(o => !o)}>
+              <FilterList fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        {filtersOpen && (
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <TextField size="small" placeholder="Search name, surname, club, #…" value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
+              sx={{ width: { xs: '100%', sm: 280 } }} />
+            <TextField select size="small" label="Club" value={clubFilter}
+              onChange={e => {
+                const id = e.target.value === '' ? '' : +e.target.value;
+                setClubFilter(id); setPage(0);
+                const selectedTeam = teams.find(t => t.teamId === teamFilter);
+                if (id && selectedTeam?.associatedClubId !== id) handleTeamFilter('');
+              }}
+              sx={{ width: { xs: '100%', sm: 200 } }}>
+              <MenuItem value="">All Clubs</MenuItem>
+              {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
+            </TextField>
+            <TextField select size="small" label="Team" value={teamFilter}
+              onChange={e => handleTeamFilter(e.target.value === '' ? '' : +e.target.value)}
+              sx={{ width: { xs: '100%', sm: 200 } }}>
+              <MenuItem value="">All Teams</MenuItem>
+              {(clubFilter ? teams.filter(t => t.associatedClubId === clubFilter) : teams).map(t => (
+                <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        )}
+      </Paper>
 
       <Popover
         open={!!colAnchor}
@@ -240,7 +347,7 @@ export const Players: React.FC = () => {
                     {r.name.charAt(0)}
                   </Avatar>
                 </TableCell>
-                {col('name')            && <TableCell>{r.name}</TableCell>}
+                {col('name')            && <TableCell><Link component="button" underline="hover" onClick={() => { setViewItem(r); setViewing(true); }} sx={{ textAlign: 'left' }}>{r.name}</Link></TableCell>}
                 {col('surname')         && <TableCell>{r.surname}</TableCell>}
                 {col('shirtNumber')     && <TableCell>{r.shirtNumber}</TableCell>}
                 {col('club')            && <TableCell>{r.homeClubName}</TableCell>}
@@ -280,17 +387,6 @@ export const Players: React.FC = () => {
           rowsPerPageOptions={[10, 20, 50, 100]}
         />
       </TableContainer>
-
-      <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') setOpen(false); }} maxWidth="md" fullWidth>
-        <DialogTitle>{editing.playerId ? 'Edit' : 'New'} Player</DialogTitle>
-        <DialogContent sx={{ pt: 2 }}>
-          <PlayerEditForm editing={editing} onChange={set} clubs={clubs} readOnlyConsent />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={save}>Save</Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Delete confirm */}
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>

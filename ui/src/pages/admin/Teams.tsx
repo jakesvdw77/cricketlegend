@@ -5,9 +5,9 @@ import {
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, TextField, MenuItem, Avatar, CircularProgress,
   Autocomplete, TableSortLabel, TablePagination, Popover, FormGroup,
-  Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme, Tabs, Tab, Chip, InputAdornment,
+  Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme, Tabs, Tab, Chip, InputAdornment, Link,
 } from '@mui/material';
-import { Add, Edit, Delete, CloudUpload, Groups, Print, ViewColumn, ContentCopy, Language, Facebook, Instagram, YouTube, HighlightOff } from '@mui/icons-material';
+import { Add, ArrowBack, Edit, Delete, CloudUpload, Groups, Print, ViewColumn, ContentCopy, Language, Facebook, Instagram, YouTube, HighlightOff, FilterList } from '@mui/icons-material';
 import { printSquad } from '../../utils/printSquad';
 import { teamApi } from '../../api/teamApi';
 import { clubApi } from '../../api/clubApi';
@@ -16,6 +16,7 @@ import { paymentApi } from '../../api/paymentApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { Team, Club, Field, Sponsor } from '../../types';
 import { ManagerDTO } from '../../api/managerApi';
+import { DetailSection, DetailGrid, DetailField } from '../../components/admin/DetailView';
 import { useAuth } from '../../hooks/useAuth';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
 
@@ -66,6 +67,9 @@ export const Teams: React.FC = () => {
 
   const [teamManagers, setTeamManagers] = useState<ManagerDTO[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [viewing, setViewing] = useState(false);
+  const [viewItem, setViewItem] = useState<Team | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(!isMobile);
   const [dialogTab, setDialogTab] = useState(0);
   const [sponsorPopoverAnchor, setSponsorPopoverAnchor] = useState<HTMLElement | null>(null);
   const [popoverSponsors, setPopoverSponsors] = useState<Sponsor[]>([]);
@@ -176,42 +180,232 @@ export const Teams: React.FC = () => {
 
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
-  const col = (key: ColKey) => visibleCols.has(key);
+  const col = (key: ColKey) => isMobile ? key === 'teamName' : visibleCols.has(key);
+
+  if (open) {
+    return (
+      <>
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)}>Back</Button>
+            <Typography variant="h6" sx={{ flex: 1 }}>{editing.teamId ? 'Edit' : 'New'} Team</Typography>
+            <Button variant="contained" onClick={save}>Save</Button>
+          </Box>
+          <Tabs value={dialogTab} onChange={(_, v) => setDialogTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <Tab label="Details" />
+            <Tab label="Sponsors" />
+          </Tabs>
+
+          {dialogTab === 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 700 }}>
+              <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleLogoUpload} />
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Avatar src={editing.logoUrl ?? ''} sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.logoUrl ? 'pointer' : 'default' }}
+                  onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}>
+                  {editing.teamName.charAt(0)}
+                </Avatar>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Button variant="outlined" size="small"
+                    startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => logoInputRef.current?.click()} disabled={uploading}>
+                    {uploading ? 'Uploading…' : 'Upload Logo'}
+                  </Button>
+                  {editing.logoUrl && (
+                    <Tooltip title="Remove logo">
+                      <IconButton size="small" color="error" onClick={() => set({ logoUrl: undefined })}>
+                        <HighlightOff fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField label="Team Name" value={editing.teamName} required fullWidth
+                  error={!!teamNameError} helperText={teamNameError}
+                  onChange={e => { set({ teamName: e.target.value }); setTeamNameError(''); }} />
+                <TextField label="Abbreviation" value={editing.abbreviation ?? ''} sx={{ width: 140 }}
+                  inputProps={{ maxLength: 10 }} onChange={e => set({ abbreviation: e.target.value })} />
+              </Box>
+              <TextField select label="Associated Club" value={editing.associatedClubId ?? ''}
+                onChange={e => set({ associatedClubId: +e.target.value })}>
+                {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
+              </TextField>
+              <TextField select label="Home Ground" value={editing.homeFieldId ?? ''}
+                onChange={e => set({ homeFieldId: +e.target.value })}>
+                {fields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
+              </TextField>
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField select label="Coach" value={editing.coach ?? ''} fullWidth
+                  onChange={e => set({ coach: e.target.value })}
+                  helperText={!editing.teamId ? 'Save team first to load managers' : undefined}>
+                  <MenuItem value="">— None —</MenuItem>
+                  {teamManagers.map(m => <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>)}
+                </TextField>
+                <TextField select label="Manager" value={editing.manager ?? ''} fullWidth
+                  onChange={e => set({ manager: e.target.value })}>
+                  <MenuItem value="">— None —</MenuItem>
+                  {teamManagers.map(m => <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>)}
+                </TextField>
+              </Box>
+              <TextField select label="Selector" value={editing.selector ?? ''}
+                onChange={e => set({ selector: e.target.value })}>
+                <MenuItem value="">— None —</MenuItem>
+                {teamManagers.map(m => <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>)}
+              </TextField>
+              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                <TextField label="Email" value={editing.email ?? ''} fullWidth onChange={e => set({ email: e.target.value })} />
+                <TextField label="Contact Number" value={editing.contactNumber ?? ''} fullWidth onChange={e => set({ contactNumber: e.target.value })} />
+              </Box>
+              <TextField label="Website URL" value={editing.websiteUrl ?? ''} onChange={e => set({ websiteUrl: e.target.value })} />
+              <TextField label="Facebook URL" value={editing.facebookUrl ?? ''} onChange={e => set({ facebookUrl: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="Instagram URL" value={editing.instagramUrl ?? ''} onChange={e => set({ instagramUrl: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="YouTube URL" value={editing.youtubeUrl ?? ''} onChange={e => set({ youtubeUrl: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
+              <input type="file" ref={photoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePhotoUpload} />
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                {editing.teamPhotoUrl && (
+                  <Box component="img" src={editing.teamPhotoUrl} alt="Team photo"
+                    sx={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 1, flexShrink: 0, cursor: 'pointer' }}
+                    onClick={() => setViewLogoUrl(editing.teamPhotoUrl!)} />
+                )}
+                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Button variant="outlined" size="small"
+                    startIcon={uploadingPhoto ? <CircularProgress size={14} /> : <CloudUpload />}
+                    onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} sx={{ alignSelf: 'flex-start' }}>
+                    {uploadingPhoto ? 'Uploading…' : 'Upload Team Photo'}
+                  </Button>
+                  <TextField label="Team Photo URL" value={editing.teamPhotoUrl ?? ''}
+                    onChange={e => set({ teamPhotoUrl: e.target.value })} size="small"
+                    helperText="Upload a photo above or paste a URL" />
+                </Box>
+              </Box>
+            </Box>
+          )}
+
+          {dialogTab === 1 && (
+            <Box sx={{ maxWidth: 700 }}>
+              <Autocomplete multiple options={sponsors} getOptionLabel={s => s.name}
+                value={editing.sponsors ?? []} onChange={(_, value) => set({ sponsors: value })}
+                isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
+                renderTags={(value, getTagProps) =>
+                  value.map((s, idx) => <Chip label={s.name} size="small" {...getTagProps({ index: idx })} key={s.sponsorId} />)
+                }
+                renderInput={params => <TextField {...params} label="Sponsors" placeholder="Add sponsor…" />}
+              />
+            </Box>
+          )}
+        </Box>
+
+        <Dialog open={!!viewLogoUrl} onClose={() => setViewLogoUrl(null)} maxWidth="sm">
+          <DialogContent sx={{ p: 0, lineHeight: 0 }}>
+            <img src={viewLogoUrl ?? ''} alt="Team logo" style={{ display: 'block', maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
+          </DialogContent>
+          <DialogActions><Button onClick={() => setViewLogoUrl(null)}>Close</Button></DialogActions>
+        </Dialog>
+      </>
+    );
+  }
+
+  if (viewing && viewItem) {
+    const hasLinks = viewItem.websiteUrl || viewItem.facebookUrl || viewItem.instagramUrl || viewItem.youtubeUrl;
+    return (
+      <Box sx={{ maxWidth: 800 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)}>Back</Button>
+          <Typography variant="h6" sx={{ flex: 1 }}>Team</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Header card */}
+          <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar src={viewItem.logoUrl ?? ''} sx={{ width: 64, height: 64, flexShrink: 0 }}>
+              {viewItem.teamName.charAt(0)}
+            </Avatar>
+            <Box>
+              <Typography variant="h5">{viewItem.teamName}</Typography>
+              {viewItem.associatedClubName && <Typography variant="subtitle2" color="text.secondary">{viewItem.associatedClubName}</Typography>}
+            </Box>
+          </Paper>
+
+          {/* Details */}
+          <DetailSection title="Details">
+            <DetailGrid>
+              <DetailField label="Abbreviation" value={viewItem.abbreviation} />
+              <DetailField label="Club" value={viewItem.associatedClubName} />
+              <DetailField label="Home Ground" value={viewItem.homeFieldName} />
+              <DetailField label="Email" value={viewItem.email} />
+              <DetailField label="Contact Number" value={viewItem.contactNumber} />
+            </DetailGrid>
+          </DetailSection>
+
+          {/* Management */}
+          <DetailSection title="Management">
+            <DetailGrid>
+              <DetailField label="Captain" value={viewItem.captainName} />
+              <DetailField label="Coach" value={viewItem.coach} />
+              <DetailField label="Manager" value={viewItem.manager} />
+              <DetailField label="Selector" value={viewItem.selector} />
+              <DetailField label="Administrator" value={viewItem.administrator} />
+            </DetailGrid>
+          </DetailSection>
+
+          {/* Links */}
+          {hasLinks && (
+            <DetailSection title="Links">
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                {viewItem.websiteUrl && <Link href={viewItem.websiteUrl} target="_blank" rel="noopener" underline="hover">Website</Link>}
+                {viewItem.facebookUrl && <Link href={viewItem.facebookUrl} target="_blank" rel="noopener" underline="hover">Facebook</Link>}
+                {viewItem.instagramUrl && <Link href={viewItem.instagramUrl} target="_blank" rel="noopener" underline="hover">Instagram</Link>}
+                {viewItem.youtubeUrl && <Link href={viewItem.youtubeUrl} target="_blank" rel="noopener" underline="hover">YouTube</Link>}
+              </Box>
+            </DetailSection>
+          )}
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <Typography variant="h5" sx={{ mr: 'auto' }}>Teams</Typography>
-        <TextField
-          select
-          size="small"
-          label="Club"
-          value={filterClubId}
-          onChange={e => { setFilterClubId(e.target.value === '' ? '' : Number(e.target.value)); setPage(0); }}
-          sx={{ width: { xs: '100%', sm: 200 } }}
-        >
-          <MenuItem value="">All clubs</MenuItem>
-          <MenuItem value={-1}>No club</MenuItem>
-          {clubs.map(c => (
-            <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          size="small"
-          placeholder="Search name, club…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0); }}
-          sx={{ width: { xs: '100%', sm: 260 } }}
-        />
-        <Tooltip title="Toggle columns">
-          <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
-        </Tooltip>
+        {!isMobile && (
+          <Tooltip title="Toggle columns">
+            <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+          </Tooltip>
+        )}
         {isAdmin && (
           <Button variant="contained" startIcon={<Add />} onClick={openCreate}>
             Add Team
           </Button>
         )}
       </Box>
+
+      <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: filtersOpen ? 2 : 0 }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mr: 'auto' }}>Filters</Typography>
+          <Tooltip title={filtersOpen ? 'Collapse' : 'Expand'}>
+            <IconButton size="small" onClick={() => setFiltersOpen(o => !o)}>
+              <FilterList fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        {filtersOpen && (
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <TextField select size="small" label="Club" value={filterClubId}
+              onChange={e => { setFilterClubId(e.target.value === '' ? '' : Number(e.target.value)); setPage(0); }}
+              sx={{ width: { xs: '100%', sm: 200 } }}>
+              <MenuItem value="">All clubs</MenuItem>
+              <MenuItem value={-1}>No club</MenuItem>
+              {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
+            </TextField>
+            <TextField size="small" placeholder="Search name, club…" value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0); }}
+              sx={{ width: { xs: '100%', sm: 260 } }} />
+          </Box>
+        )}
+      </Paper>
 
       <Popover
         open={!!colAnchor}
@@ -277,7 +471,7 @@ export const Teams: React.FC = () => {
                     {r.teamName.charAt(0)}
                   </Avatar>
                 </TableCell>
-                {col('teamName')   && <TableCell>{r.teamName}</TableCell>}
+                {col('teamName')   && <TableCell><Link component="button" underline="hover" onClick={() => { setViewItem(r); setViewing(true); }} sx={{ textAlign: 'left' }}>{r.teamName}</Link></TableCell>}
                 {col('club')       && <TableCell>{r.associatedClubName}</TableCell>}
                 {col('captain')    && <TableCell>{r.captainName}</TableCell>}
                 {col('homeGround') && <TableCell>{r.homeFieldName}</TableCell>}
@@ -356,200 +550,6 @@ export const Teams: React.FC = () => {
           rowsPerPageOptions={[10, 20, 50, 100]}
         />
       </TableContainer>
-
-      {/* Add / Edit dialog */}
-      <Dialog open={open} onClose={(_, reason) => { if (reason !== 'backdropClick') setOpen(false); }} maxWidth="md" fullWidth>
-        <DialogTitle>{editing.teamId ? 'Edit' : 'New'} Team</DialogTitle>
-        <Tabs value={dialogTab} onChange={(_, v) => setDialogTab(v)} sx={{ px: 3, borderBottom: 1, borderColor: 'divider' }}>
-          <Tab label="Details" />
-          <Tab label="Sponsors" />
-        </Tabs>
-        <DialogContent sx={{ pt: 2 }}>
-          <Box sx={{ display: 'grid' }}>
-
-          {/* Tab 0: Details */}
-          <Box sx={{ gridArea: '1/1', display: 'flex', flexDirection: 'column', gap: 2, visibility: dialogTab === 0 ? 'visible' : 'hidden' }}>
-
-          {/* Logo upload + preview */}
-          <Box>
-            <input
-                type="file"
-                ref={logoInputRef}
-                style={{ display: 'none' }}
-                accept="image/*"
-                onChange={handleLogoUpload}
-            />
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Avatar
-                  src={editing.logoUrl ?? ''}
-                  sx={{
-                    width: 64, height: 64, flexShrink: 0,
-                    cursor: editing.logoUrl ? 'pointer' : 'default',
-                  }}
-                  onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}
-              >
-                {editing.teamName.charAt(0)}
-              </Avatar>
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                      onClick={() => logoInputRef.current?.click()}
-                      disabled={uploading}
-                  >
-                    {uploading ? 'Uploading…' : 'Upload Logo'}
-                  </Button>
-                  {editing.logoUrl && (
-                    <Tooltip title="Remove logo">
-                      <IconButton size="small" color="error" onClick={() => set({ logoUrl: undefined })}>
-                        <HighlightOff fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Box>
-              </Box>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField label="Team Name" value={editing.teamName} required fullWidth
-                       error={!!teamNameError} helperText={teamNameError}
-                       onChange={e => { set({ teamName: e.target.value }); setTeamNameError(''); }} />
-            <TextField label="Abbreviation" value={editing.abbreviation ?? ''} sx={{ width: 140 }}
-                       inputProps={{ maxLength: 10 }}
-                       onChange={e => set({ abbreviation: e.target.value })} />
-          </Box>
-
-          <TextField select label="Associated Club" value={editing.associatedClubId ?? ''}
-                     onChange={e => set({ associatedClubId: +e.target.value })}>
-            {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
-          </TextField>
-
-          <TextField select label="Home Ground" value={editing.homeFieldId ?? ''}
-                     onChange={e => set({ homeFieldId: +e.target.value })}>
-            {fields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
-          </TextField>
-
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-            <TextField select label="Coach" value={editing.coach ?? ''} fullWidth
-                       onChange={e => set({ coach: e.target.value })}
-                       helperText={!editing.teamId ? 'Save team first to load managers' : undefined}>
-              <MenuItem value="">— None —</MenuItem>
-              {teamManagers.map(m => (
-                <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>
-              ))}
-            </TextField>
-            <TextField select label="Manager" value={editing.manager ?? ''} fullWidth
-                       onChange={e => set({ manager: e.target.value })}>
-              <MenuItem value="">— None —</MenuItem>
-              {teamManagers.map(m => (
-                <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>
-              ))}
-            </TextField>
-          </Box>
-
-          <TextField select label="Selector" value={editing.selector ?? ''}
-                     onChange={e => set({ selector: e.target.value })}>
-            <MenuItem value="">— None —</MenuItem>
-            {teamManagers.map(m => (
-              <MenuItem key={m.managerId} value={m.displayName}>{m.displayName}</MenuItem>
-            ))}
-          </TextField>
-
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-          <TextField label="Email" value={editing.email ?? ''} fullWidth
-            onChange={e => set({ email: e.target.value })} />
-          <TextField label="Contact Number" value={editing.contactNumber ?? ''} fullWidth
-            onChange={e => set({ contactNumber: e.target.value })} />
-          </Box>
-
-          <TextField label="Website URL" value={editing.websiteUrl ?? ''}
-                     onChange={e => set({ websiteUrl: e.target.value })} />
-          <TextField label="Facebook URL" value={editing.facebookUrl ?? ''}
-                     onChange={e => set({ facebookUrl: e.target.value })}
-                     InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
-          <TextField label="Instagram URL" value={editing.instagramUrl ?? ''}
-                     onChange={e => set({ instagramUrl: e.target.value })}
-                     InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
-          <TextField label="YouTube URL" value={editing.youtubeUrl ?? ''}
-                     onChange={e => set({ youtubeUrl: e.target.value })}
-                     InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
-
-          {/* Team photo upload + preview */}
-          <Box>
-            <input
-              type="file"
-              ref={photoInputRef}
-              style={{ display: 'none' }}
-              accept="image/*"
-              onChange={handlePhotoUpload}
-            />
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-              {editing.teamPhotoUrl && (
-                <Box
-                  component="img"
-                  src={editing.teamPhotoUrl}
-                  alt="Team photo"
-                  sx={{
-                    width: 96, height: 64, objectFit: 'cover', borderRadius: 1,
-                    flexShrink: 0, cursor: 'pointer',
-                  }}
-                  onClick={() => setViewLogoUrl(editing.teamPhotoUrl!)}
-                />
-              )}
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-
-                <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={uploadingPhoto ? <CircularProgress size={14} /> : <CloudUpload />}
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    sx={{ alignSelf: 'flex-start' }}
-                >
-                  {uploadingPhoto ? 'Uploading…' : 'Upload Team Photo'}
-                </Button>
-                <TextField
-                    label="Team Photo URL"
-                    value={editing.teamPhotoUrl ?? ''}
-                    onChange={e => set({ teamPhotoUrl: e.target.value })}
-                    size="small"
-                    helperText="Upload a photo above or paste a URL"
-                />
-              </Box>
-            </Box>
-          </Box>
-
-          </Box>
-
-          {/* Tab 1: Sponsors */}
-          <Box sx={{ gridArea: '1/1', display: 'flex', flexDirection: 'column', gap: 2, visibility: dialogTab === 1 ? 'visible' : 'hidden' }}>
-            <Autocomplete
-              multiple
-              options={sponsors}
-              getOptionLabel={s => s.name}
-              value={editing.sponsors ?? []}
-              onChange={(_, value) => set({ sponsors: value })}
-              isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
-              renderTags={(value, getTagProps) =>
-                value.map((s, idx) => (
-                  <Chip label={s.name} size="small" {...getTagProps({ index: idx })} key={s.sponsorId} />
-                ))
-              }
-              renderInput={params => <TextField {...params} label="Sponsors" placeholder="Add sponsor…" />}
-            />
-          </Box>
-
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={save}>Save</Button>
-        </DialogActions>
-      </Dialog>
-
 
       {/* Sponsor detail popover */}
       <Popover

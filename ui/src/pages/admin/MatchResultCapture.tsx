@@ -398,8 +398,7 @@ export const MatchResultCapture: React.FC = () => {
 
   const saveButton = (
     <Button
-      variant="outlined"
-      size="small"
+      variant="contained"
       startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
       onClick={save}
       disabled={saving}
@@ -454,8 +453,9 @@ export const MatchResultCapture: React.FC = () => {
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <Button startIcon={<ArrowBack />} onClick={() => dirty ? setConfirmLeave(true) : navigate(-1)} size="small">Back</Button>
-        <Typography variant="h5">Capture Result</Typography>
+        <Button startIcon={<ArrowBack />} onClick={() => dirty ? setConfirmLeave(true) : navigate(-1)}>Back</Button>
+        <Typography variant="h5" sx={{ flex: 1 }}>Capture Result</Typography>
+        {saveButton}
       </Box>
 
       <Dialog open={confirmLeave} onClose={() => setConfirmLeave(false)}>
@@ -546,7 +546,6 @@ export const MatchResultCapture: React.FC = () => {
               {syncScorecardButton}
               {autoCalculateButton}
               {viewStandingsButton}
-              {saveButton}
             </Box>
           </Box>
         </Paper>
@@ -804,7 +803,6 @@ export const MatchResultCapture: React.FC = () => {
             onFirstCardChange={handleFirstCardChange}
             onSecondCardChange={handleSecondCardChange}
           />
-          <Box>{saveButton}</Box>
         </Box>
       )}
 
