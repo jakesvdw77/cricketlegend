@@ -330,9 +330,9 @@ const NavCountdown: React.FC<{ tournament: Tournament }> = ({ tournament }) => {
   ];
   return (
     <Box sx={{
-      display: { xs: 'none', sm: 'flex' },
+      display: 'flex',
       alignItems: 'center', gap: 1.25, mr: 1,
-      pl: 1.5, borderLeft: '1px solid rgba(255,255,255,0.18)',
+      pl: 1.5, borderRight: '1px solid rgba(255,255,255,0.18)',
     }}>
       {/* Label + name */}
       <Box sx={{ display: { sm: 'none', md: 'block' }, textAlign: 'right' }}>
@@ -571,13 +571,15 @@ export const LandingPage: React.FC = () => {
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <AppBar position="sticky" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <Toolbar sx={{ gap: 1 }}>
-          <Box sx={{ flexGrow: 1 }} />
           {nextTournament && <NavCountdown tournament={nextTournament} />}
-          <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-            <IconButton color="inherit" onClick={toggleMode}>
-              {mode === 'dark' ? <LightMode /> : <DarkMode />}
-            </IconButton>
-          </Tooltip>
+          <Box sx={{ flexGrow: 1 }} />
+          {!keycloak.authenticated && (
+            <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+              <IconButton color="inherit" onClick={toggleMode}>
+                {mode === 'dark' ? <LightMode /> : <DarkMode />}
+              </IconButton>
+            </Tooltip>
+          )}
           {!keycloak.authenticated && (
             <Button
               variant="contained"

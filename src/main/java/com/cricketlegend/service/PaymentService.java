@@ -1,5 +1,6 @@
 package com.cricketlegend.service;
 
+import com.cricketlegend.domain.enums.PaymentCategory;
 import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import com.cricketlegend.dto.AllocationResultDTO;
@@ -19,6 +20,8 @@ public interface PaymentService {
     PaymentDTO update(Long id, PaymentDTO dto);
     void delete(Long id);
     List<PaymentDTO> findMine(String email);
+    PagedPaymentResponse findMineWithFilters(String email, PaymentStatus status, PaymentCategory paymentCategory, Integer year, Integer month, int page, int size);
+    PagedAllocationResponse findMyAllocationsWithFilters(String email, String category, Integer year, Integer month, int page, int size);
     PaymentDTO submitProof(String email, PaymentDTO dto);
     WalletDTO getWallet(String email);
     AllocationResultDTO allocateAnnualSubscription(Long clubId);

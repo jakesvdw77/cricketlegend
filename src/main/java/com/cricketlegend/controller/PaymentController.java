@@ -1,5 +1,6 @@
 package com.cricketlegend.controller;
 
+import com.cricketlegend.domain.enums.PaymentCategory;
 import com.cricketlegend.domain.enums.PaymentStatus;
 import com.cricketlegend.domain.enums.PaymentType;
 import com.cricketlegend.dto.AllocationResultDTO;
@@ -78,6 +79,33 @@ public class PaymentController {
     public ResponseEntity<List<PaymentDTO>> findMine(@AuthenticationPrincipal Jwt jwt) {
         String email = jwt.getClaimAsString("email");
         return ResponseEntity.ok(paymentService.findMine(email));
+    }
+
+    @GetMapping("/mine/paged")
+    @Operation(summary = "Get the calling player's payments with filters and server-side paging")
+    public ResponseEntity<PagedPaymentResponse> findMinePaged(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) PaymentStatus status,
+            @RequestParam(required = false) PaymentCategory paymentCategory,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        String email = jwt.getClaimAsString("email");
+        return ResponseEntity.ok(paymentService.findMineWithFilters(email, status, paymentCategory, year, month, page, size));
+    }
+
+    @GetMapping("/allocations/mine")
+    @Operation(summary = "Get the calling player's wallet allocations with filters and server-side paging")
+    public ResponseEntity<PagedAllocationResponse> findMyAllocations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        String email = jwt.getClaimAsString("email");
+        return ResponseEntity.ok(paymentService.findMyAllocationsWithFilters(email, category, year, month, page, size));
     }
 
     @PostMapping("/submit")

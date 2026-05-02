@@ -3,11 +3,14 @@ import {
   Box, Typography, Paper, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, TablePagination, Chip, CircularProgress, Alert,
   Tooltip, Button, Divider, Autocomplete, TextField, Snackbar, MenuItem,
+  IconButton, Popover, FormGroup, Checkbox, FormControlLabel, useMediaQuery, useTheme,
+  Collapse,
 } from '@mui/material';
-import { AccountBalanceWallet, AttachFile, Upload, Add } from '@mui/icons-material';
+import { AccountBalanceWallet, AttachFile, Upload, Add, ViewColumn, FilterList, ArrowBack, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { DetailSection, DetailGrid, DetailField } from '../components/admin/DetailView';
 import { paymentApi } from '../api/paymentApi';
 import { tournamentApi } from '../api/tournamentApi';
-import { Payment, PaymentCategory, PaymentStatus, Tournament, WalletAllocationDTO } from '../types';
+import { Payment, PaymentCategory, PaymentStatus, Tournament, WalletAllocationDTO, PagedPaymentResponse, PagedAllocationResponse } from '../types';
 import { ProofViewerDialog } from '../components/ProofViewerDialog';
 
 const fmt = (v: number) =>
@@ -33,18 +36,67 @@ const ALLOCATION_CATEGORY_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<PaymentStatus, string> = {
   PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected',
 };
+
+type TxColKey = 'date' | 'status' | 'category' | 'tournament' | 'description' | 'amount' | 'proof';
+const TX_COLUMNS: { key: TxColKey; label: string }[] = [
+  { key: 'date',        label: 'Date' },
+  { key: 'status',      label: 'Status' },
+  { key: 'category',    label: 'Category' },
+  { key: 'tournament',  label: 'Tournament' },
+  { key: 'description', label: 'Description' },
+  { key: 'amount',      label: 'Amount' },
+  { key: 'proof',       label: 'Proof' },
+];
+const TX_DEFAULT_VISIBLE  = new Set<TxColKey>(['date', 'status', 'category', 'tournament', 'description', 'amount', 'proof']);
+const TX_MOBILE_VISIBLE   = new Set<TxColKey>(['date', 'category', 'amount', 'status']);
+
+type AllocColKey = 'date' | 'category' | 'description' | 'amount';
+const ALLOC_COLUMNS: { key: AllocColKey; label: string }[] = [
+  { key: 'date',        label: 'Date' },
+  { key: 'category',    label: 'Category' },
+  { key: 'description', label: 'Description' },
+  { key: 'amount',      label: 'Amount Deducted' },
+];
+const ALLOC_DEFAULT_VISIBLE = new Set<AllocColKey>(['date', 'category', 'description', 'amount']);
+const ALLOC_MOBILE_VISIBLE  = new Set<AllocColKey>(['date', 'category', 'amount']);
 const STATUS_COLORS: Record<PaymentStatus, 'warning' | 'success' | 'error'> = {
   PENDING: 'warning', APPROVED: 'success', REJECTED: 'error',
 };
 
 export const MyWallet: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const currentYear = new Date().getFullYear();
+  const YEARS = Array.from({ length: 6 }, (_, i) => currentYear - i);
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
   const [balance, setBalance] = useState<number>(0);
-  const [transactions, setTransactions] = useState<Payment[]>([]);
-  const [allocations, setAllocations] = useState<WalletAllocationDTO[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
+
+  // Transaction table state
+  const [txData, setTxData]         = useState<PagedPaymentResponse | null>(null);
+  const [txLoading, setTxLoading]   = useState(true);
+  const [txPage, setTxPage]         = useState(0);
+  const [txPageSize, setTxPageSize] = useState(20);
+  const [txSectionOpen, setTxSectionOpen]     = useState(true);
+  const [allocSectionOpen, setAllocSectionOpen] = useState(false);
+  const [txFiltersOpen, setTxFiltersOpen] = useState(!isMobile);
+  const [txYear, setTxYear]         = useState<number | ''>('');
+  const [txMonth, setTxMonth]       = useState<number | ''>('');
+  const [txStatus, setTxStatus]     = useState<string>('');
+  const [txCategory, setTxCategory] = useState<string>('');
+
+  // Allocation table state
+  const [allocData, setAllocData]         = useState<PagedAllocationResponse | null>(null);
+  const [allocLoading, setAllocLoading]   = useState(true);
+  const [allocPage, setAllocPage]         = useState(0);
+  const [allocPageSize, setAllocPageSize] = useState(20);
+  const [allocFiltersOpen, setAllocFiltersOpen] = useState(!isMobile);
+  const [allocYear, setAllocYear]         = useState<number | ''>('');
+  const [allocMonth, setAllocMonth]       = useState<number | ''>('');
+  const [allocCategory, setAllocCategory] = useState<string>('');
 
   // Top-up form state
   const [showForm, setShowForm] = useState(false);
@@ -57,20 +109,64 @@ export const MyWallet: React.FC = () => {
   const [proofUrl, setProofUrl] = useState('');
   const [snack, setSnack] = useState('');
   const [proofViewUrl, setProofViewUrl] = useState<string | null>(null);
+  const [viewing, setViewing] = useState(false);
+  const [viewItem, setViewItem] = useState<Payment | null>(null);
+
+  const [txVisibleCols, setTxVisibleCols]       = useState<Set<TxColKey>>(new Set(isMobile ? TX_MOBILE_VISIBLE   : TX_DEFAULT_VISIBLE));
+  const [txColAnchor, setTxColAnchor]           = useState<HTMLButtonElement | null>(null);
+  const [allocVisibleCols, setAllocVisibleCols] = useState<Set<AllocColKey>>(new Set(isMobile ? ALLOC_MOBILE_VISIBLE : ALLOC_DEFAULT_VISIBLE));
+  const [allocColAnchor, setAllocColAnchor]     = useState<HTMLButtonElement | null>(null);
+
+  const toggleTxCol = (key: TxColKey) => setTxVisibleCols(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const toggleAllocCol = (key: AllocColKey) => setAllocVisibleCols(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  const txCol    = (key: TxColKey)    => isMobile ? TX_MOBILE_VISIBLE.has(key)    : txVisibleCols.has(key);
+  const allocCol = (key: AllocColKey) => isMobile ? ALLOC_MOBILE_VISIBLE.has(key) : allocVisibleCols.has(key);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const load = () =>
-    Promise.all([paymentApi.getWallet(), paymentApi.findMine()])
-      .then(([w, mine]) => {
-        setBalance(Number(w.balance));
-        setAllocations(w.allocations ?? []);
-        setTransactions(mine.slice().sort((a, b) => b.paymentDate.localeCompare(a.paymentDate)));
-      })
+  const loadBalance = () =>
+    paymentApi.getWallet()
+      .then(w => setBalance(Number(w.balance)))
       .finally(() => setLoading(false));
 
+  type TxOvr = { page?: number; size?: number; year?: number | ''; month?: number | ''; status?: string; category?: string };
+  const loadTx = (ovr: TxOvr = {}) => {
+    const year     = 'year'     in ovr ? ovr.year     : txYear;
+    const month    = 'month'    in ovr ? ovr.month    : txMonth;
+    const status   = 'status'   in ovr ? ovr.status   : txStatus;
+    const category = 'category' in ovr ? ovr.category : txCategory;
+    const page     = ovr.page  ?? txPage;
+    const size     = ovr.size  ?? txPageSize;
+    setTxLoading(true);
+    paymentApi.findMinePaged({
+      status:          (status   as string) || undefined,
+      paymentCategory: (category as string) || undefined,
+      year:            (year     as number) || undefined,
+      month:           (month    as number) || undefined,
+      page, size,
+    }).then(setTxData).finally(() => setTxLoading(false));
+  };
+
+  type AllocOvr = { page?: number; size?: number; year?: number | ''; month?: number | ''; category?: string };
+  const loadAlloc = (ovr: AllocOvr = {}) => {
+    const year     = 'year'     in ovr ? ovr.year     : allocYear;
+    const month    = 'month'    in ovr ? ovr.month    : allocMonth;
+    const category = 'category' in ovr ? ovr.category : allocCategory;
+    const page     = ovr.page  ?? allocPage;
+    const size     = ovr.size  ?? allocPageSize;
+    setAllocLoading(true);
+    paymentApi.findMyAllocations({
+      category: (category as string) || undefined,
+      year:     (year     as number) || undefined,
+      month:    (month    as number) || undefined,
+      page, size,
+    }).then(setAllocData).finally(() => setAllocLoading(false));
+  };
+
   useEffect(() => {
-    load();
+    loadBalance();
+    loadTx({ page: 0, size: txPageSize });
+    loadAlloc({ page: 0, size: allocPageSize });
     tournamentApi.findAll().then(setTournaments);
   }, []);
 
@@ -110,7 +206,8 @@ export const MyWallet: React.FC = () => {
       setAmount('');
       setDescription('');
       setProofUrl('');
-      load();
+      loadBalance();
+      loadTx({ page: 0 });
     } catch {
       setSnack('Submission failed. Please try again.');
     } finally {
@@ -120,6 +217,62 @@ export const MyWallet: React.FC = () => {
 
   const canSubmit = !!category && !!amount && Number(amount) > 0 && !!proofUrl &&
     (category !== 'TOURNAMENT_FEE' && category !== 'TOURNAMENT_REGISTRATION' || !!tournament);
+
+  if (viewing && viewItem) {
+    return (
+      <Box sx={{ maxWidth: 600 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)}>Back</Button>
+          <Typography variant="h6" sx={{ flex: 1 }}>Payment Detail</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h5" fontWeight="bold" sx={{ color: viewItem.status === 'APPROVED' ? 'success.main' : 'text.primary' }}>
+                {fmt(Number(viewItem.amount))}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {CATEGORY_LABELS[viewItem.paymentCategory ?? ''] ?? viewItem.paymentCategory ?? '—'}
+              </Typography>
+            </Box>
+            <Chip
+              label={STATUS_LABELS[viewItem.status ?? 'PENDING']}
+              color={STATUS_COLORS[viewItem.status ?? 'PENDING']}
+            />
+          </Paper>
+
+          <DetailSection title="Payment Details">
+            <DetailGrid>
+              <DetailField label="Date" value={viewItem.paymentDate} />
+              <DetailField label="Category" value={CATEGORY_LABELS[viewItem.paymentCategory ?? ''] ?? viewItem.paymentCategory} />
+              <DetailField label="Tournament" value={viewItem.tournamentName} />
+              <DetailField label="Description" value={viewItem.description} />
+            </DetailGrid>
+          </DetailSection>
+
+          {viewItem.rejectionReason && (
+            <DetailSection title="Rejection">
+              <DetailField label="Reason" value={viewItem.rejectionReason} />
+            </DetailSection>
+          )}
+
+          {viewItem.proofOfPaymentUrl && (
+            <DetailSection title="Proof of Payment">
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<AttachFile />}
+                onClick={() => setProofViewUrl(viewItem.proofOfPaymentUrl!)}
+              >
+                View Proof
+              </Button>
+            </DetailSection>
+          )}
+        </Box>
+        <ProofViewerDialog open={!!proofViewUrl} proofUrl={proofViewUrl} onClose={() => setProofViewUrl(null)} />
+      </Box>
+    );
+  }
 
   if (loading) {
     return (
@@ -132,7 +285,15 @@ export const MyWallet: React.FC = () => {
   return (
     <Box>
 
-      {/* ── Balance card + Topup button ──────────────────────────────────── */}
+      {/* ── Page header ──────────────────────────────────────────────────── */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        <Typography variant="h5" sx={{ mr: 'auto' }}>My Wallet</Typography>
+        <Button variant="contained" startIcon={<Add />} onClick={() => setShowForm(v => !v)}>
+          Topup
+        </Button>
+      </Box>
+
+      {/* ── Balance card ─────────────────────────────────────────────────── */}
       <Paper
         variant="outlined"
         sx={{
@@ -154,20 +315,6 @@ export const MyWallet: React.FC = () => {
             Total of all approved payment contributions minus allocations
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setShowForm(v => !v)}
-          sx={{
-            bgcolor: 'rgba(0,0,0,0.35)',
-            color: 'inherit',
-            border: '1px solid rgba(255,255,255,0.5)',
-            '&:hover': { bgcolor: 'rgba(0,0,0,0.5)' },
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Topup
-        </Button>
       </Paper>
 
       {/* ── Top-up form ──────────────────────────────────────────────────── */}
@@ -284,11 +431,84 @@ export const MyWallet: React.FC = () => {
 
       {/* ── Transaction history ──────────────────────────────────────────── */}
       {!showForm && <>
-      <Typography variant="h6" sx={{ mb: 1 }}>Transaction History</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6" sx={{ mr: 'auto', cursor: 'pointer' }} onClick={() => setTxSectionOpen(o => !o)}>
+          Transaction History
+        </Typography>
+        <Tooltip title={txFiltersOpen ? 'Collapse filters' : 'Expand filters'}>
+          <IconButton onClick={() => setTxFiltersOpen(o => !o)}><FilterList /></IconButton>
+        </Tooltip>
+        <Tooltip title="Toggle columns">
+          <IconButton onClick={e => setTxColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+        </Tooltip>
+        <Tooltip title={txSectionOpen ? 'Collapse' : 'Expand'}>
+          <IconButton onClick={() => setTxSectionOpen(o => !o)}>
+            {txSectionOpen ? <ExpandLess /> : <ExpandMore />}
+          </IconButton>
+        </Tooltip>
+      </Box>
+      <Collapse in={txSectionOpen}>
 
-      {transactions.length === 0 ? (
+      {txFiltersOpen && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <TextField select size="small" label="Year" value={txYear} sx={{ minWidth: 100 }}
+              onChange={e => { const v = e.target.value === '' ? '' : Number(e.target.value); setTxYear(v); setTxPage(0); loadTx({ year: v, page: 0 }); }}>
+              <MenuItem value="">All</MenuItem>
+              {YEARS.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+            </TextField>
+            <TextField select size="small" label="Month" value={txMonth} sx={{ minWidth: 130 }}
+              onChange={e => { const v = e.target.value === '' ? '' : Number(e.target.value); setTxMonth(v); setTxPage(0); loadTx({ month: v, page: 0 }); }}>
+              <MenuItem value="">All</MenuItem>
+              {MONTHS.map((m, i) => <MenuItem key={i} value={i + 1}>{m}</MenuItem>)}
+            </TextField>
+            <TextField select size="small" label="Status" value={txStatus} sx={{ minWidth: 130 }}
+              onChange={e => { setTxStatus(e.target.value); setTxPage(0); loadTx({ status: e.target.value, page: 0 }); }}>
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="PENDING">Pending</MenuItem>
+              <MenuItem value="APPROVED">Approved</MenuItem>
+              <MenuItem value="REJECTED">Rejected</MenuItem>
+            </TextField>
+            <TextField select size="small" label="Category" value={txCategory} sx={{ minWidth: 180 }}
+              onChange={e => { setTxCategory(e.target.value); setTxPage(0); loadTx({ category: e.target.value, page: 0 }); }}>
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="TOURNAMENT_FEE">Tournament Fee</MenuItem>
+              <MenuItem value="TOURNAMENT_REGISTRATION">Tournament Registration</MenuItem>
+              <MenuItem value="ANNUAL_SUBSCRIPTION">Annual Subscription</MenuItem>
+              <MenuItem value="AD_HOC">Ad Hoc</MenuItem>
+              <MenuItem value="SPONSORSHIP">Sponsorship</MenuItem>
+              <MenuItem value="OTHER">Other</MenuItem>
+            </TextField>
+          </Box>
+        </Paper>
+      )}
+
+      <Popover
+        open={!!txColAnchor}
+        anchorEl={txColAnchor}
+        onClose={() => setTxColAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Visible Columns</Typography>
+          <FormGroup>
+            {TX_COLUMNS.map(c => (
+              <FormControlLabel
+                key={c.key}
+                label={c.label}
+                control={<Checkbox size="small" checked={txVisibleCols.has(c.key)} onChange={() => toggleTxCol(c.key)} />}
+              />
+            ))}
+          </FormGroup>
+        </Box>
+      </Popover>
+
+      {txLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+      ) : !txData || txData.totalElements === 0 ? (
         <Alert severity="info">
-          No payment submissions yet. Use <strong>Topup My Wallet</strong> to upload proof of payment.
+          No payment submissions yet. Use <strong>Topup</strong> to upload proof of payment.
         </Alert>
       ) : (
         <TableContainer component={Paper} variant="outlined">
@@ -299,106 +519,174 @@ export const MyWallet: React.FC = () => {
           }}>
             <TableHead>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Tournament</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell align="right">Amount</TableCell>
-                <TableCell>Proof</TableCell>
+                {txCol('date')        && <TableCell>Date</TableCell>}
+                {txCol('status')      && <TableCell>Status</TableCell>}
+                {txCol('category')    && <TableCell>Category</TableCell>}
+                {txCol('tournament')  && <TableCell>Tournament</TableCell>}
+                {txCol('description') && <TableCell>Description</TableCell>}
+                {txCol('amount')      && <TableCell align="right">Amount</TableCell>}
+                {txCol('proof')       && <TableCell>Proof</TableCell>}
               </TableRow>
             </TableHead>
             <TableBody>
-              {transactions
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map(t => (
-                  <TableRow key={t.paymentId}>
-                    <TableCell>{t.paymentDate}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={STATUS_LABELS[t.status ?? 'PENDING']}
-                        size="small"
-                        color={STATUS_COLORS[t.status ?? 'PENDING']}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {CATEGORY_LABELS[t.paymentCategory ?? ''] ?? t.paymentCategory ?? '—'}
-                    </TableCell>
-                    <TableCell>{t.tournamentName ?? '—'}</TableCell>
-                    <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      <Tooltip title={t.description ?? ''}>
-                        <span>{t.description ?? '—'}</span>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong style={{ color: t.status === 'APPROVED' ? 'green' : undefined }}>
-                        {fmt(Number(t.amount))}
-                      </strong>
-                    </TableCell>
-                    <TableCell>
-                      {t.proofOfPaymentUrl ? (
-                        <Chip
-                          icon={<AttachFile />}
-                          label="View"
-                          size="small"
-                          variant="outlined"
-                          clickable
-                          onClick={() => setProofViewUrl(t.proofOfPaymentUrl!)}
-                        />
-                      ) : '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
+              {(txData.content as Payment[]).map(t => (
+                <TableRow key={t.paymentId}>
+                  {txCol('date')        && <TableCell>
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      sx={{ color: 'primary.main', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                      onClick={() => { setViewItem(t); setViewing(true); }}
+                    >
+                      {t.paymentDate}
+                    </Typography>
+                  </TableCell>}
+                  {txCol('status')      && <TableCell>
+                    <Chip label={STATUS_LABELS[t.status ?? 'PENDING']} size="small" color={STATUS_COLORS[t.status ?? 'PENDING']} />
+                  </TableCell>}
+                  {txCol('category')    && <TableCell>{CATEGORY_LABELS[t.paymentCategory ?? ''] ?? t.paymentCategory ?? '—'}</TableCell>}
+                  {txCol('tournament')  && <TableCell>{t.tournamentName ?? '—'}</TableCell>}
+                  {txCol('description') && <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Tooltip title={t.description ?? ''}><span>{t.description ?? '—'}</span></Tooltip>
+                  </TableCell>}
+                  {txCol('amount')      && <TableCell align="right">
+                    <strong style={{ color: t.status === 'APPROVED' ? 'green' : undefined }}>{fmt(Number(t.amount))}</strong>
+                  </TableCell>}
+                  {txCol('proof')       && <TableCell>
+                    {t.proofOfPaymentUrl ? (
+                      <Chip icon={<AttachFile />} label="View" size="small" variant="outlined" clickable onClick={() => setProofViewUrl(t.proofOfPaymentUrl!)} />
+                    ) : '—'}
+                  </TableCell>}
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
           <TablePagination
             component="div"
-            count={transactions.length}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            count={txData.totalElements}
+            page={txPage}
+            onPageChange={(_, newPage) => { setTxPage(newPage); loadTx({ page: newPage }); }}
+            rowsPerPage={txPageSize}
+            onRowsPerPageChange={e => { const s = parseInt(e.target.value, 10); setTxPageSize(s); setTxPage(0); loadTx({ page: 0, size: s }); }}
             rowsPerPageOptions={[20, 30, 50]}
           />
         </TableContainer>
       )}
+      </Collapse>
       </>}
 
       {/* ── Allocated funds ──────────────────────────────────────────────── */}
-      {allocations.length > 0 && !showForm && (
+      {!showForm && (
         <>
-          <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Allocated Funds</Typography>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small" sx={{
-              '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'error.main', color: 'common.white', fontWeight: 'bold' },
-              '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' },
-              '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' },
-            }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Category</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell align="right">Amount Deducted</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {allocations
-                  .slice()
-                  .sort((a, b) => String(b.allocationDate).localeCompare(String(a.allocationDate)))
-                  .map(a => (
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 4, mb: 1 }}>
+            <Typography variant="h6" sx={{ mr: 'auto', cursor: 'pointer' }} onClick={() => setAllocSectionOpen(o => !o)}>
+              Allocated Funds
+            </Typography>
+            <Tooltip title={allocFiltersOpen ? 'Collapse filters' : 'Expand filters'}>
+              <IconButton onClick={() => setAllocFiltersOpen(o => !o)}><FilterList /></IconButton>
+            </Tooltip>
+            <Tooltip title="Toggle columns">
+              <IconButton onClick={e => setAllocColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+            </Tooltip>
+            <Tooltip title={allocSectionOpen ? 'Collapse' : 'Expand'}>
+              <IconButton onClick={() => setAllocSectionOpen(o => !o)}>
+                {allocSectionOpen ? <ExpandLess /> : <ExpandMore />}
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <Collapse in={allocSectionOpen}>
+
+          {allocFiltersOpen && (
+            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <TextField select size="small" label="Year" value={allocYear} sx={{ minWidth: 100 }}
+                  onChange={e => { const v = e.target.value === '' ? '' : Number(e.target.value); setAllocYear(v); setAllocPage(0); loadAlloc({ year: v, page: 0 }); }}>
+                  <MenuItem value="">All</MenuItem>
+                  {YEARS.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+                </TextField>
+                <TextField select size="small" label="Month" value={allocMonth} sx={{ minWidth: 130 }}
+                  onChange={e => { const v = e.target.value === '' ? '' : Number(e.target.value); setAllocMonth(v); setAllocPage(0); loadAlloc({ month: v, page: 0 }); }}>
+                  <MenuItem value="">All</MenuItem>
+                  {MONTHS.map((m, i) => <MenuItem key={i} value={i + 1}>{m}</MenuItem>)}
+                </TextField>
+                <TextField select size="small" label="Category" value={allocCategory} sx={{ minWidth: 200 }}
+                  onChange={e => { setAllocCategory(e.target.value); setAllocPage(0); loadAlloc({ category: e.target.value, page: 0 }); }}>
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="ANNUAL_SUBSCRIPTION">Annual Subscription</MenuItem>
+                  <MenuItem value="MATCH_FEE">Match Fee</MenuItem>
+                  <MenuItem value="TOURNAMENT_FEE">Tournament Fee</MenuItem>
+                  <MenuItem value="TOURNAMENT_REGISTRATION">Tournament Registration</MenuItem>
+                  <MenuItem value="OTHER">Other</MenuItem>
+                </TextField>
+              </Box>
+            </Paper>
+          )}
+
+          <Popover
+            open={!!allocColAnchor}
+            anchorEl={allocColAnchor}
+            onClose={() => setAllocColAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <Box sx={{ p: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>Visible Columns</Typography>
+              <FormGroup>
+                {ALLOC_COLUMNS.map(c => (
+                  <FormControlLabel
+                    key={c.key}
+                    label={c.label}
+                    control={<Checkbox size="small" checked={allocVisibleCols.has(c.key)} onChange={() => toggleAllocCol(c.key)} />}
+                  />
+                ))}
+              </FormGroup>
+            </Box>
+          </Popover>
+
+          {allocLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+          ) : !allocData || allocData.totalElements === 0 ? (
+            <Alert severity="info">No allocations found.</Alert>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small" sx={{
+                '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'error.main', color: 'common.white', fontWeight: 'bold' },
+                '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' },
+                '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' },
+              }}>
+                <TableHead>
+                  <TableRow>
+                    {allocCol('date')        && <TableCell>Date</TableCell>}
+                    {allocCol('category')    && <TableCell>Category</TableCell>}
+                    {allocCol('description') && <TableCell>Description</TableCell>}
+                    {allocCol('amount')      && <TableCell align="right">Amount Deducted</TableCell>}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(allocData.content as WalletAllocationDTO[]).map(a => (
                     <TableRow key={a.id}>
-                      <TableCell>{String(a.allocationDate)}</TableCell>
-                      <TableCell>{ALLOCATION_CATEGORY_LABELS[a.category] ?? a.category}</TableCell>
-                      <TableCell>{a.description ?? '—'}</TableCell>
-                      <TableCell align="right">
+                      {allocCol('date')        && <TableCell>{String(a.allocationDate)}</TableCell>}
+                      {allocCol('category')    && <TableCell>{ALLOCATION_CATEGORY_LABELS[a.category] ?? a.category}</TableCell>}
+                      {allocCol('description') && <TableCell>{a.description ?? '—'}</TableCell>}
+                      {allocCol('amount')      && <TableCell align="right">
                         <strong style={{ color: '#d32f2f' }}>− {fmt(Number(a.amount))}</strong>
-                      </TableCell>
+                      </TableCell>}
                     </TableRow>
                   ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableBody>
+              </Table>
+              <TablePagination
+                component="div"
+                count={allocData.totalElements}
+                page={allocPage}
+                onPageChange={(_, newPage) => { setAllocPage(newPage); loadAlloc({ page: newPage }); }}
+                rowsPerPage={allocPageSize}
+                onRowsPerPageChange={e => { const s = parseInt(e.target.value, 10); setAllocPageSize(s); setAllocPage(0); loadAlloc({ page: 0, size: s }); }}
+                rowsPerPageOptions={[20, 30, 50]}
+              />
+            </TableContainer>
+          )}
+          </Collapse>
         </>
       )}
 

@@ -38,6 +38,29 @@ export const paymentApi = {
   /** Get the calling player's own payment submissions */
   findMine: () => api.get<Payment[]>('/payments/mine').then(r => r.data),
 
+  /** Get the calling player's payments with server-side filters and paging */
+  findMinePaged: (filters: { status?: string; paymentCategory?: string; year?: number; month?: number; page?: number; size?: number } = {}) => {
+    const params: Record<string, string | number> = {};
+    if (filters.status) params.status = filters.status;
+    if (filters.paymentCategory) params.paymentCategory = filters.paymentCategory;
+    if (filters.year != null) params.year = filters.year;
+    if (filters.month != null) params.month = filters.month;
+    if (filters.page != null) params.page = filters.page;
+    if (filters.size != null) params.size = filters.size;
+    return api.get<PagedPaymentResponse>('/payments/mine/paged', { params }).then(r => r.data);
+  },
+
+  /** Get the calling player's wallet allocations with server-side filters and paging */
+  findMyAllocations: (filters: { category?: string; year?: number; month?: number; page?: number; size?: number } = {}) => {
+    const params: Record<string, string | number> = {};
+    if (filters.category) params.category = filters.category;
+    if (filters.year != null) params.year = filters.year;
+    if (filters.month != null) params.month = filters.month;
+    if (filters.page != null) params.page = filters.page;
+    if (filters.size != null) params.size = filters.size;
+    return api.get<PagedAllocationResponse>('/payments/allocations/mine', { params }).then(r => r.data);
+  },
+
   /** Player-initiated payment submission (proof of payment) */
   submitProof: (dto: { tournamentId?: number; paymentCategory?: string; amount: number; description?: string; proofOfPaymentUrl: string }) =>
     api.post<Payment>('/payments/submit', dto).then(r => r.data),

@@ -3,8 +3,8 @@ import {
   Box, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   TableContainer, Paper, Chip, Divider, Alert, Select, MenuItem, FormControl, InputLabel, Button,
 } from '@mui/material';
-import { ScoreboardOutlined, YouTube } from '@mui/icons-material';
-import { useSearchParams } from 'react-router-dom';
+import { ScoreboardOutlined, YouTube, ArrowBack } from '@mui/icons-material';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { Match, MatchResult, TeamScorecard } from '../../types';
 
@@ -84,15 +84,17 @@ const InningsTable: React.FC<{ title: string; innings: TeamScorecard }> = ({ tit
 
 export const Scorecards: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [matches, setMatches] = useState<Match[]>([]);
   const [selectedId, setSelectedId] = useState<number | ''>('');
   const [result, setResult] = useState<MatchResult | null>(null);
   const [error, setError] = useState('');
 
+  const linkedMatchId = searchParams.get('matchId');
+
   useEffect(() => {
     matchApi.findCompleted().then(setMatches);
-    const q = searchParams.get('matchId');
-    if (q) setSelectedId(+q);
+    if (linkedMatchId) setSelectedId(+linkedMatchId);
   }, []);
 
   useEffect(() => {
@@ -107,17 +109,24 @@ export const Scorecards: React.FC = () => {
 
   return (
     <Box>
-      <Typography variant="h5" gutterBottom>Scorecards</Typography>
-      <FormControl sx={{ minWidth: 300, mb: 3 }}>
-        <InputLabel>Select Match</InputLabel>
-        <Select value={selectedId} label="Select Match" onChange={e => setSelectedId(e.target.value as number)}>
-          {matches.map(m => (
-            <MenuItem key={m.matchId} value={m.matchId}>
-              {m.matchDate} — {m.homeTeamName} vs {m.oppositionTeamName}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        {linkedMatchId && (
+          <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)}>Back</Button>
+        )}
+        <Typography variant="h5">Scorecards</Typography>
+      </Box>
+      {!linkedMatchId && (
+        <FormControl sx={{ minWidth: 300, mb: 3 }}>
+          <InputLabel>Select Match</InputLabel>
+          <Select value={selectedId} label="Select Match" onChange={e => setSelectedId(e.target.value as number)}>
+            {matches.map(m => (
+              <MenuItem key={m.matchId} value={m.matchId}>
+                {m.matchDate} — {m.homeTeamName} vs {m.oppositionTeamName}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
 
       {error && <Alert severity="info">{error}</Alert>}
 

@@ -124,6 +124,13 @@ public class PaymentServiceImpl implements PaymentService {
     private Specification<Payment> buildSpec(Long playerId, Long sponsorId, Long tournamentId,
                                              PaymentType paymentType, PaymentStatus status,
                                              LocalDate startDate, LocalDate endDate) {
+        return buildSpec(playerId, sponsorId, tournamentId, paymentType, status, null, startDate, endDate);
+    }
+
+    private Specification<Payment> buildSpec(Long playerId, Long sponsorId, Long tournamentId,
+                                             PaymentType paymentType, PaymentStatus status,
+                                             PaymentCategory paymentCategory,
+                                             LocalDate startDate, LocalDate endDate) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (playerId != null)
@@ -136,6 +143,8 @@ public class PaymentServiceImpl implements PaymentService {
                 predicates.add(cb.equal(root.get("paymentType"), paymentType));
             if (status != null)
                 predicates.add(cb.equal(root.get("status"), status));
+            if (paymentCategory != null)
+                predicates.add(cb.equal(root.get("paymentCategory"), paymentCategory));
             if (startDate != null)
                 predicates.add(cb.greaterThanOrEqualTo(root.get("paymentDate"), startDate));
             if (endDate != null)
@@ -235,6 +244,54 @@ public class PaymentServiceImpl implements PaymentService {
                         .map(paymentMapper::toDto)
                         .toList())
                 .orElse(List.of());
+    }
+
+    @Override
+    public PagedPaymentResponse findMineWithFilters(String email, PaymentStatus status,
+                                                    PaymentCategory paymentCategory,
+                                                    Integer year, Integer month, int page, int size) {
+        Player player = playerRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new NotFoundException("No player account found for the logged-in user."));
+        LocalDate startDate = null;
+        LocalDate endDate = null;
+        if (year != null && month != null) {
+            startDate = LocalDate.of(year, month, 1);
+            endDate = startDate.plusMonths(1).minusDays(1);
+        } else if (year != null) {
+            startDate = LocalDate.of(year, 1, 1);
+            endDate = LocalDate.of(year, 12, 31);
+        }
+        Specification<Payment> spec = buildSpec(player.getPlayerId(), null, null,
+                PaymentType.PLAYER, status, paymentCategory, startDate, endDate);
+        Page<Payment> rawPage = paymentRepository.findAll(
+                spec, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "paymentDate")));
+        List<PaymentDTO> content;
+        if (rawPage.isEmpty()) {
+            content = List.of();
+        } else {
+            List<Long> ids = rawPage.getContent().stream().map(Payment::getPaymentId).toList();
+            List<Payment> payments = paymentRepository.findByIds(ids);
+            Map<Long, Payment> byId = payments.stream().collect(Collectors.toMap(Payment::getPaymentId, p -> p));
+            content = ids.stream().map(byId::get).filter(Objects::nonNull).map(paymentMapper::toDto).toList();
+        }
+        BigDecimal[] totals = computeTotals(player.getPlayerId(), null, null, PaymentType.PLAYER, status, startDate, endDate);
+        return PagedPaymentResponse.builder()
+                .content(content)
+                .totalElements(rawPage.getTotalElements())
+                .totalPages(rawPage.getTotalPages())
+                .subtotal(totals[0])
+                .vatTotal(totals[1])
+                .grandTotal(totals[0].add(totals[1]))
+                .build();
+    }
+
+    @Override
+    public PagedAllocationResponse findMyAllocationsWithFilters(String email, String category,
+                                                                Integer year, Integer month,
+                                                                int page, int size) {
+        Player player = playerRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new NotFoundException("No player account found for the logged-in user."));
+        return findAllocationsWithFilters(player.getPlayerId(), null, category, year, month, page, size);
     }
 
     @Override

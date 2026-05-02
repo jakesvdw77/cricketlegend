@@ -38,23 +38,66 @@ export const TournamentView: React.FC = () => {
             <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <CardContent sx={{ flex: 1 }}>
 
-                {/* Header: logo + name + format */}
+                {/* Header: logo + name + format + social icons */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
                   <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 52, height: 52, flexShrink: 0 }}>
                     {t.name.charAt(0)}
                   </Avatar>
                   <Box>
                     <Typography variant="h6" sx={{ lineHeight: 1.2 }}>{t.name}</Typography>
-                    {t.cricketFormat && (
-                      <Chip
-                        icon={<SportsCricket sx={{ fontSize: '14px !important' }} />}
-                        label={t.cricketFormat}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                        sx={{ mt: 0.5 }}
-                      />
-                    )}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                      {t.cricketFormat && (
+                        <Chip
+                          icon={<SportsCricket sx={{ fontSize: '14px !important' }} />}
+                          label={t.cricketFormat}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      )}
+                      {t.websiteLink && (
+                        <Tooltip title="Website">
+                          <IconButton size="small" component="a" href={t.websiteLink} target="_blank" rel="noopener noreferrer">
+                            <Language fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {t.facebookLink && (
+                        <Tooltip title="Facebook">
+                          <IconButton size="small" component="a" href={t.facebookLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#1877F2' }}>
+                            <Facebook fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {t.instagramLink && (
+                        <Tooltip title="Instagram">
+                          <IconButton size="small" component="a" href={t.instagramLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#E1306C' }}>
+                            <Instagram fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {t.youtubeLink && (
+                        <Tooltip title="YouTube">
+                          <IconButton size="small" component="a" href={t.youtubeLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#FF0000' }}>
+                            <YouTube fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {t.playingConditionsUrl && (
+                        <Tooltip title="Playing Conditions">
+                          <IconButton size="small" component="a" href={t.playingConditionsUrl} target="_blank" rel="noopener noreferrer" color="error">
+                            <PictureAsPdf fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {t.registrationPageUrl && (
+                        <Tooltip title="Register">
+                          <IconButton size="small" component="a" href={t.registrationPageUrl} target="_blank" rel="noopener noreferrer" color="success">
+                            <AppRegistration fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   </Box>
                 </Box>
 
@@ -110,53 +153,7 @@ export const TournamentView: React.FC = () => {
 
               <Divider />
 
-              <CardActions sx={{ justifyContent: 'space-between', px: 1.5, py: 1 }}>
-                {/* Link icons */}
-                <Box sx={{ display: 'flex', gap: 0.5 }}>
-                  {t.websiteLink && (
-                    <Tooltip title="Website">
-                      <IconButton size="small" component="a" href={t.websiteLink} target="_blank" rel="noopener noreferrer">
-                        <Language fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  {t.facebookLink && (
-                    <Tooltip title="Facebook">
-                      <IconButton size="small" component="a" href={t.facebookLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#1877F2' }}>
-                        <Facebook fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  {t.instagramLink && (
-                    <Tooltip title="Instagram">
-                      <IconButton size="small" component="a" href={t.instagramLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#E1306C' }}>
-                        <Instagram fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  {t.youtubeLink && (
-                    <Tooltip title="YouTube">
-                      <IconButton size="small" component="a" href={t.youtubeLink} target="_blank" rel="noopener noreferrer" sx={{ color: '#FF0000' }}>
-                        <YouTube fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  {t.playingConditionsUrl && (
-                    <Tooltip title="Playing Conditions">
-                      <IconButton size="small" component="a" href={t.playingConditionsUrl} target="_blank" rel="noopener noreferrer" color="error">
-                        <PictureAsPdf fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  {t.registrationPageUrl && (
-                    <Tooltip title="Register">
-                      <IconButton size="small" component="a" href={t.registrationPageUrl} target="_blank" rel="noopener noreferrer" color="success">
-                        <AppRegistration fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </Box>
-
+              <CardActions sx={{ justifyContent: 'flex-end', px: 1.5, py: 1 }}>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Button size="small" startIcon={<EventNote />} onClick={() => navigate(`/tournaments/${t.tournamentId}/schedule`)}>
                     Schedule
