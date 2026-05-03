@@ -134,8 +134,8 @@ const TemplateShell: React.FC<Props> = ({
 
       {/* Card preview */}
       {viewMode === 'card' && (
-        <Box sx={{ overflowX: 'auto', pb: 2 }}>
-          <Box ref={cardRef} sx={{ display: 'inline-block', minWidth: 620 }}>
+        <Box sx={{ pb: 2 }}>
+          <Box ref={cardRef} sx={{ width: '100%', maxWidth: 640 }}>
             {card}
           </Box>
         </Box>

@@ -8,7 +8,9 @@ const ScorecardCardPreview: React.FC<TemplateProps> = ({
   // ── Styles ────────────────────────────────────────────────────────────────
   const card: React.CSSProperties = {
     fontFamily: "'Segoe UI', 'Arial Narrow', Arial, sans-serif",
-    width: 700,
+    width: '100%',
+    maxWidth: 700,
+    boxSizing: 'border-box',
     backgroundColor: '#080c14',
     borderRadius: 12,
     overflow: 'hidden',
@@ -17,20 +19,22 @@ const ScorecardCardPreview: React.FC<TemplateProps> = ({
 
   const titleBar: React.CSSProperties = {
     background: 'linear-gradient(135deg, #0d1b2a 0%, #1a2744 100%)',
-    padding: '14px 24px',
+    padding: '14px 16px',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
+    gap: 4,
     borderBottom: '2px solid #243b55',
   };
 
   const teamTitle: React.CSSProperties = {
     color: '#ffffff',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: 800,
-    letterSpacing: 3,
+    letterSpacing: 1,
     textTransform: 'uppercase',
+    textAlign: 'center',
+    wordBreak: 'break-word',
   };
 
   const vsLabel: React.CSSProperties = {
@@ -47,7 +51,7 @@ const ScorecardCardPreview: React.FC<TemplateProps> = ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 20px',
+    padding: '10px 12px',
     borderLeft: '4px solid rgba(255,255,255,0.25)',
   });
 
@@ -86,7 +90,7 @@ const ScorecardCardPreview: React.FC<TemplateProps> = ({
     fontWeight: 700,
     letterSpacing: 2,
     textTransform: 'uppercase',
-    padding: '5px 20px',
+    padding: '5px 12px',
   };
 
   const row = (i: number): React.CSSProperties => ({
@@ -100,7 +104,7 @@ const ScorecardCardPreview: React.FC<TemplateProps> = ({
   const cell: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
-    padding: '6px 20px',
+    padding: '6px 12px',
     gap: 0,
   };
 
@@ -148,7 +152,7 @@ const ScorecardCardPreview: React.FC<TemplateProps> = ({
 
   const footer: React.CSSProperties = {
     backgroundColor: '#060a10',
-    padding: '8px 20px',
+    padding: '8px 12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -258,17 +262,12 @@ const ScorecardCardPreview: React.FC<TemplateProps> = ({
 
       {/* Title */}
       <div style={titleBar}>
-        {tournament?.logoUrl
-          ? <img src={tournament.logoUrl} alt="tournament" crossOrigin="anonymous" style={{ height: 40, width: 40, objectFit: 'contain', borderRadius: 6, background: 'rgba(255,255,255,0.08)', padding: 3, flexShrink: 0 }} />
-          : <span style={{ width: 40 }} />
-        }
+        {tournament?.logoUrl && (
+          <img src={tournament.logoUrl} alt="tournament" crossOrigin="anonymous" style={{ height: 40, width: 40, objectFit: 'contain', borderRadius: 6, background: 'rgba(255,255,255,0.08)', padding: 3, marginBottom: 6 }} />
+        )}
         <span style={teamTitle}>{match.homeTeamName}</span>
         <span style={vsLabel}>v</span>
         <span style={teamTitle}>{match.oppositionTeamName}</span>
-        {tournament?.logoUrl
-          ? <span style={{ width: 40 }} />
-          : <span style={{ width: 40 }} />
-        }
       </div>
 
       {/* 1st Innings */}

@@ -10,7 +10,7 @@ import {
   EmojiEvents, CalendarMonth, LocationOn, AccessTime, Login, SportsCricket,
   PhotoLibrary, FiberManualRecord, Handshake, Language, CheckCircle, Facebook,
   AccountBalance, Groups, HowToVote, EventNote, Close, Instagram, YouTube, OpenInNew, AppRegistration, Article, ScoreboardOutlined,
-  LightMode, DarkMode,
+  LightMode, DarkMode, Summarize, SportsScore,
 } from '@mui/icons-material';
 import { useColorMode } from '../context/ColorModeContext';
 import { matchApi } from '../api/matchApi';
@@ -243,71 +243,114 @@ const MatchCard: React.FC<{ m: Match; live?: boolean }> = ({ m, live }) => {
 
 // ── ResultCard ───────────────────────────────────────────────────────────────
 
-const ResultCard: React.FC<{ r: MatchResultSummary; onSummary?: () => void; onScorecard?: () => void }> = ({ r, onSummary, onScorecard }) => {
+const ResultCard: React.FC<{ r: MatchResultSummary; onSummary?: () => void; onResult?: () => void }> = ({ r, onSummary, onResult }) => {
+  const navigate = useNavigate();
   const scoreLine = (score?: number, wickets?: number, overs?: string) =>
     score != null ? `${score}/${wickets ?? 0}${overs ? ` (${overs})` : ''}` : null;
   const firstScore  = scoreLine(r.scoreBattingFirst,  r.wicketsLostBattingFirst,  r.oversBattingFirst);
   const secondScore = scoreLine(r.scoreBattingSecond, r.wicketsLostBattingSecond, r.oversBattingSecond);
+  const secondTeamName = r.homeTeamName === r.sideBattingFirstName ? r.oppositionTeamName : r.homeTeamName;
   return (
-    <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, bgcolor: 'background.paper', display: 'flex', flexDirection: 'column' }}>
+    <Card variant="outlined" sx={{ height: '100%', borderRadius: 2, position: 'relative', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column' }}>
       <CardContent sx={{ flex: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-          <Typography variant="caption" color="text.secondary">{r.matchDate?.toString()}</Typography>
+        {/* Top row: result chip left, date right */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
           {r.matchDrawn
             ? <Chip label="Draw" size="small" variant="outlined" />
-            : r.winningTeamName && (
-              <Chip icon={<CheckCircle sx={{ fontSize: '14px !important' }} />} label={r.winningTeamName} size="small" color="success" variant="outlined" />
-            )}
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1.5 }}>
-          <Typography variant="subtitle1" fontWeight="bold" textAlign="right" sx={{ flex: 1 }}>{r.homeTeamName}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ px: 0.5 }}>vs</Typography>
-          <Typography variant="subtitle1" fontWeight="bold" textAlign="left" sx={{ flex: 1 }}>{r.oppositionTeamName}</Typography>
-        </Box>
-        {(firstScore || secondScore) && (
-          <>
-            <Divider sx={{ mb: 1 }} />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-              {firstScore && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">{r.sideBattingFirstName}</Typography>
-                  <Typography variant="body2" fontWeight="bold">{firstScore}</Typography>
-                </Box>
-              )}
-              {secondScore && r.sideBattingFirstName && (
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {r.homeTeamName === r.sideBattingFirstName ? r.oppositionTeamName : r.homeTeamName}
-                  </Typography>
-                  <Typography variant="body2" fontWeight="bold">{secondScore}</Typography>
-                </Box>
-              )}
+            : r.winningTeamName
+              ? <Chip icon={<EmojiEvents sx={{ fontSize: '14px !important' }} />} label={r.winningTeamName} size="small" color="success" variant="outlined" />
+              : <Box />}
+          {r.matchDate && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <CalendarMonth sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">{r.matchDate.toString()}</Typography>
             </Box>
-          </>
+          )}
+        </Box>
+
+        {/* Teams: avatar — names — avatar */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, my: 1.5 }}>
+          <Avatar sx={{ width: 40, height: 40 }}>{r.homeTeamName?.charAt(0)}</Avatar>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{r.homeTeamName}</Typography>
+            <Typography variant="caption" color="text.secondary">vs</Typography>
+            <Typography variant="subtitle1" fontWeight="bold" lineHeight={1.2}>{r.oppositionTeamName}</Typography>
+          </Box>
+          <Avatar sx={{ width: 40, height: 40 }}>{r.oppositionTeamName?.charAt(0)}</Avatar>
+        </Box>
+
+        <Divider sx={{ my: 1 }} />
+
+        {/* Scores */}
+        {(firstScore || secondScore) && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, mb: 0.5 }}>
+            {firstScore && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="text.secondary">{r.sideBattingFirstName}</Typography>
+                <Typography variant="body2" fontWeight="bold">{firstScore}</Typography>
+              </Box>
+            )}
+            {secondScore && r.sideBattingFirstName && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="text.secondary">{secondTeamName}</Typography>
+                <Typography variant="body2" fontWeight="bold">{secondScore}</Typography>
+              </Box>
+            )}
+          </Box>
         )}
+
+        {/* Venue */}
+        {r.fieldName && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+            <LocationOn sx={{ fontSize: 14, color: 'text.secondary' }} />
+            <Typography variant="caption" color="text.secondary">{r.fieldName}</Typography>
+          </Box>
+        )}
+
         {r.matchOutcomeDescription && (
-          <Typography variant="caption" color="text.secondary" display="block" mt={1} sx={{ fontStyle: 'italic' }}>
+          <Typography variant="caption" color="text.secondary" display="block" mt={0.75} sx={{ fontStyle: 'italic' }}>
             {r.matchOutcomeDescription}
           </Typography>
         )}
       </CardContent>
-      {(onSummary || onScorecard) && (
-        <>
-          <Divider />
-          <Box sx={{ px: 1.5, py: 1, display: 'flex', gap: 1 }}>
-            {onSummary && (
-              <Button size="small" startIcon={<Facebook />} onClick={onSummary}>
-                Summary
-              </Button>
-            )}
-            {onScorecard && (
-              <Button size="small" startIcon={<Article />} onClick={onScorecard}>
-                Scorecard
-              </Button>
-            )}
-          </Box>
-        </>
-      )}
+      <>
+        <Divider />
+        <Box sx={{ px: 1.5, py: 0.75, display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+          <Button size="small" variant="outlined" startIcon={<Article sx={{ fontSize: '14px !important' }} />}
+            sx={{ px: 1, py: 0.25, fontSize: '0.72rem' }}
+            onClick={() => navigate(`/matches/scorecards?matchId=${r.matchId}`)}>
+            Scorecard
+          </Button>
+          {onSummary && (
+            <Button size="small" variant="outlined" startIcon={<Summarize sx={{ fontSize: '14px !important' }} />}
+              sx={{ px: 1, py: 0.25, fontSize: '0.72rem' }}
+              onClick={onSummary}>
+              Summary
+            </Button>
+          )}
+          {onResult && (
+            <Button size="small" variant="outlined" startIcon={<SportsScore sx={{ fontSize: '14px !important' }} />}
+              sx={{ px: 1, py: 0.25, fontSize: '0.72rem' }}
+              onClick={onResult}>
+              Result
+            </Button>
+          )}
+          {r.scoringUrl && (
+            <Button size="small" variant="outlined" startIcon={<ScoreboardOutlined sx={{ fontSize: '14px !important' }} />}
+              sx={{ px: 1, py: 0.25, fontSize: '0.72rem' }}
+              component="a" href={r.scoringUrl} target="_blank" rel="noopener noreferrer">
+              Live Scoring
+            </Button>
+          )}
+          {r.youtubeUrl && (
+            <Button size="small" variant="outlined" startIcon={<YouTube sx={{ fontSize: '14px !important' }} />}
+              sx={{ px: 1, py: 0.25, fontSize: '0.72rem', color: '#FF0000', borderColor: '#FF0000', '&:hover': { borderColor: '#CC0000', bgcolor: 'rgba(255,0,0,0.04)' } }}
+              component="a" href={r.youtubeUrl} target="_blank" rel="noopener noreferrer">
+              Watch
+            </Button>
+          )}
+        </Box>
+      </>
     </Card>
   );
 };
@@ -500,6 +543,7 @@ export const LandingPage: React.FC = () => {
   };
   const [upcomingTab, setUpcomingTab] = useState(0);
   const [standingsMap, setStandingsMap] = useState<Record<number, PoolStandings[]>>({});
+  const [standingsTournaments, setStandingsTournaments] = useState<Tournament[]>([]);
   const [standingsTab, setStandingsTab] = useState(0);
   const tournamentsRef = useRef<HTMLDivElement | null>(null);
   const upcomingRef = useRef<HTMLDivElement | null>(null);
@@ -534,13 +578,17 @@ export const LandingPage: React.FC = () => {
         t.startDate && nd(t.startDate)! <= todayStr && (!t.endDate || nd(t.endDate)! >= todayStr)
       );
       setLiveTournaments(live);
-      if (live.length > 0) {
+      // Fetch standings for all tournaments with pools (not just currently "live" ones)
+      const withPools = all.filter(t => (t.pools?.length ?? 0) > 0);
+      if (withPools.length > 0) {
         const entries = await Promise.all(
-          live.map(t => tournamentApi.getStandings(t.tournamentId!)
+          withPools.map(t => tournamentApi.getStandings(t.tournamentId!)
             .then(s => [t.tournamentId!, s] as [number, PoolStandings[]])
             .catch(() => [t.tournamentId!, []] as [number, PoolStandings[]]))
         );
-        setStandingsMap(Object.fromEntries(entries));
+        const nonEmpty = entries.filter(([, s]) => (s as PoolStandings[]).length > 0);
+        setStandingsMap(Object.fromEntries(nonEmpty));
+        setStandingsTournaments(withPools.filter(t => nonEmpty.some(([id]) => id === t.tournamentId)));
       }
       setUpcomingTournaments(
         all
@@ -565,8 +613,31 @@ export const LandingPage: React.FC = () => {
     { label: 'Recent Results',     value: recentResults.length },
   ].filter(s => s.value > 0);
 
+  const showingSummary = summaryLoading || !!summaryMatch;
+
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+
+      {/* ── Summary full-page overlay (keeps landing page in DOM to avoid FB iframe remount) */}
+      {showingSummary && (
+        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', p: { xs: 2, sm: 4 } }}>
+          {summaryLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+              <CircularProgress />
+            </Box>
+          )}
+          {summaryMatch && (
+            <MatchSummaryView
+              match={summaryMatch}
+              view={summaryView}
+              onBack={() => { setSummaryMatch(null); setSummaryLoading(false); }}
+            />
+          )}
+        </Box>
+      )}
+
+      {/* ── Landing page (hidden while summary is open, kept mounted to preserve FB iframe) */}
+      <Box sx={{ display: showingSummary ? 'none' : 'block' }}>
 
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <AppBar position="sticky" elevation={0} sx={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -673,7 +744,7 @@ export const LandingPage: React.FC = () => {
       )}
 
       {/* ── Standings ───────────────────────────────────────────────────── */}
-      {appSettings.showLogStandingsSection && liveTournaments.length > 0 && Object.keys(standingsMap).length > 0 && (
+      {appSettings.showLogStandingsSection && standingsTournaments.length > 0 && (
         <>
           <Divider />
           <Box sx={{ py: { xs: 5, md: 7 }, bgcolor: 'background.default' }}>
@@ -690,7 +761,7 @@ export const LandingPage: React.FC = () => {
                 onChange={(_, v) => setStandingsTab(v)}
                 sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
               >
-                {liveTournaments.map(t => (
+                {standingsTournaments.map(t => (
                   <Tab
                     key={t.tournamentId}
                     label={t.name}
@@ -698,7 +769,7 @@ export const LandingPage: React.FC = () => {
                   />
                 ))}
               </Tabs>
-              <StandingsTable pools={standingsMap[liveTournaments[standingsTab]?.tournamentId!] ?? []} />
+              <StandingsTable pools={standingsMap[standingsTournaments[standingsTab]?.tournamentId!] ?? []} />
             </Container>
           </Box>
         </>
@@ -723,7 +794,7 @@ export const LandingPage: React.FC = () => {
                     <ResultCard
                       r={r}
                       onSummary={() => openSummary(r.matchId, 'facebook')}
-                      onScorecard={() => openSummary(r.matchId, 'whatsapp')}
+                      onResult={() => openSummary(r.matchId, 'whatsapp')}
                     />
                   </Grid>
                 ))}
@@ -940,30 +1011,6 @@ export const LandingPage: React.FC = () => {
         </>
       )}
 
-      {/* ── Match summary dialog ────────────────────────────────────────── */}
-      <Dialog open={summaryLoading || !!summaryMatch} onClose={() => { setSummaryMatch(null); setSummaryLoading(false); }} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-          Match Summary
-          <IconButton size="small" onClick={() => { setSummaryMatch(null); setSummaryLoading(false); }}>
-            <Close fontSize="small" />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent>
-          {summaryLoading && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          )}
-          {summaryMatch && (
-            <MatchSummaryView
-              match={summaryMatch}
-              view={summaryView}
-              onBack={() => setSummaryMatch(null)}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* ── Feature info dialog ─────────────────────────────────────────── */}
       <Dialog open={!!featureDialog} onClose={() => setFeatureDialog(null)} maxWidth="xs" fullWidth>
         {featureDialog && (
@@ -1102,6 +1149,8 @@ export const LandingPage: React.FC = () => {
 
       {/* Spacer so footer content isn't hidden behind the fixed bar */}
       <Box sx={{ height: 36 }} />
+
+      </Box>{/* end display:none wrapper */}
     </Box>
   );
 };

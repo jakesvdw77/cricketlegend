@@ -525,10 +525,12 @@ export const Teams: React.FC = () => {
                   {canManage(r.teamId!) && (
                     <IconButton size="small" title="Manage Squad" onClick={() => navigate(`/admin/teams/${r.teamId}/squad`)}><Groups /></IconButton>
                   )}
-                  <IconButton size="small" title="Print Squad" onClick={async () => {
-                    const squad = await teamApi.getSquad(r.teamId!);
-                    printSquad(r, [...squad].sort((a, b) => a.name.localeCompare(b.name)));
-                  }}><Print fontSize="small" /></IconButton>
+                  {!isMobile && (
+                    <IconButton size="small" title="Print Squad" onClick={async () => {
+                      const squad = await teamApi.getSquad(r.teamId!);
+                      printSquad(r, [...squad].sort((a, b) => a.name.localeCompare(b.name)));
+                    }}><Print fontSize="small" /></IconButton>
+                  )}
                   {isAdmin && (
                     <IconButton size="small" title="Duplicate" onClick={() => duplicate(r)}><ContentCopy fontSize="small" /></IconButton>
                   )}

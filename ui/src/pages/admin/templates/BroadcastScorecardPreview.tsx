@@ -10,7 +10,9 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
   const s = {
     card: {
       fontFamily: "'Arial Narrow', Arial, 'Helvetica Neue', sans-serif",
-      width: w,
+      width: '100%',
+      maxWidth: w,
+      boxSizing: 'border-box' as const,
       background: 'radial-gradient(ellipse at 50% 100%, #1a4a1a 0%, #0d2a0d 40%, #060e06 100%)',
       borderRadius: 10,
       overflow: 'hidden',
@@ -33,6 +35,8 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
       fontWeight: 400,
       letterSpacing: 1.2,
       textTransform: 'uppercase' as const,
+      textAlign: 'center' as const,
+      wordBreak: 'break-word' as const,
     },
 
     // ── Diagonal-stripe banner (MATCH SUMMARY / RESULT) ───
@@ -48,11 +52,13 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
     } as React.CSSProperties,
     bannerText: {
       color: '#0d2a4a',
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: 900,
-      letterSpacing: 3,
+      letterSpacing: 1,
       textTransform: 'uppercase' as const,
       textShadow: '0 1px 2px rgba(255,255,255,0.4)',
+      textAlign: 'center' as const,
+      wordBreak: 'break-word' as const,
     },
 
     // ── Team header ───────────────────────────────────────
@@ -94,9 +100,9 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
     // ── Column headers ────────────────────────────────────
     colHeader: {
       display: 'grid' as const,
-      gridTemplateColumns: '1fr 80px 1fr 80px',
+      gridTemplateColumns: '1fr 60px 1fr 60px',
       backgroundColor: '#d0dce8',
-      padding: '4px 14px',
+      padding: '4px 10px',
       borderBottom: '1px solid #b0bec5',
     } as React.CSSProperties,
     colLabel: {
@@ -118,9 +124,9 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
     // ── Data rows ─────────────────────────────────────────
     row: (i: number): React.CSSProperties => ({
       display: 'grid',
-      gridTemplateColumns: '1fr 80px 1fr 80px',
+      gridTemplateColumns: '1fr 60px 1fr 60px',
       backgroundColor: i % 2 === 0 ? '#eef2f6' : '#dde4ec',
-      padding: '5px 14px',
+      padding: '5px 10px',
       alignItems: 'center',
       borderBottom: '1px solid #c8d4dc',
       minHeight: 30,
@@ -172,10 +178,12 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
     } as React.CSSProperties,
     resultText: {
       color: '#0d2a4a',
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: 900,
-      letterSpacing: 3,
+      letterSpacing: 1,
       textTransform: 'uppercase' as const,
+      textAlign: 'center' as const,
+      wordBreak: 'break-word' as const,
     },
 
     // ── Bottom stats bar ──────────────────────────────────
@@ -183,8 +191,9 @@ const BroadcastScorecardPreview: React.FC<TemplateProps> = ({
       backgroundColor: 'rgba(0,0,0,0.88)',
       display: 'flex',
       alignItems: 'center',
-      padding: '7px 16px',
-      gap: 24,
+      flexWrap: 'wrap' as const,
+      padding: '7px 12px',
+      gap: 16,
       borderTop: '2px solid #1976d2',
     } as React.CSSProperties,
     bottomLabel: {

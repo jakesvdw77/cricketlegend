@@ -507,11 +507,13 @@ export const Matches: React.FC = () => {
                       <Assignment />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Print Team Sheet">
-                    <IconButton size="small" onClick={() => navigate(`/matches/${r.matchId}/teamsheet`)}>
-                      <Print />
-                    </IconButton>
-                  </Tooltip>
+                  {!isMobile && (
+                    <Tooltip title="Print Team Sheet">
+                      <IconButton size="small" onClick={() => navigate(`/matches/${r.matchId}/teamsheet`)}>
+                        <Print />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   <Tooltip title="Delete">
                     <IconButton size="small" color="error" onClick={() => setDeleteId(r.matchId!)}><Delete /></IconButton>
                   </Tooltip>

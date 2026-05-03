@@ -680,7 +680,7 @@ export const MatchResultCapture: React.FC = () => {
           <Section title="Match Result" collapsible open={resultOpen} onToggle={() => setResultOpen(o => !o)}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {/* Three dropdowns in a row */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 2 }}>
                 <TextField
                   select label="Winning Team" value={result.winningTeamId ?? ''}
                   disabled={!result.matchCompleted || !!result.matchDrawn}

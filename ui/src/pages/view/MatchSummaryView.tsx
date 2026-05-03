@@ -81,13 +81,11 @@ const MatchSummaryView: React.FC<Props> = ({ match, view, onBack }) => {
       <Button startIcon={<ArrowBack />} onClick={onBack} sx={{ mb: 3 }}>
         Back to Matches
       </Button>
-      <Box sx={{ overflowX: 'auto' }}>
-        <Box sx={{ display: 'inline-block', minWidth: 620 }}>
-          {view === 'facebook'
-            ? <FacebookCardPreview text={facebookText} match={match} tournament={tournament} />
-            : <MatchCardPreview {...templateProps} />
-          }
-        </Box>
+      <Box sx={{ maxWidth: 620 }}>
+        {view === 'facebook'
+          ? <FacebookCardPreview text={facebookText} match={match} tournament={tournament} />
+          : <MatchCardPreview {...templateProps} />
+        }
       </Box>
     </Box>
   );
