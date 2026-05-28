@@ -25,7 +25,7 @@ import { MediaCarousel } from '../components/media/MediaCarousel';
 import { SocialMediaPageEmbed } from '../components/SocialMediaPageEmbed';
 import keycloak from '../keycloak';
 
-const STAGE_LABEL: Record<string, string> = { FRIENDLY: 'Friendly', POOL: 'Pool', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
+const STAGE_LABEL: Record<string, string> = { FRIENDLY: 'Friendly', POOL: 'Pool', PLAYOFFS: 'Playoffs', ROUND_OF_16: 'Round of 16', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' };
 
 // ── Countdown hook ───────────────────────────────────────────────────────────
 
@@ -542,6 +542,7 @@ export const LandingPage: React.FC = () => {
       .finally(() => setSummaryLoading(false));
   };
   const [upcomingTab, setUpcomingTab] = useState(0);
+  const [showAllMatches, setShowAllMatches] = useState(false);
   const [standingsMap, setStandingsMap] = useState<Record<number, PoolStandings[]>>({});
   const [standingsTournaments, setStandingsTournaments] = useState<Tournament[]>([]);
   const [standingsTab, setStandingsTab] = useState(0);
@@ -550,16 +551,21 @@ export const LandingPage: React.FC = () => {
 
   useEffect(() => {
     appSettingsApi.get().then(setAppSettings).catch(() => {});
-    matchApi.findUpcoming().then(setUpcomingMatches).catch(() => {});
-    matchApi.findLive().then(setLiveMatches).catch(() => {});
-    matchApi.findRecentResults(6).then(setRecentResults).catch(() => {});
     sponsorApi.findAll().then(setSponsors).catch(() => {});
     socialMediaPageApi.findEnabled().then(setSocialMediaPages).catch(() => {});
     tournamentApi.findAll().then(async all => {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const nd = (d?: string) => d?.replace(/\//g, '-');
-      const relevant = all.filter(t => {
+      const visible = all.filter(t => t.showOnFrontPage !== false);
+      const hiddenTournamentIds = new Set(all.filter(t => t.showOnFrontPage === false).map(t => t.tournamentId));
+      const filterByVisibility = <T extends { tournamentId?: number }>(items: T[]) =>
+        items.filter(m => !m.tournamentId || !hiddenTournamentIds.has(m.tournamentId));
+
+      matchApi.findUpcoming().then(m => setUpcomingMatches(filterByVisibility(m))).catch(() => {});
+      matchApi.findLive().then(m => setLiveMatches(filterByVisibility(m))).catch(() => {});
+      matchApi.findRecentResults(6).then(m => setRecentResults(filterByVisibility(m))).catch(() => {});
+      const relevant = visible.filter(t => {
         if (!t.startDate) return false;
         const end = t.endDate ? new Date(`${nd(t.endDate)}T23:59:59`) : null;
         return end === null || end >= today;
@@ -570,16 +576,16 @@ export const LandingPage: React.FC = () => {
         );
         setAllMedia(results.flat());
       }
-      const next = all
+      const next = visible
         .filter(t => t.startDate && new Date(`${nd(t.startDate)}T00:00:00`) > today)
         .sort((a, b) => nd(a.startDate)!.localeCompare(nd(b.startDate)!));
       setNextTournament(next[0] ?? null);
-      const live = all.filter(t =>
+      const live = visible.filter(t =>
         t.startDate && nd(t.startDate)! <= todayStr && (!t.endDate || nd(t.endDate)! >= todayStr)
       );
       setLiveTournaments(live);
-      // Fetch standings for all tournaments with pools (not just currently "live" ones)
-      const withPools = all.filter(t => (t.pools?.length ?? 0) > 0);
+      // Fetch standings for all visible tournaments with pools (not just currently "live" ones)
+      const withPools = visible.filter(t => (t.pools?.length ?? 0) > 0);
       if (withPools.length > 0) {
         const entries = await Promise.all(
           withPools.map(t => tournamentApi.getStandings(t.tournamentId!)
@@ -591,7 +597,7 @@ export const LandingPage: React.FC = () => {
         setStandingsTournaments(withPools.filter(t => nonEmpty.some(([id]) => id === t.tournamentId)));
       }
       setUpcomingTournaments(
-        all
+        visible
           .filter(t => t.startDate && nd(t.startDate)! > todayStr)
           .sort((a, b) => nd(a.startDate)!.localeCompare(nd(b.startDate)!))
       );
@@ -820,7 +826,7 @@ export const LandingPage: React.FC = () => {
                 </Box>
                 <Tabs
                   value={upcomingTab}
-                  onChange={(_, v) => setUpcomingTab(v)}
+                  onChange={(_, v) => { setUpcomingTab(v); setShowAllMatches(false); }}
                   sx={{ borderBottom: 1, borderColor: 'divider' }}
                 >
                   <Tab
@@ -841,19 +847,70 @@ export const LandingPage: React.FC = () => {
               </Box>
 
               {/* Matches tab */}
-              {upcomingTab === 0 && (
-                upcomingMatches.length === 0 ? (
-                  <Typography color="text.secondary">No upcoming matches scheduled at this time.</Typography>
-                ) : (
-                  <Grid container spacing={2}>
-                    {upcomingMatches.map(m => (
-                      <Grid item xs={12} sm={6} md={4} key={m.matchId}>
-                        <MatchCard m={m} />
-                      </Grid>
+              {upcomingTab === 0 && (() => {
+                if (upcomingMatches.length === 0) {
+                  return <Typography color="text.secondary">No upcoming matches scheduled at this time.</Typography>;
+                }
+
+                // Group by date, keep insertion order (already sorted by date+time from API)
+                const byDate = new Map<string, typeof upcomingMatches>();
+                for (const m of upcomingMatches) {
+                  const key = m.matchDate ?? '__none__';
+                  if (!byDate.has(key)) byDate.set(key, []);
+                  byDate.get(key)!.push(m);
+                }
+                const dateGroups = [...byDate.entries()];
+
+                const visibleGroups = showAllMatches ? dateGroups : dateGroups.slice(0, 2);
+                const hiddenCount = showAllMatches ? 0 : dateGroups.slice(2).reduce((s, [, ms]) => s + ms.length, 0);
+
+                const fmtDateHeader = (d: string) =>
+                  d === '__none__' ? 'Date TBD' :
+                  new Date(`${d}T00:00:00`).toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+                return (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {visibleGroups.map(([date, matches]) => (
+                      <Box key={date}>
+                        <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: 2, color: 'text.secondary', display: 'block', mb: 1.5 }}>
+                          {fmtDateHeader(date)}
+                        </Typography>
+                        <Grid container spacing={2}>
+                          {matches.map(m => (
+                            <Grid item xs={12} sm={6} md={4} key={m.matchId}>
+                              <MatchCard m={m} />
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Box>
                     ))}
-                  </Grid>
-                )
-              )}
+
+                    {hiddenCount > 0 && (
+                      <Box sx={{ textAlign: 'center', pt: 1 }}>
+                        <Button
+                          variant="outlined"
+                          onClick={() => setShowAllMatches(true)}
+                          sx={{ textTransform: 'none', fontWeight: 600 }}
+                        >
+                          + Show {hiddenCount} more match{hiddenCount !== 1 ? 'es' : ''}
+                        </Button>
+                      </Box>
+                    )}
+
+                    {showAllMatches && dateGroups.length > 2 && (
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Button
+                          variant="text"
+                          onClick={() => setShowAllMatches(false)}
+                          sx={{ textTransform: 'none', color: 'text.secondary' }}
+                        >
+                          Show less
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })()}
 
               {/* Tournaments tab */}
               {upcomingTournaments.length > 0 && upcomingTab === 1 && (

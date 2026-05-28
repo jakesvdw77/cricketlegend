@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
@@ -68,5 +69,15 @@ public class ManagerTeamController {
     public ResponseEntity<Set<Long>> getMySquadPlayerIds(@AuthenticationPrincipal Jwt jwt) {
         String email = jwt.getClaimAsString("email");
         return ResponseEntity.ok(managerTeamService.getSquadPlayerIdsForManager(email));
+    }
+
+    @GetMapping("/api/v1/managers/my-club-id")
+    @PreAuthorize("hasAnyRole('admin','manager')")
+    @Operation(summary = "Get the club ID associated with the current manager's teams")
+    public ResponseEntity<Long> getMyClubId(@AuthenticationPrincipal Jwt jwt) {
+        String email = jwt.getClaimAsString("email");
+        return managerTeamService.getClubIdForManager(email)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
     }
 }

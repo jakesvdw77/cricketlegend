@@ -37,26 +37,26 @@ public class MatchServiceImpl implements MatchService {
 
     @Override
     public List<MatchDTO> findAll() {
-        return matchRepository.findAll(Sort.by(Sort.Direction.DESC, "matchDate")).stream().map(matchMapper::toDto).toList();
+        return matchRepository.findAll(Sort.by(Sort.Direction.DESC, "matchDate")).stream().map(this::toMatchDto).toList();
     }
 
     @Override
     public MatchDTO findById(Long id) {
         return matchRepository.findById(id)
-                .map(matchMapper::toDto)
+                .map(this::toMatchDto)
                 .orElseThrow(() -> NotFoundException.of("Match", id));
     }
 
     @Override
     public List<MatchDTO> findByTournament(Long tournamentId) {
         return matchRepository.findByTournamentTournamentId(tournamentId)
-                .stream().map(matchMapper::toDto).toList();
+                .stream().map(this::toMatchDto).toList();
     }
 
     @Override
     public List<MatchDTO> findCompletedMatches() {
         return matchRepository.findCompletedMatches()
-                .stream().map(matchMapper::toDto).toList();
+                .stream().map(this::toMatchDto).toList();
     }
 
     @Override
@@ -71,22 +71,24 @@ public class MatchServiceImpl implements MatchService {
                     if (m.getScheduledStartTime() == null) return true;
                     return !now.isBefore(m.getScheduledStartTime().minusHours(1));
                 })
-                .map(matchMapper::toDto)
+                .map(this::toMatchDto)
                 .toList();
     }
 
     @Override
     public List<MatchDTO> findUpcomingMatches() {
         return matchRepository.findUpcomingMatches(LocalDate.now())
-                .stream().map(matchMapper::toDto).toList();
+                .stream().map(this::toMatchDto).toList();
     }
 
     @Override
     @Transactional
     public MatchDTO create(MatchDTO dto) {
         Match match = matchMapper.toEntity(dto);
+        match.setHomeTeamPlaceholder(dto.getHomeTeamPlaceholder());
+        match.setAwayTeamPlaceholder(dto.getAwayTeamPlaceholder());
         resolveAssociations(match, dto);
-        return matchMapper.toDto(matchRepository.save(match));
+        return toMatchDto(matchRepository.save(match));
     }
 
     @Override
@@ -104,8 +106,10 @@ public class MatchServiceImpl implements MatchService {
         existing.setArrivalTime(dto.getArrivalTime());
         existing.setTossWonBy(dto.getTossWonBy());
         existing.setTossDecision(dto.getTossDecision());
+        existing.setHomeTeamPlaceholder(dto.getHomeTeamPlaceholder());
+        existing.setAwayTeamPlaceholder(dto.getAwayTeamPlaceholder());
         resolveAssociations(existing, dto);
-        return matchMapper.toDto(matchRepository.save(existing));
+        return toMatchDto(matchRepository.save(existing));
     }
 
     @Override
@@ -169,7 +173,7 @@ public class MatchServiceImpl implements MatchService {
                 .orElseThrow(() -> new NotFoundException("Player not found for email: " + email));
         return matchRepository.findByPlayerInSquadOrPlayingXi(player.getPlayerId())
                 .stream()
-                .map(matchMapper::toDto)
+                .map(this::toMatchDto)
                 .toList();
     }
 
@@ -177,10 +181,14 @@ public class MatchServiceImpl implements MatchService {
         if (dto.getHomeTeamId() != null) {
             match.setHomeTeam(teamRepository.findById(dto.getHomeTeamId())
                     .orElseThrow(() -> NotFoundException.of("Team", dto.getHomeTeamId())));
+        } else {
+            match.setHomeTeam(null);
         }
         if (dto.getOppositionTeamId() != null) {
             match.setOppositionTeam(teamRepository.findById(dto.getOppositionTeamId())
                     .orElseThrow(() -> NotFoundException.of("Team", dto.getOppositionTeamId())));
+        } else {
+            match.setOppositionTeam(null);
         }
         if (dto.getFieldId() != null) {
             match.setField(fieldRepository.findById(dto.getFieldId())
@@ -207,10 +215,19 @@ public class MatchServiceImpl implements MatchService {
                 .toList();
     }
 
+    /** Wraps matchMapper.toDto and manually copies fields not yet in the generated mapper. */
+    private MatchDTO toMatchDto(Match m) {
+        MatchDTO dto = matchMapper.toDto(m);
+        dto.setHomeTeamPlaceholder(m.getHomeTeamPlaceholder());
+        dto.setAwayTeamPlaceholder(m.getAwayTeamPlaceholder());
+        return dto;
+    }
+
     private MatchResultSummaryDTO toSummary(Match m) {
         MatchResult r = m.getResult();
         return MatchResultSummaryDTO.builder()
                 .matchId(m.getMatchId())
+                .tournamentId(m.getTournament() != null ? m.getTournament().getTournamentId() : null)
                 .matchDate(m.getMatchDate())
                 .homeTeamName(m.getHomeTeam() != null ? m.getHomeTeam().getTeamName() : null)
                 .oppositionTeamName(m.getOppositionTeam() != null ? m.getOppositionTeam().getTeamName() : null)

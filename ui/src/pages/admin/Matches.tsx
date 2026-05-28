@@ -46,6 +46,7 @@ export const Matches: React.FC = () => {
   };
   const [filterTournament, setFilterTournament] = useState<number | ''>('');
   const [filterStage, setFilterStage] = useState<MatchStage | ''>('');
+  const [filterTeam, setFilterTeam] = useState<number | ''>('');
   const [teams, setTeams] = useState<Team[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -123,7 +124,8 @@ export const Matches: React.FC = () => {
   const filtered = [...rows].filter(r => {
     const matchesTournament = !filterTournament || r.tournamentId === filterTournament;
     const matchesStage = !filterStage || r.matchStage === filterStage;
-    return matchesTournament && matchesStage;
+    const matchesTeam = !filterTeam || r.homeTeamId === filterTeam || r.oppositionTeamId === filterTeam;
+    return matchesTournament && matchesStage && matchesTeam;
   }).sort((a, b) => {
     const val = (r: typeof a) =>
       sortField === 'matchDate' ? (r.matchDate ?? '') :
@@ -390,6 +392,12 @@ export const Matches: React.FC = () => {
               <MenuItem value="QUARTER_FINAL">Quarter-Final</MenuItem>
               <MenuItem value="SEMI_FINAL">Semi-Final</MenuItem>
               <MenuItem value="FINAL">Final</MenuItem>
+            </TextField>
+            <TextField select size="small" label="Team" value={filterTeam}
+              onChange={e => { setFilterTeam(e.target.value === '' ? '' : Number(e.target.value)); setPage(0); }}
+              sx={{ width: { xs: '100%', sm: 220 } }}>
+              <MenuItem value="">All teams</MenuItem>
+              {teams.map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>)}
             </TextField>
           </Box>
         )}

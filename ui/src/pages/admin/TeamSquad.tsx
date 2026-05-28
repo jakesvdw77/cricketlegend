@@ -4,7 +4,7 @@ import {
   TextField, MenuItem, Divider, Autocomplete, Chip, InputAdornment, IconButton,
 } from '@mui/material';
 import { ArrowBack, Print, PersonAdd, PersonRemove, Search, Share, SportsCricket } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { teamApi } from '../../api/teamApi';
 import { clubApi } from '../../api/clubApi';
 import { playerApi } from '../../api/playerApi';
@@ -16,6 +16,8 @@ import SquadShareDialog from './SquadShareDialog';
 export const TeamSquad: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo: string = (location.state as any)?.returnTo ?? '/admin/teams';
   const id = Number(teamId);
 
   const [team, setTeam]       = useState<Team | null>(null);
@@ -79,7 +81,7 @@ export const TeamSquad: React.FC = () => {
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate('/admin/teams')}>
+          <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate(returnTo)}>
             Back
           </Button>
           <Button

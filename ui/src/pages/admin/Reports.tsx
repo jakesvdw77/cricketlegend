@@ -12,6 +12,7 @@ import { playerApi } from '../../api/playerApi';
 import { matchApi } from '../../api/matchApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { Payment, PlayerResult, Match, Tournament } from '../../types';
+import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(v);
@@ -71,6 +72,7 @@ export const Reports: React.FC = () => {
   const [playerStats, setPlayerStats] = useState<Map<number, PlayerResult[]>>(new Map());
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [year, setYear] = useState<string>(String(currentYear));
   const [statusFilter, setStatusFilter] = useState('APPROVED');
   const [tournamentFilter, setTournamentFilter] = useState<string>('');
@@ -428,7 +430,7 @@ export const Reports: React.FC = () => {
     doc.text(fmt(grandTotal), pageW - 20, startY + 8, { align: 'right' });
 
     addPageNumbers();
-    doc.save(`financial-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+    setPdfUrl(URL.createObjectURL(doc.output('blob')));
   };
 
   // ── render ──────────────────────────────────────────────────────────────────
@@ -650,6 +652,8 @@ export const Reports: React.FC = () => {
           <Typography fontWeight="bold">{fmt(grandTotal)}</Typography>
         </Box>
       </Paper>
+
+      <PdfPreviewDialog pdfUrl={pdfUrl} onClose={() => setPdfUrl(null)} />
     </Box>
   );
 };

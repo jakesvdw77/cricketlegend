@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog, DialogTitle,
@@ -39,15 +39,17 @@ const MOBILE_VISIBLE = new Set<ColKey>(['teamName', 'club', 'captain']);
 
 export const Teams: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { isAdmin } = useAuth();
-  const { teamIds: managerTeamIds, restrictByTeam } = useManagerTeams();
+  const { teamIds: managerTeamIds, restrictByTeam, homeClubId, loaded: managerLoaded } = useManagerTeams();
 
   const canManage = (teamId: number) => !restrictByTeam || managerTeamIds.has(teamId);
   const [rows, setRows] = useState<Team[]>([]);
   const [search, setSearch] = useState('');
   const [filterClubId, setFilterClubId] = useState<number | ''>('');
+  const [clubFilterInitialised, setClubFilterInitialised] = useState(false);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [clubs, setClubs] = useState<Club[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
@@ -83,6 +85,22 @@ export const Teams: React.FC = () => {
     sponsorApi.findAll().then(setSponsors);
   }, []);
 
+  useEffect(() => {
+    if (!clubFilterInitialised && managerLoaded && homeClubId != null) {
+      setFilterClubId(homeClubId);
+      setClubFilterInitialised(true);
+    } else if (!clubFilterInitialised && managerLoaded) {
+      setClubFilterInitialised(true);
+    }
+  }, [managerLoaded, homeClubId, clubFilterInitialised]);
+
+  useEffect(() => {
+    const editTeamId = (location.state as any)?.editTeamId;
+    if (!editTeamId || rows.length === 0) return;
+    const team = rows.find(r => r.teamId === editTeamId);
+    if (team) openEdit(team);
+  }, [rows, location.state]);
+
   const openCreate = () => {
     setEditing(empty);
     setTeamManagers([]);
@@ -101,6 +119,15 @@ export const Teams: React.FC = () => {
     setOpen(true);
   };
 
+  const closeEdit = () => {
+    const viewTournamentId = (location.state as any)?.viewTournamentId;
+    if (viewTournamentId) {
+      navigate('/admin/tournaments', { state: { viewTournamentId } });
+    } else {
+      setOpen(false);
+    }
+  };
+
   const save = async () => {
     const name = editing.teamName?.trim() ?? '';
     if (!name) { setTeamNameError('Team name is required'); return; }
@@ -111,7 +138,7 @@ export const Teams: React.FC = () => {
     setTeamNameError('');
     if (editing.teamId) { await teamApi.update(editing.teamId, editing); }
     else { await teamApi.create(editing); }
-    setOpen(false); load();
+    closeEdit(); load();
   };
 
   const remove = async () => {
@@ -187,7 +214,7 @@ export const Teams: React.FC = () => {
       <>
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-            <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)}>Back</Button>
+            <Button startIcon={<ArrowBack />} onClick={closeEdit}>Back</Button>
             <Typography variant="h6" sx={{ flex: 1 }}>{editing.teamId ? 'Edit' : 'New'} Team</Typography>
             <Button variant="contained" onClick={save}>Save</Button>
           </Box>

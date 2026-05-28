@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Avatar, Divider, Grid, TextField, MenuItem,
   Accordion, AccordionSummary, AccordionDetails, Tooltip, IconButton,
   Menu, Dialog, DialogTitle, DialogContent, DialogActions, Button, Snackbar,
 } from '@mui/material';
 import {
-  ExpandMore, SportsCricket, Person, Phone, Shield, Print,
+  Edit, ExpandMore, Groups, SportsCricket, Person, Phone, Shield, Print,
   MoreVert, WhatsApp, Facebook, ContentCopy,
 } from '@mui/icons-material';
 import { teamApi } from '../../api/teamApi';
@@ -193,8 +194,17 @@ function SquadShareMenu({
 
 // ── Main page ────────────────────────────────────────────────────────────────
 
-export const TeamsView: React.FC = () => {
-  const [teams, setTeams] = useState<Team[]>([]);
+interface TeamsViewProps {
+  teams?: Team[];
+  hideTitle?: boolean;
+  showAdminActions?: boolean;
+  returnTournamentId?: number;
+}
+
+export const TeamsView: React.FC<TeamsViewProps> = ({ teams: propTeams, hideTitle, showAdminActions, returnTournamentId }) => {
+  const navigate = useNavigate();
+  const [fetchedTeams, setFetchedTeams] = useState<Team[]>([]);
+  const teams = propTeams ?? fetchedTeams;
   const [squads, setSquads] = useState<Record<number, Player[]>>({});
 
   // Share dialog
@@ -203,8 +213,8 @@ export const TeamsView: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    playerApi.findMyTeams().then(setTeams);
-  }, []);
+    if (!propTeams) playerApi.findMyTeams().then(setFetchedTeams);
+  }, [propTeams]);
 
   const handleExpand = async (teamId: number) => {
     if (squads[teamId]) return;
@@ -226,13 +236,15 @@ export const TeamsView: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="h5">My Teams</Typography>
-      </Box>
+      {!hideTitle && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Typography variant="h5">My Teams</Typography>
+        </Box>
+      )}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {teams.length === 0 && (
           <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-            You are not in any team squad yet.
+            {propTeams ? 'No teams have been added to this tournament.' : 'You are not in any team squad yet.'}
           </Typography>
         )}
         {teams.map(team => {
@@ -255,6 +267,20 @@ export const TeamsView: React.FC = () => {
                       {team.teamName}{team.abbreviation && ` (${team.abbreviation})`}
                     </Typography>
                   </Box>
+                  {showAdminActions && (
+                    <>
+                      <Tooltip title="Edit Team">
+                        <IconButton size="small" onClick={e => { e.stopPropagation(); navigate('/admin/teams', { state: { editTeamId: team.teamId, viewTournamentId: returnTournamentId } }); }}>
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Manage Squad">
+                        <IconButton size="small" onClick={e => { e.stopPropagation(); navigate(`/admin/teams/${team.teamId}/squad`, { state: { returnTo: window.location.pathname, viewTournamentId: returnTournamentId } }); }}>
+                          <Groups fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  )}
                   <SquadShareMenu
                     team={team}
                     squad={squads[team.teamId!]}

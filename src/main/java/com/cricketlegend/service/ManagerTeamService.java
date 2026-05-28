@@ -4,6 +4,7 @@ import com.cricketlegend.dto.ManagerDTO;
 import com.cricketlegend.dto.ManagerTeamDTO;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public interface ManagerTeamService {
@@ -29,4 +30,7 @@ public interface ManagerTeamService {
     boolean canManageTeam(String email, Long teamId);
 
     boolean canManagePlayer(String email, Long playerId);
+
+    /** Returns the single club ID shared by all of the manager's teams, if they all belong to one club. */
+    Optional<Long> getClubIdForManager(String email);
 }

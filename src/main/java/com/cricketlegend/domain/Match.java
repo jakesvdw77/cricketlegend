@@ -51,6 +51,9 @@ public class Match {
     @JoinColumn(name = "tournament_id")
     private Tournament tournament;
 
+    private String homeTeamPlaceholder;
+    private String awayTeamPlaceholder;
+
     @OneToOne(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private MatchResult result;
 }

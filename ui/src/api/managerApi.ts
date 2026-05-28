@@ -50,4 +50,7 @@ export const managerApi = {
 
   getMySquadPlayerIds: () =>
     api.get<number[]>('/managers/my-squad-player-ids').then(r => r.data),
+
+  getMyClubId: () =>
+    api.get<number | null>('/managers/my-club-id').then(r => r.data).catch(() => null),
 };

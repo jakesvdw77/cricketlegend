@@ -20,6 +20,7 @@ import { sponsorApi } from '../../api/sponsorApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { clubApi } from '../../api/clubApi';
 import { Payment, PaymentType, PaymentCategory, PaymentStatus, Player, Sponsor, Tournament, Club } from '../../types';
+import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 import { useAuth } from '../../hooks/useAuth';
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ export const Payments: React.FC = () => {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [dialogClub, setDialogClub] = useState<Club | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   // pagination
   const [page, setPage] = useState(0);
@@ -333,7 +335,7 @@ export const Payments: React.FC = () => {
       },
     });
 
-    doc.save(`payments-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+    setPdfUrl(URL.createObjectURL(doc.output('blob')));
   };
 
   return (
@@ -900,7 +902,7 @@ export const Payments: React.FC = () => {
 
       <Snackbar open={!!snack} autoHideDuration={4000} onClose={() => setSnack('')} message={snack} />
       <ProofViewerDialog open={!!proofViewUrl} proofUrl={proofViewUrl} onClose={() => setProofViewUrl(null)} />
-
+      <PdfPreviewDialog pdfUrl={pdfUrl} onClose={() => setPdfUrl(null)} />
     </Box>
   );
 };

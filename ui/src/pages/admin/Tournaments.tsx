@@ -1,22 +1,29 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog,
-  DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete,
+  DialogContent, DialogActions, DialogTitle, TextField, MenuItem, Chip, Autocomplete,
   Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
-  Tabs, Tab, Tooltip, useMediaQuery, useTheme, Link,
+  Tabs, Tab, Tooltip, useMediaQuery, useTheme, Link, ListSubheader, Switch,
+  ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
-import { Add, ArrowBack, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff, ReceiptLong, FilterList } from '@mui/icons-material';
+import { Add, ArrowBack, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff, ReceiptLong, FilterList, Visibility, VisibilityOff } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { tournamentApi } from '../../api/tournamentApi';
 import { sponsorApi } from '../../api/sponsorApi';
 import { teamApi } from '../../api/teamApi';
 import { paymentApi } from '../../api/paymentApi';
-import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender, Payment } from '../../types';
+import { matchApi } from '../../api/matchApi';
+import { fieldApi } from '../../api/fieldApi';
+import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender, Payment, Match, MatchResultSummary, Field, MatchStage } from '../../types';
 import { DetailSection, DetailGrid, DetailField } from '../../components/admin/DetailView';
+import { TournamentScheduleTab } from '../../components/admin/TournamentScheduleTab';
+import { MatchScheduleVisual } from '../../components/admin/MatchScheduleVisual';
+import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
+import { TeamsView } from '../view/TeamsView';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(v);
@@ -34,7 +41,7 @@ const VAT_RATE = 0.15;
 
 const FORMATS: CricketFormat[] = ['T20', 'T30', 'T45', 'T50'];
 
-const empty: Tournament = { name: '', pointsForWin: 2, pointsForDraw: 1, pointsForNoResult: 1, pointsForBonus: 1, sponsors: [] };
+const empty: Tournament = { name: '', pointsForWin: 2, pointsForDraw: 1, pointsForNoResult: 1, pointsForBonus: 1, showOnFrontPage: true, sponsors: [] };
 
 interface LocalPoolTeam { teamId: number; teamName: string; tournamentTeamId?: number }
 interface LocalPool { poolId?: number; poolName: string; teams: LocalPoolTeam[] }
@@ -48,6 +55,12 @@ const AGE_GROUP_LABEL: Record<string, string> = {
 const GENDER_LABEL: Record<string, string> = {
   MEN: 'Men', WOMEN: 'Women', BOYS: 'Boys', GIRLS: 'Girls',
 };
+const STAGE_LABELS: Record<string, string> = {
+  FRIENDLY: 'Friendly', POOL: 'Pool', PLAYOFFS: 'Playoffs', ROUND_OF_16: 'Round of 16',
+  QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final',
+};
+const PLAYOFF_STAGES: MatchStage[] = ['PLAYOFFS', 'ROUND_OF_16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'];
+const isPlayoffStage = (stage?: MatchStage) => PLAYOFF_STAGES.includes(stage as MatchStage);
 const formatCategory = (ageGroup?: string, gender?: string): string => {
   const g = gender ? GENDER_LABEL[gender] : '';
   const a = ageGroup ? AGE_GROUP_LABEL[ageGroup] : '';
@@ -75,6 +88,7 @@ const MOBILE_VISIBLE = new Set<ColKey>(['name', 'category', 'format', 'pools', '
 
 export const Tournaments: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Tournament[]>([]);
@@ -111,9 +125,25 @@ export const Tournaments: React.FC = () => {
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const [generatingPdfId, setGeneratingPdfId] = useState<number | null>(null);
+  const [financialPdfUrl, setFinancialPdfUrl] = useState<string | null>(null);
   const [viewing, setViewing] = useState(false);
   const [viewItem, setViewItem] = useState<Tournament | null>(null);
+  const [viewTab, setViewTab] = useState(0);
+  const [viewScheduleKey, setViewScheduleKey] = useState(0);
+  const [viewScheduleMode, setViewScheduleMode] = useState<'table' | 'visual'>('table');
+  const [viewMatches, setViewMatches] = useState<Match[]>([]);
+  const [viewResults, setViewResults] = useState<MatchResultSummary[]>([]);
+  const [viewMatchesLoading, setViewMatchesLoading] = useState(false);
+  const viewResultMap = useMemo(() => new Map(viewResults.map(r => [r.matchId, r])), [viewResults]);
   const [filtersOpen, setFiltersOpen] = useState(!isMobile);
+
+  // Schedule tab state
+  const [tournamentMatches, setTournamentMatches] = useState<Match[]>([]);
+  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
+  const [matchErrors, setMatchErrors] = useState<{ matchDate?: string; homeTeam?: string; oppTeam?: string; startTime?: string }>({});
+  const [matchFields, setMatchFields] = useState<Field[]>([]);
+  const [homeMode, setHomeMode] = useState<'team' | 'tbd'>('team');
+  const [awayMode, setAwayMode] = useState<'team' | 'tbd'>('team');
 
   const col = (key: ColKey) => isMobile ? key === 'name' : visibleCols.has(key);
 
@@ -125,12 +155,75 @@ export const Tournaments: React.FC = () => {
     });
   };
 
+  const placeholderSuggestions = useMemo(() => {
+    const sugs: string[] = [];
+    localPools.forEach((pool, i) => {
+      const letter = String.fromCharCode(65 + i);
+      const count = Math.max(pool.teams.length, 2);
+      for (let pos = 1; pos <= count; pos++) {
+        const ord = pos === 1 ? '1st' : pos === 2 ? '2nd' : pos === 3 ? '3rd' : `${pos}th`;
+        sugs.push(`${ord} Pool ${letter}`);
+      }
+    });
+    if (sugs.length === 0) {
+      ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'].forEach(ord => sugs.push(`${ord} Place`));
+    }
+    ['1', '2', '3', '4'].forEach(n => sugs.push(`Winner QF ${n}`));
+    ['1', '2'].forEach(n => sugs.push(`Winner SF ${n}`));
+    return sugs;
+  }, [localPools]);
+
+  const openMatchEdit = (match: Partial<Match>) => {
+    const m = match as Match;
+    setMatchErrors({});
+    setEditingMatch(m);
+    const playoff = isPlayoffStage(m.matchStage);
+    setHomeMode(m.homeTeamPlaceholder ? 'tbd' : (m.homeTeamId ? 'team' : playoff ? 'tbd' : 'team'));
+    setAwayMode(m.awayTeamPlaceholder ? 'tbd' : (m.oppositionTeamId ? 'team' : playoff ? 'tbd' : 'team'));
+  };
+
+  const switchHomeMode = (mode: 'team' | 'tbd') => {
+    setHomeMode(mode);
+    if (mode === 'team') setEditingMatch(m => m && ({ ...m, homeTeamPlaceholder: undefined }));
+    else setEditingMatch(m => m && ({ ...m, homeTeamId: undefined, homeTeamName: undefined }));
+  };
+  const switchAwayMode = (mode: 'team' | 'tbd') => {
+    setAwayMode(mode);
+    if (mode === 'team') setEditingMatch(m => m && ({ ...m, awayTeamPlaceholder: undefined }));
+    else setEditingMatch(m => m && ({ ...m, oppositionTeamId: undefined, oppositionTeamName: undefined }));
+  };
+
   const load = () => tournamentApi.findAll().then(setRows);
+
+  const loadViewMatches = (tournamentId: number) => {
+    setViewMatchesLoading(true);
+    Promise.all([
+      matchApi.findByTournament(tournamentId),
+      matchApi.findResultsByTournament(tournamentId),
+    ]).then(([ms, rs]) => {
+      setViewMatches([...ms].sort((a, b) => {
+        const dc = (a.matchDate ?? '').localeCompare(b.matchDate ?? '');
+        return dc !== 0 ? dc : (a.scheduledStartTime ?? '').localeCompare(b.scheduledStartTime ?? '');
+      }));
+      setViewResults(rs);
+    }).finally(() => setViewMatchesLoading(false));
+  };
   useEffect(() => {
     load();
     sponsorApi.findAll().then(setSponsors);
     teamApi.findAll().then(setAllTeams);
+    fieldApi.findAll().then(setMatchFields);
   }, []);
+
+  useEffect(() => {
+    const viewTournamentId = (location.state as any)?.viewTournamentId;
+    if (!viewTournamentId || rows.length === 0) return;
+    const tournament = rows.find(r => r.tournamentId === viewTournamentId);
+    if (tournament) { setViewItem(tournament); setViewing(true); setViewTab(2); setViewScheduleMode('table'); setViewMatches([]); setViewResults([]); }
+  }, [rows, location.state]);
+
+  const loadTournamentMatches = (tournamentId: number) =>
+    matchApi.findByTournament(tournamentId).then(setTournamentMatches);
 
   const openDialog = (tournament: Tournament) => {
     setEditing(tournament);
@@ -149,6 +242,10 @@ export const Tournaments: React.FC = () => {
     setNameError('');
     setDateError('');
     setActiveTab(0);
+    setTournamentMatches([]);
+    if (tournament.tournamentId) {
+      loadTournamentMatches(tournament.tournamentId);
+    }
     setOpen(true);
   };
 
@@ -227,6 +324,55 @@ export const Tournaments: React.FC = () => {
   };
 
   const set = (patch: Partial<Tournament>) => setEditing(e => ({ ...e, ...patch }));
+
+  const saveMatch = async () => {
+    if (!editingMatch) return;
+    const errs: typeof matchErrors = {};
+    if (!editingMatch.matchDate) errs.matchDate = 'Required';
+    if (homeMode === 'tbd') {
+      if (!editingMatch.homeTeamPlaceholder?.trim()) errs.homeTeam = 'Enter a placeholder (e.g. "1st Pool A")';
+    } else {
+      if (!editingMatch.homeTeamId) errs.homeTeam = 'Required';
+    }
+    if (awayMode === 'tbd') {
+      if (!editingMatch.awayTeamPlaceholder?.trim()) errs.oppTeam = 'Enter a placeholder (e.g. "2nd Pool B")';
+    } else {
+      if (!editingMatch.oppositionTeamId) errs.oppTeam = 'Required';
+      else if (editingMatch.homeTeamId && editingMatch.homeTeamId === editingMatch.oppositionTeamId) errs.oppTeam = 'Must differ from home team';
+    }
+    if (!editingMatch.scheduledStartTime) errs.startTime = 'Required';
+    if (Object.keys(errs).length > 0) { setMatchErrors(errs); return; }
+    setMatchErrors({});
+    if (editingMatch.matchId) {
+      await matchApi.update(editingMatch.matchId, editingMatch);
+    } else {
+      await matchApi.create(editingMatch);
+    }
+    setEditingMatch(null);
+    setViewScheduleKey(k => k + 1);
+    if (editing.tournamentId) loadTournamentMatches(editing.tournamentId);
+  };
+
+  const renderMatchTeamItems = (excludeId?: number) => {
+    const allPoolTeams = localPools.flatMap(p => p.teams ?? []);
+    // Fall back to all teams when no pools defined or pools have no teams yet
+    if (allPoolTeams.length === 0) {
+      return allTeams
+        .filter(t => t.teamId !== excludeId)
+        .map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>);
+    }
+    if (localPools.length > 1) {
+      return localPools.flatMap(pool => [
+        <ListSubheader key={`h-${pool.poolId ?? pool.poolName}`}>{pool.poolName}</ListSubheader>,
+        ...(pool.teams ?? [])
+          .filter(t => t.teamId !== excludeId)
+          .map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>),
+      ]);
+    }
+    return allPoolTeams
+      .filter(t => t.teamId !== excludeId)
+      .map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>);
+  };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -485,8 +631,7 @@ export const Tournaments: React.FC = () => {
       doc.text(fmt(overallGrandTotal), pageW - 20, startY + 8, { align: 'right' });
 
       stampFooters();
-      const safeName = tournament.name.replace(/[^a-zA-Z0-9]/g, '-');
-      doc.save(`tournament-financial-statement-${safeName}-${new Date().toISOString().slice(0, 10)}.pdf`);
+      setFinancialPdfUrl(URL.createObjectURL(doc.output('blob')));
     } finally {
       setGeneratingPdfId(null);
     }
@@ -506,7 +651,139 @@ export const Tournaments: React.FC = () => {
 
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  const matchEditDialog = (
+    <Dialog open={!!editingMatch} onClose={() => setEditingMatch(null)} maxWidth="sm" fullWidth>
+      <DialogTitle>{editingMatch?.matchId ? 'Edit Match' : 'Add Match'}</DialogTitle>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 3, overflow: 'visible' }}>
+        {editingMatch && (
+          <>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <TextField label="Match Date" type="date" value={editingMatch.matchDate ?? ''} required
+                InputLabelProps={{ shrink: true }} error={!!matchErrors.matchDate} helperText={matchErrors.matchDate}
+                sx={{ flex: '1 1 140px' }}
+                onChange={e => setEditingMatch(m => m && ({ ...m, matchDate: e.target.value }))} />
+              <TextField label="Arrival Time" type="time" value={editingMatch.arrivalTime ?? ''}
+                InputLabelProps={{ shrink: true }} sx={{ flex: '1 1 110px' }}
+                onChange={e => setEditingMatch(m => m && ({ ...m, arrivalTime: e.target.value }))} />
+              <TextField label="Toss Time" type="time" value={editingMatch.tossTime ?? ''}
+                InputLabelProps={{ shrink: true }} sx={{ flex: '1 1 110px' }}
+                onChange={e => setEditingMatch(m => m && ({ ...m, tossTime: e.target.value }))} />
+              <TextField label="Start Time" type="time" value={editingMatch.scheduledStartTime ?? ''} required
+                InputLabelProps={{ shrink: true }} error={!!matchErrors.startTime} helperText={matchErrors.startTime}
+                sx={{ flex: '1 1 110px' }}
+                onChange={e => {
+                  const startTime = e.target.value;
+                  const patch: Partial<Match> = { scheduledStartTime: startTime };
+                  if (startTime) {
+                    const [h, m] = startTime.split(':').map(Number);
+                    const mins = h * 60 + m;
+                    const offset = (n: number) => {
+                      const t = ((mins - n) % 1440 + 1440) % 1440;
+                      return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+                    };
+                    patch.arrivalTime = offset(45);
+                    patch.tossTime = offset(15);
+                  }
+                  setEditingMatch(m => m && ({ ...m, ...patch }));
+                }} />
+            </Box>
+            <TextField select label="Stage" value={editingMatch.matchStage ?? ''}
+              onChange={e => {
+                const stage = e.target.value as MatchStage;
+                setEditingMatch(m => m && ({ ...m, matchStage: stage }));
+                if (isPlayoffStage(stage)) {
+                  if (!editingMatch.homeTeamId) setHomeMode('tbd');
+                  if (!editingMatch.oppositionTeamId) setAwayMode('tbd');
+                } else {
+                  setHomeMode('team');
+                  setAwayMode('team');
+                }
+              }}>
+              <MenuItem value="FRIENDLY">Friendly</MenuItem>
+              <MenuItem value="POOL">Pool</MenuItem>
+              <MenuItem value="PLAYOFFS">Playoffs</MenuItem>
+              <MenuItem value="ROUND_OF_16">Round of 16</MenuItem>
+              <MenuItem value="QUARTER_FINAL">Quarter-Final</MenuItem>
+              <MenuItem value="SEMI_FINAL">Semi-Final</MenuItem>
+              <MenuItem value="FINAL">Final</MenuItem>
+            </TextField>
+
+            {/* Home team */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              {isPlayoffStage(editingMatch.matchStage) && (
+                <ToggleButtonGroup size="small" exclusive value={homeMode} onChange={(_, v) => v && switchHomeMode(v)}>
+                  <ToggleButton value="team" sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}>Select Team</ToggleButton>
+                  <ToggleButton value="tbd" sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}>TBD / Placeholder</ToggleButton>
+                </ToggleButtonGroup>
+              )}
+              {homeMode === 'tbd' ? (
+                <TextField
+                  label="Home Team — Placeholder" required
+                  value={editingMatch.homeTeamPlaceholder ?? ''}
+                  onChange={e => setEditingMatch(m => m && ({ ...m, homeTeamPlaceholder: e.target.value || undefined }))}
+                  error={!!matchErrors.homeTeam}
+                  helperText={matchErrors.homeTeam || `e.g. ${placeholderSuggestions.slice(0, 3).join(' · ')}`}
+                />
+              ) : (
+                <TextField select label="Home Team" value={editingMatch.homeTeamId ?? ''} required
+                  error={!!matchErrors.homeTeam} helperText={matchErrors.homeTeam}
+                  onChange={e => setEditingMatch(m => m && ({ ...m, homeTeamId: +e.target.value }))}>
+                  {renderMatchTeamItems(editingMatch.oppositionTeamId)}
+                </TextField>
+              )}
+            </Box>
+
+            {/* Away team */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+              {isPlayoffStage(editingMatch.matchStage) && (
+                <ToggleButtonGroup size="small" exclusive value={awayMode} onChange={(_, v) => v && switchAwayMode(v)}>
+                  <ToggleButton value="team" sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}>Select Team</ToggleButton>
+                  <ToggleButton value="tbd" sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}>TBD / Placeholder</ToggleButton>
+                </ToggleButtonGroup>
+              )}
+              {awayMode === 'tbd' ? (
+                <TextField
+                  label="Away Team — Placeholder" required
+                  value={editingMatch.awayTeamPlaceholder ?? ''}
+                  onChange={e => setEditingMatch(m => m && ({ ...m, awayTeamPlaceholder: e.target.value || undefined }))}
+                  error={!!matchErrors.oppTeam}
+                  helperText={matchErrors.oppTeam || `e.g. ${placeholderSuggestions.slice(1, 4).join(' · ')}`}
+                />
+              ) : (
+                <TextField select label="Opposition Team" value={editingMatch.oppositionTeamId ?? ''} required
+                  error={!!matchErrors.oppTeam} helperText={matchErrors.oppTeam}
+                  onChange={e => setEditingMatch(m => m && ({ ...m, oppositionTeamId: +e.target.value }))}>
+                  {renderMatchTeamItems(editingMatch.homeTeamId)}
+                </TextField>
+              )}
+            </Box>
+            <TextField select label="Ground" value={editingMatch.fieldId ?? ''}
+              onChange={e => setEditingMatch(m => m && ({ ...m, fieldId: +e.target.value }))}>
+              <MenuItem value="">— None —</MenuItem>
+              {matchFields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
+            </TextField>
+            <TextField label="Umpire" value={editingMatch.umpire ?? ''}
+              onChange={e => setEditingMatch(m => m && ({ ...m, umpire: e.target.value }))} />
+            <TextField label="Live Scoring URL" value={editingMatch.scoringUrl ?? ''}
+              onChange={e => setEditingMatch(m => m && ({ ...m, scoringUrl: e.target.value }))} />
+            <TextField label="YouTube Stream URL" value={editingMatch.youtubeUrl ?? ''}
+              onChange={e => setEditingMatch(m => m && ({ ...m, youtubeUrl: e.target.value }))}
+              InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
+          </>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setEditingMatch(null)}>Cancel</Button>
+        <Button variant="contained" onClick={saveMatch}>Save</Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   if (open) {
+    const mediaTab  = editing.tournamentId ? 3 : 2;
+    const sponsorsTab = editing.tournamentId ? 4 : 3;
+    const costTab   = editing.tournamentId ? 5 : 4;
+    const resultTab = 6;
     return (
       <>
         <Box>
@@ -518,6 +795,7 @@ export const Tournaments: React.FC = () => {
           <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
             <Tab label="General Info" />
             <Tab label="Pools" />
+            {editing.tournamentId && <Tab label="Schedule" />}
             <Tab label="Media & Links" />
             <Tab label="Sponsors" />
             <Tab label="Cost" />
@@ -609,6 +887,23 @@ export const Tournaments: React.FC = () => {
                 <TextField label="Bonus Pts" type="number" value={editing.pointsForBonus ?? 1}
                   onChange={e => set({ pointsForBonus: +e.target.value })} />
               </Box>
+              <Divider />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                {(editing.showOnFrontPage ?? true)
+                  ? <Visibility fontSize="small" color="primary" />
+                  : <VisibilityOff fontSize="small" color="disabled" />}
+                <Box>
+                  <Typography variant="subtitle2">Show on Front Page</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    When off, this tournament (and its standings) will not appear on the public front page.
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={editing.showOnFrontPage ?? true}
+                  onChange={e => set({ showOnFrontPage: e.target.checked })}
+                  sx={{ ml: 'auto' }}
+                />
+              </Box>
             </>
           )}
 
@@ -647,7 +942,7 @@ export const Tournaments: React.FC = () => {
             </>
           )}
 
-          {activeTab === 2 && (
+          {activeTab === mediaTab && (
             <>
               <input type="file" ref={pdfInputRef} style={{ display: 'none' }} accept="application/pdf" onChange={handlePdfUpload} />
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -679,7 +974,7 @@ export const Tournaments: React.FC = () => {
             </>
           )}
 
-          {activeTab === 3 && (
+          {activeTab === sponsorsTab && (
             <Autocomplete multiple options={sponsors} getOptionLabel={s => s.name}
               value={editing.sponsors ?? []} onChange={(_, value) => set({ sponsors: value })}
               isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
@@ -690,7 +985,7 @@ export const Tournaments: React.FC = () => {
             />
           )}
 
-          {activeTab === 4 && (
+          {activeTab === costTab && (
             <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
               <TextField label="Entry Fee" type="number" value={editing.entryFee ?? ''} fullWidth
                 onChange={e => set({ entryFee: e.target.value ? +e.target.value : undefined })}
@@ -704,7 +999,7 @@ export const Tournaments: React.FC = () => {
             </Box>
           )}
 
-          {activeTab === 5 && (
+          {activeTab === resultTab && editing.tournamentId && (
             <Autocomplete options={allTeams} getOptionLabel={t => t.teamName}
               value={allTeams.find(t => t.teamId === editing.winningTeamId) ?? null}
               onChange={(_, team) => set({ winningTeamId: team?.teamId ?? undefined, winningTeamName: team?.teamName ?? undefined })}
@@ -716,7 +1011,80 @@ export const Tournaments: React.FC = () => {
             />
           )}
 
+
           </Box>
+
+          {activeTab === 2 && editing.tournamentId && (
+            <Box>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                <Button variant="outlined" size="small" startIcon={<Add />}
+                  onClick={() => openMatchEdit({ tournamentId: editing.tournamentId, tournamentName: editing.name, matchStage: 'POOL' })}>
+                  Add Match
+                </Button>
+              </Box>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ '& .MuiTableCell-root': { fontWeight: 'bold', bgcolor: 'primary.main', color: 'common.white' } }}>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Start</TableCell>
+                      <TableCell>Stage</TableCell>
+                      <TableCell>Home Team</TableCell>
+                      <TableCell>Opposition</TableCell>
+                      <TableCell>Ground</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {tournamentMatches.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 3 }}>
+                          No matches scheduled yet
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {[...tournamentMatches]
+                      .sort((a, b) => (a.matchDate ?? '').localeCompare(b.matchDate ?? '') || (a.scheduledStartTime ?? '').localeCompare(b.scheduledStartTime ?? ''))
+                      .map(m => (
+                        <TableRow key={m.matchId} sx={{ '&:nth-of-type(odd)': { bgcolor: 'grey.50' } }}>
+                          <TableCell>{m.matchDate}</TableCell>
+                          <TableCell>{m.scheduledStartTime?.slice(0, 5)}</TableCell>
+                          <TableCell>{m.matchStage ? STAGE_LABELS[m.matchStage] ?? m.matchStage : ''}</TableCell>
+                          <TableCell>
+                            {m.homeTeamName ?? (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                {m.homeTeamPlaceholder ?? 'TBD'}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {m.oppositionTeamName ?? (
+                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                {m.awayTeamPlaceholder ?? 'TBD'}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>{m.fieldName}</TableCell>
+                          <TableCell align="right">
+                            <IconButton size="small" onClick={() => openMatchEdit(m)}>
+                              <Edit fontSize="small" />
+                            </IconButton>
+                            <IconButton size="small" color="error" onClick={async () => {
+                              if (m.matchId && confirm('Delete this match?')) {
+                                await matchApi.delete(m.matchId);
+                                if (editing.tournamentId) loadTournamentMatches(editing.tournamentId);
+                              }
+                            }}>
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
         </Box>
 
         <Dialog open={!!viewLogoUrl} onClose={() => setViewLogoUrl(null)} maxWidth="sm">
@@ -725,6 +1093,8 @@ export const Tournaments: React.FC = () => {
           </DialogContent>
           <DialogActions><Button onClick={() => setViewLogoUrl(null)}>Close</Button></DialogActions>
         </Dialog>
+
+        {matchEditDialog}
       </>
     );
   }
@@ -734,85 +1104,140 @@ export const Tournaments: React.FC = () => {
     const hasLinks = viewItem.websiteLink || viewItem.facebookLink || viewItem.instagramLink || viewItem.youtubeLink || viewItem.registrationPageUrl || viewItem.playingConditionsUrl;
     const hasFees = viewItem.entryFee != null || viewItem.registrationFee != null || viewItem.matchFee != null;
     return (
-      <Box sx={{ maxWidth: 800 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)}>Back</Button>
+      <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, maxWidth: 900 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => { setViewing(false); setViewTab(0); }}>Back</Button>
           <Typography variant="h6" sx={{ flex: 1 }}>Tournament</Typography>
         </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* Header card */}
-          <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar src={viewItem.logoUrl ?? ''} variant="rounded" sx={{ width: 64, height: 64, flexShrink: 0 }}>
-              {viewItem.name.charAt(0)}
-            </Avatar>
-            <Box>
-              <Typography variant="h5">{viewItem.name}</Typography>
-              {viewItem.description && <Typography variant="subtitle2" color="text.secondary">{viewItem.description}</Typography>}
-            </Box>
-          </Paper>
 
-          {/* Overview */}
-          <DetailSection title="Overview">
-            <DetailGrid>
-              <DetailField label="Category" value={formatCategory(viewItem.ageGroup, viewItem.tournamentGender) || undefined} />
-              <DetailField label="Format" value={viewItem.cricketFormat} />
-              <DetailField label="Start Date" value={viewItem.startDate} />
-              <DetailField label="End Date" value={viewItem.endDate} />
-              <DetailField label="Winner" value={viewItem.winningTeamName} />
-            </DetailGrid>
-          </DetailSection>
+        {/* Header card */}
+        <Paper variant="outlined" sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, mb: 2, maxWidth: 900 }}>
+          <Avatar src={viewItem.logoUrl ?? ''} variant="rounded" sx={{ width: 64, height: 64, flexShrink: 0 }}>
+            {viewItem.name.charAt(0)}
+          </Avatar>
+          <Box>
+            <Typography variant="h5">{viewItem.name}</Typography>
+            {viewItem.description && <Typography variant="subtitle2" color="text.secondary">{viewItem.description}</Typography>}
+          </Box>
+        </Paper>
 
-          {/* Points System */}
-          <DetailSection title="Points System">
-            <DetailGrid>
-              <DetailField label="Points for Win" value={viewItem.pointsForWin} />
-              <DetailField label="Points for Draw" value={viewItem.pointsForDraw} />
-              <DetailField label="Points for No Result" value={viewItem.pointsForNoResult} />
-              <DetailField label="Bonus Points" value={viewItem.pointsForBonus} />
-            </DetailGrid>
-          </DetailSection>
+        <Tabs value={viewTab} onChange={(_, v) => setViewTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Tab label="Overview" />
+          <Tab label="Schedule" />
+          <Tab label="Teams" />
+        </Tabs>
 
-          {/* Fees */}
-          {hasFees && (
-            <DetailSection title="Fees">
+        {viewTab === 0 && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 900 }}>
+            <DetailSection title="Overview">
               <DetailGrid>
-                <DetailField label="Entry Fee" value={fmtZAR(viewItem.entryFee)} />
-                <DetailField label="Registration Fee" value={fmtZAR(viewItem.registrationFee)} />
-                <DetailField label="Match Fee" value={fmtZAR(viewItem.matchFee)} />
+                <DetailField label="Category" value={formatCategory(viewItem.ageGroup, viewItem.tournamentGender) || undefined} />
+                <DetailField label="Format" value={viewItem.cricketFormat} />
+                <DetailField label="Start Date" value={viewItem.startDate} />
+                <DetailField label="End Date" value={viewItem.endDate} />
+                <DetailField label="Winner" value={viewItem.winningTeamName} />
               </DetailGrid>
             </DetailSection>
-          )}
 
-          {/* Pools */}
-          {(viewItem.pools?.length ?? 0) > 0 && (
-            <DetailSection title="Pools">
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {viewItem.pools!.map(pool => (
-                  <Box key={pool.poolId}>
-                    <Typography variant="subtitle2">{pool.poolName}</Typography>
-                    {(pool.teams ?? []).map(t => (
-                      <Typography key={t.teamId} variant="body2">{t.teamName}</Typography>
-                    ))}
-                  </Box>
-                ))}
-              </Box>
+            <DetailSection title="Points System">
+              <DetailGrid>
+                <DetailField label="Points for Win" value={viewItem.pointsForWin} />
+                <DetailField label="Points for Draw" value={viewItem.pointsForDraw} />
+                <DetailField label="Points for No Result" value={viewItem.pointsForNoResult} />
+                <DetailField label="Bonus Points" value={viewItem.pointsForBonus} />
+              </DetailGrid>
             </DetailSection>
-          )}
 
-          {/* Links */}
-          {hasLinks && (
-            <DetailSection title="Links">
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                {viewItem.websiteLink && <Link href={viewItem.websiteLink} target="_blank" rel="noopener" underline="hover">Website</Link>}
-                {viewItem.facebookLink && <Link href={viewItem.facebookLink} target="_blank" rel="noopener" underline="hover">Facebook</Link>}
-                {viewItem.instagramLink && <Link href={viewItem.instagramLink} target="_blank" rel="noopener" underline="hover">Instagram</Link>}
-                {viewItem.youtubeLink && <Link href={viewItem.youtubeLink} target="_blank" rel="noopener" underline="hover">YouTube</Link>}
-                {viewItem.registrationPageUrl && <Link href={viewItem.registrationPageUrl} target="_blank" rel="noopener" underline="hover">Registration Page</Link>}
-                {viewItem.playingConditionsUrl && <Link href={viewItem.playingConditionsUrl} target="_blank" rel="noopener" underline="hover">Playing Conditions</Link>}
-              </Box>
-            </DetailSection>
-          )}
-        </Box>
+            {hasFees && (
+              <DetailSection title="Fees">
+                <DetailGrid>
+                  <DetailField label="Entry Fee" value={fmtZAR(viewItem.entryFee)} />
+                  <DetailField label="Registration Fee" value={fmtZAR(viewItem.registrationFee)} />
+                  <DetailField label="Match Fee" value={fmtZAR(viewItem.matchFee)} />
+                </DetailGrid>
+              </DetailSection>
+            )}
+
+            {(viewItem.pools?.length ?? 0) > 0 && (
+              <DetailSection title="Pools">
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  {viewItem.pools!.map(pool => (
+                    <Box key={pool.poolId}>
+                      <Typography variant="subtitle2">{pool.poolName}</Typography>
+                      {(pool.teams ?? []).map(t => (
+                        <Typography key={t.teamId} variant="body2">{t.teamName}</Typography>
+                      ))}
+                    </Box>
+                  ))}
+                </Box>
+              </DetailSection>
+            )}
+
+            {hasLinks && (
+              <DetailSection title="Links">
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                  {viewItem.websiteLink && <Link href={viewItem.websiteLink} target="_blank" rel="noopener" underline="hover">Website</Link>}
+                  {viewItem.facebookLink && <Link href={viewItem.facebookLink} target="_blank" rel="noopener" underline="hover">Facebook</Link>}
+                  {viewItem.instagramLink && <Link href={viewItem.instagramLink} target="_blank" rel="noopener" underline="hover">Instagram</Link>}
+                  {viewItem.youtubeLink && <Link href={viewItem.youtubeLink} target="_blank" rel="noopener" underline="hover">YouTube</Link>}
+                  {viewItem.registrationPageUrl && <Link href={viewItem.registrationPageUrl} target="_blank" rel="noopener" underline="hover">Registration Page</Link>}
+                  {viewItem.playingConditionsUrl && <Link href={viewItem.playingConditionsUrl} target="_blank" rel="noopener" underline="hover">Playing Conditions</Link>}
+                </Box>
+              </DetailSection>
+            )}
+          </Box>
+        )}
+
+        {viewTab === 1 && (
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+              <ToggleButtonGroup
+                size="small" exclusive
+                value={viewScheduleMode}
+                onChange={(_, v) => {
+                  if (!v) return;
+                  setViewScheduleMode(v);
+                  if (v === 'visual' && viewMatches.length === 0 && viewItem.tournamentId) {
+                    loadViewMatches(viewItem.tournamentId);
+                  }
+                }}
+              >
+                <ToggleButton value="table" sx={{ textTransform: 'none', fontSize: '0.8rem', px: 2 }}>
+                  Table
+                </ToggleButton>
+                <ToggleButton value="visual" sx={{ textTransform: 'none', fontSize: '0.8rem', px: 2 }}>
+                  Visual
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            {viewScheduleMode === 'table' && (
+              <TournamentScheduleTab key={viewScheduleKey} tournament={viewItem} onAddMatch={() => {
+                const pools = (viewItem.pools ?? []).map(p => ({
+                  poolId: p.poolId, poolName: p.poolName,
+                  teams: (p.teams ?? []).map(t => ({ teamId: t.teamId!, teamName: t.teamName! })),
+                }));
+                setLocalPools(pools);
+                openMatchEdit({ tournamentId: viewItem.tournamentId, tournamentName: viewItem.name, matchStage: 'POOL' });
+              }} />
+            )}
+
+            {viewScheduleMode === 'visual' && (
+              viewMatchesLoading
+                ? <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>
+                : <MatchScheduleVisual matches={viewMatches} resultMap={viewResultMap} tournament={viewItem} showExport />
+            )}
+          </Box>
+        )}
+        {viewTab === 2 && (() => {
+          const tournamentTeamIds = new Set(
+            (viewItem.pools ?? []).flatMap(p => (p.teams ?? []).map(t => t.teamId))
+          );
+          const tournamentTeams = allTeams.filter(t => tournamentTeamIds.has(t.teamId));
+          return <TeamsView teams={tournamentTeams} hideTitle showAdminActions returnTournamentId={viewItem.tournamentId} />;
+        })()}
+
+        {matchEditDialog}
       </Box>
     );
   }
@@ -921,7 +1346,7 @@ export const Tournaments: React.FC = () => {
                     {r.name.charAt(0)}
                   </Avatar>
                 </TableCell>
-                {col('name') && <TableCell><Link component="button" underline="hover" onClick={() => { setViewItem(r); setViewing(true); }} sx={{ textAlign: 'left' }}>{r.name}</Link></TableCell>}
+                {col('name') && <TableCell><Link component="button" underline="hover" onClick={() => { setViewItem(r); setViewing(true); setViewTab(0); setViewScheduleMode('table'); setViewMatches([]); setViewResults([]); }} sx={{ textAlign: 'left' }}>{r.name}</Link></TableCell>}
                 {col('category') && (
                   <TableCell>
                     {formatCategory(r.ageGroup, r.tournamentGender) && (
@@ -1041,6 +1466,8 @@ export const Tournaments: React.FC = () => {
           <Button onClick={() => setViewLogoUrl(null)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <PdfPreviewDialog pdfUrl={financialPdfUrl} onClose={() => setFinancialPdfUrl(null)} />
     </Box>
   );
 };

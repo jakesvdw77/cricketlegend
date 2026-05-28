@@ -17,7 +17,7 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
     @Query("SELECT m FROM Match m WHERE m.matchDate = :today")
     List<Match> findTodaysMatches(@Param("today") LocalDate today);
 
-    @Query("SELECT m FROM Match m WHERE m.matchDate > :today")
+    @Query("SELECT m FROM Match m WHERE m.matchDate > :today ORDER BY m.matchDate ASC, m.scheduledStartTime ASC NULLS LAST")
     List<Match> findUpcomingMatches(@Param("today") LocalDate today);
 
     List<Match> findByHomeTeamTeamIdOrOppositionTeamTeamId(Long homeTeamId, Long oppositionTeamId);

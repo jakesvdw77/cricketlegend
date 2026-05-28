@@ -7,6 +7,7 @@ import java.time.LocalDate;
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class MatchResultSummaryDTO {
     private Long matchId;
+    private Long tournamentId;
     private LocalDate matchDate;
     private String homeTeamName;
     private String oppositionTeamName;

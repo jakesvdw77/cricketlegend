@@ -64,5 +64,7 @@
     <include file="db/changelog/v1/057-app-settings.sql"/>
     <include file="db/changelog/v1/058-app-settings-match-results.sql"/>
     <include file="db/changelog/v1/059-match-result-visibility.sql"/>
+    <include file="db/changelog/v1/060-tournament-show-on-front-page.sql"/>
+    <include file="db/changelog/v1/061-match-team-placeholder.sql"/>
 
 </databaseChangeLog>

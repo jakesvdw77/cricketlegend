@@ -42,7 +42,7 @@ export const Players: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { isAdmin } = useAuth();
-  const { squadPlayerIds, restrictByTeam, loaded: managerLoaded } = useManagerTeams();
+  const { squadPlayerIds, restrictByTeam, homeClubId, loaded: managerLoaded } = useManagerTeams();
   const [rows, setRows] = useState<Player[]>([]);
   const [search, setSearch] = useState('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -56,6 +56,7 @@ export const Players: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [clubFilter, setClubFilter] = useState<number | ''>('');
+  const [clubFilterInitialised, setClubFilterInitialised] = useState(false);
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Player | null>(null);
@@ -69,6 +70,15 @@ export const Players: React.FC = () => {
     clubApi.findAll().then(setClubs);
     teamApi.findAll().then(setTeams);
   }, []);
+
+  useEffect(() => {
+    if (!clubFilterInitialised && managerLoaded && homeClubId != null) {
+      setClubFilter(homeClubId);
+      setClubFilterInitialised(true);
+    } else if (!clubFilterInitialised && managerLoaded) {
+      setClubFilterInitialised(true);
+    }
+  }, [managerLoaded, homeClubId, clubFilterInitialised]);
 
   const handleTeamFilter = async (teamId: number | '') => {
     setTeamFilter(teamId);

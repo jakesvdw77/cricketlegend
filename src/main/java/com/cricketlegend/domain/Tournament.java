@@ -60,6 +60,10 @@ public class Tournament {
     private Integer pointsForNoResult;
     private Integer pointsForBonus;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean showOnFrontPage = true;
+
     @OneToMany(mappedBy = "tournament", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<TournamentPool> pools = new ArrayList<>();

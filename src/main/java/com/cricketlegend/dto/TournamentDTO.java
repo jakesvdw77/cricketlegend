@@ -37,6 +37,7 @@ public class TournamentDTO {
     private Integer pointsForDraw;
     private Integer pointsForNoResult;
     private Integer pointsForBonus;
+    private Boolean showOnFrontPage;
     private List<TournamentPoolDTO> pools;
     private List<MediaContentDTO> mediaContent;
     private List<SponsorDTO> sponsors;

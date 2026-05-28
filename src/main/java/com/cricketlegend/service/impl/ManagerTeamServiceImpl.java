@@ -16,7 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -101,6 +103,20 @@ public class ManagerTeamServiceImpl implements ManagerTeamService {
     @Override
     public boolean canManagePlayer(String email, Long playerId) {
         return getSquadPlayerIdsForManager(email).contains(playerId);
+    }
+
+    @Override
+    public Optional<Long> getClubIdForManager(String email) {
+        Set<Long> teamIds = getTeamIdsForManager(email);
+        if (teamIds.isEmpty()) return Optional.empty();
+        Set<Long> clubIds = teamIds.stream()
+                .map(teamRepository::findById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .filter(t -> t.getAssociatedClub() != null)
+                .map(t -> t.getAssociatedClub().getClubId())
+                .collect(Collectors.toSet());
+        return clubIds.size() == 1 ? clubIds.stream().findFirst() : Optional.empty();
     }
 
     private ManagerTeamDTO toDto(ManagerTeam mt) {

@@ -77,6 +77,7 @@ public class TournamentServiceImpl implements TournamentService {
         existing.setPointsForDraw(dto.getPointsForDraw());
         existing.setPointsForNoResult(dto.getPointsForNoResult());
         existing.setPointsForBonus(dto.getPointsForBonus());
+        existing.setShowOnFrontPage(dto.getShowOnFrontPage() != null ? dto.getShowOnFrontPage() : Boolean.TRUE);
         resolveSponsors(existing, dto);
         resolveWinningTeam(existing, dto);
         return tournamentMapper.toDto(tournamentRepository.save(existing));

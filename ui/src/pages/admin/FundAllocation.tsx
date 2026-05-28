@@ -23,6 +23,7 @@ import {
   Match, MatchSide, MatchFeePlayerDataDTO, Tournament, TournamentFeePlayerDataDTO,
   WalletAllocationDTO,
 } from '../../types';
+import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -1642,6 +1643,7 @@ const AllocationList: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   const handlePageChange = (_: React.ChangeEvent<unknown>, value: number) => setPage(value - 1);
 
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   const generatePdf = async () => {
     setGeneratingPdf(true);
@@ -1734,7 +1736,7 @@ const AllocationList: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
         },
       });
 
-      doc.save(`allocation-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      setPdfUrl(URL.createObjectURL(doc.output('blob')));
     } finally {
       setGeneratingPdf(false);
     }
@@ -1885,6 +1887,8 @@ const AllocationList: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
           />
         </Box>
       )}
+
+      <PdfPreviewDialog pdfUrl={pdfUrl} onClose={() => setPdfUrl(null)} />
     </Box>
   );
 };

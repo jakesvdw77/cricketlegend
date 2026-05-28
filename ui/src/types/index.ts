@@ -9,7 +9,7 @@ export type AgeGroup = 'UNDER_9' | 'UNDER_10' | 'UNDER_11' | 'UNDER_12' | 'UNDER
 export type TournamentGender = 'MEN' | 'WOMEN' | 'BOYS' | 'GIRLS';
 export type DismissalType = 'BOWLED' | 'CAUGHT' | 'LBW' | 'RUN_OUT' | 'STUMPED' | 'HIT_WICKET' | 'NOT_OUT';
 
-export type MatchStage = 'FRIENDLY' | 'POOL' | 'QUARTER_FINAL' | 'SEMI_FINAL' | 'FINAL';
+export type MatchStage = 'FRIENDLY' | 'POOL' | 'PLAYOFFS' | 'ROUND_OF_16' | 'QUARTER_FINAL' | 'SEMI_FINAL' | 'FINAL';
 export type TossWinner = 'HOME' | 'OPPOSITION';
 export type TossDecision = 'BAT' | 'BOWL';
 export type ResultVisibility = 'NOT_PUBLISHED' | 'SUMMARY_ONLY' | 'SCORECARD_AND_SUMMARY';
@@ -245,6 +245,7 @@ export interface Tournament {
   pointsForDraw?: number;
   pointsForNoResult?: number;
   pointsForBonus?: number;
+  showOnFrontPage?: boolean;
   pools?: TournamentPool[];
   mediaContent?: MediaContent[];
   sponsors?: Sponsor[];
@@ -258,6 +259,8 @@ export interface Match {
   arrivalTime?: string;
   umpire?: string;
   matchStage?: MatchStage;
+  homeTeamPlaceholder?: string;
+  awayTeamPlaceholder?: string;
   tossWonBy?: TossWinner;
   tossDecision?: TossDecision;
   homeTeamId?: number;
@@ -341,6 +344,7 @@ export interface ScorecardData {
 
 export interface MatchResultSummary {
   matchId: number;
+  tournamentId?: number;
   matchDate?: string;
   homeTeamName?: string;
   oppositionTeamName?: string;
