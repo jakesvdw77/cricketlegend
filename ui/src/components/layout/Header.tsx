@@ -5,7 +5,7 @@ import {
   Accordion, AccordionSummary, AccordionDetails,
   Badge, Popover, List, ListItem, ListItemText, Divider,
 } from '@mui/material';
-import { Menu as MenuIcon, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode, DoneAll, DeleteSweep } from '@mui/icons-material';
+import { Menu as MenuIcon, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode, DoneAll, DeleteSweep, Home } from '@mui/icons-material';
 import { useColorMode } from '../../context/ColorModeContext';
 import { RichContentDialog } from '../RichContentDialog';
 import { useAuth } from '../../hooks/useAuth';
@@ -119,8 +119,11 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
   return (
     <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
       <Toolbar>
-        <IconButton color="inherit" edge="start" onClick={onToggleSidebar} sx={{ mr: 2 }}>
+        <IconButton color="inherit" edge="start" onClick={onToggleSidebar} sx={{ mr: 1 }}>
           <MenuIcon />
+        </IconButton>
+        <IconButton color="inherit" onClick={() => navigate('/home')} sx={{ mr: 2 }}>
+          <Home />
         </IconButton>
         <Box sx={{ flexGrow: 1 }} />
         {isAdmin && (

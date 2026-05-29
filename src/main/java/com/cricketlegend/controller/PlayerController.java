@@ -3,6 +3,7 @@ package com.cricketlegend.controller;
 import com.cricketlegend.dto.PlayerDTO;
 import com.cricketlegend.dto.PlayerResultDTO;
 import com.cricketlegend.dto.TeamDTO;
+import com.cricketlegend.service.ClubFinancialAdminService;
 import com.cricketlegend.service.ManagerTeamService;
 import com.cricketlegend.service.PlayerResultService;
 import com.cricketlegend.service.PlayerService;
@@ -30,11 +31,12 @@ public class PlayerController {
     private final PlayerResultService playerResultService;
     private final ManagerTeamService managerTeamService;
     private final TeamService teamService;
+    private final ClubFinancialAdminService financialAdminService;
 
     @GetMapping
     @Operation(summary = "Get all players")
-    public ResponseEntity<List<PlayerDTO>> findAll() {
-        return ResponseEntity.ok(playerService.findAll());
+    public ResponseEntity<List<PlayerDTO>> findAll(@RequestParam(required = false) String orderBy) {
+        return ResponseEntity.ok(playerService.findAll(orderBy));
     }
 
     @GetMapping("/{id}")
@@ -45,8 +47,10 @@ public class PlayerController {
 
     @GetMapping("/search")
     @Operation(summary = "Search players by name or surname")
-    public ResponseEntity<List<PlayerDTO>> search(@RequestParam String query) {
-        return ResponseEntity.ok(playerService.search(query));
+    public ResponseEntity<List<PlayerDTO>> search(
+            @RequestParam String query,
+            @RequestParam(required = false) String orderBy) {
+        return ResponseEntity.ok(playerService.search(query, orderBy));
     }
 
     @GetMapping("/{id}/statistics")
@@ -75,9 +79,21 @@ public class PlayerController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasAnyRole('admin','manager')")
     @Operation(summary = "Create a player")
-    public ResponseEntity<PlayerDTO> create(@RequestBody PlayerDTO dto) {
+    public ResponseEntity<PlayerDTO> create(
+            @RequestBody PlayerDTO dto,
+            Authentication authentication,
+            @AuthenticationPrincipal Jwt jwt) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            Long managerClubId = managerTeamService.getClubIdForManager(email).orElse(null);
+            if (managerClubId == null || !managerClubId.equals(dto.getHomeClubId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(playerService.create(dto));
     }
 
@@ -122,5 +138,17 @@ public class PlayerController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         playerService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/financial-admin")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Get players for the financial admin's club (server-enforced club scope)")
+    public ResponseEntity<List<PlayerDTO>> findForMyClub(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) String orderBy) {
+        String email = jwt.getClaimAsString("email");
+        Long clubId = financialAdminService.getClubIdForFinancialAdmin(email).orElse(null);
+        if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(playerService.findByClub(clubId, orderBy));
     }
 }

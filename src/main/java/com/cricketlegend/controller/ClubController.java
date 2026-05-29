@@ -40,7 +40,7 @@ public class ClubController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasAnyRole('admin','manager')")
     @Operation(summary = "Update a club")
     public ResponseEntity<ClubDTO> update(@PathVariable Long id, @RequestBody ClubDTO dto) {
         return ResponseEntity.ok(clubService.update(id, dto));

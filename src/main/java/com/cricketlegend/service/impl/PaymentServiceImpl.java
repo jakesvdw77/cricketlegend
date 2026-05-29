@@ -941,4 +941,64 @@ public class PaymentServiceImpl implements PaymentService {
                 ? tournamentRepository.findById(dto.getTournamentId()).orElseThrow(() -> NotFoundException.of("Tournament", dto.getTournamentId()))
                 : null);
     }
+
+    @Override
+    public PagedPaymentResponse findWithFiltersForClub(Long clubId, PaymentStatus status,
+                                                       Integer year, Integer month, int page, int size) {
+        List<Long> playerIds = playerRepository.findByHomeClubClubId(clubId).stream()
+                .map(p -> p.getPlayerId())
+                .toList();
+
+        LocalDate startDate = null;
+        LocalDate endDate = null;
+        if (year != null && month != null) {
+            startDate = LocalDate.of(year, month, 1);
+            endDate = startDate.plusMonths(1).minusDays(1);
+        } else if (year != null) {
+            startDate = LocalDate.of(year, 1, 1);
+            endDate = LocalDate.of(year, 12, 31);
+        }
+
+        final LocalDate sd = startDate;
+        final LocalDate ed = endDate;
+
+        Specification<Payment> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("paymentType"), PaymentType.PLAYER));
+            if (!playerIds.isEmpty())
+                predicates.add(root.get("player").get("playerId").in(playerIds));
+            else
+                predicates.add(cb.disjunction());
+            if (status != null)
+                predicates.add(cb.equal(root.get("status"), status));
+            if (sd != null)
+                predicates.add(cb.greaterThanOrEqualTo(root.get("paymentDate"), sd));
+            if (ed != null)
+                predicates.add(cb.lessThanOrEqualTo(root.get("paymentDate"), ed));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Payment> rawPage = paymentRepository.findAll(
+                spec, PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "paymentDate")));
+
+        List<PaymentDTO> content;
+        if (rawPage.isEmpty()) {
+            content = List.of();
+        } else {
+            List<Long> ids = rawPage.getContent().stream().map(Payment::getPaymentId).toList();
+            List<Payment> payments = paymentRepository.findByIds(ids);
+            Map<Long, Payment> byId = payments.stream()
+                    .collect(Collectors.toMap(Payment::getPaymentId, p -> p));
+            content = ids.stream().map(byId::get).filter(Objects::nonNull).map(paymentMapper::toDto).toList();
+        }
+
+        return PagedPaymentResponse.builder()
+                .content(content)
+                .totalElements(rawPage.getTotalElements())
+                .totalPages(rawPage.getTotalPages())
+                .subtotal(BigDecimal.ZERO)
+                .vatTotal(BigDecimal.ZERO)
+                .grandTotal(BigDecimal.ZERO)
+                .build();
+    }
 }

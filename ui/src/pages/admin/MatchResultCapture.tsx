@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Divider, MenuItem, TextField,
   Switch, FormControlLabel, Alert, CircularProgress, Chip,
-  Tabs, Tab, Autocomplete, Collapse, IconButton,
+  Autocomplete, Collapse, IconButton,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material';
 import {
@@ -42,11 +42,15 @@ const empty: MatchResult = {
   resultVisibility: 'NOT_PUBLISHED',
 };
 
-export const MatchResultCapture: React.FC = () => {
-  const { matchId } = useParams<{ matchId: string }>();
+export interface MatchResultCaptureContentProps {
+  matchId: number;
+  onBack: () => void;
+  sticky?: boolean;
+}
+
+export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps> = ({ matchId, onBack, sticky = true }) => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  useSidebarLock();
 
   const [match, setMatch]         = useState<Match | null>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -59,10 +63,11 @@ export const MatchResultCapture: React.FC = () => {
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
   const [error, setError]         = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('whatsapp');
+  const [scorecardOpen, setScorecardOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [teamFilter, setTeamFilter] = useState<TeamFilter>('both');
   const [tossOpen, setTossOpen]         = useState(true);
   const [scoresOpen, setScoresOpen]     = useState(false);
@@ -73,8 +78,7 @@ export const MatchResultCapture: React.FC = () => {
   const [unlinkedDialogOpen, setUnlinkedDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!matchId) return;
-    const id = +matchId;
+    const id = matchId;
     Promise.all([
       matchApi.findById(id),
       matchApi.getTeamSheet(id).catch(() => [] as MatchSide[]),
@@ -453,7 +457,7 @@ export const MatchResultCapture: React.FC = () => {
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <Button startIcon={<ArrowBack />} onClick={() => dirty ? setConfirmLeave(true) : navigate(-1)}>Back</Button>
+        <Button startIcon={<ArrowBack />} onClick={() => dirty ? setConfirmLeave(true) : onBack()}>Back to Results</Button>
         <Typography variant="h5" sx={{ flex: 1 }}>Capture Result</Typography>
         {saveButton}
       </Box>
@@ -465,8 +469,8 @@ export const MatchResultCapture: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmLeave(false)}>Cancel</Button>
-          <Button color="error" onClick={() => { setConfirmLeave(false); navigate(-1); }}>Discard</Button>
-          <Button variant="contained" onClick={async () => { await save(); navigate(-1); }}>Save & Leave</Button>
+          <Button color="error" onClick={() => { setConfirmLeave(false); onBack(); }}>Discard</Button>
+          <Button variant="contained" onClick={async () => { await save(); onBack(); }}>Save & Leave</Button>
         </DialogActions>
       </Dialog>
 
@@ -527,7 +531,7 @@ export const MatchResultCapture: React.FC = () => {
       </Dialog>
 
       {/* Sticky header: banner + tabs */}
-      <Box sx={{ position: 'sticky', top: { xs: 56, sm: 64 }, zIndex: 10, bgcolor: 'background.default', mb: 2 }}>
+      <Box sx={{ ...(sticky ? { position: 'sticky', top: { xs: 56, sm: 64 }, zIndex: 10 } : {}), bgcolor: 'background.default', mb: 2 }}>
         <Paper variant="outlined" sx={{ p: 2, mb: 0, bgcolor: 'background.paper' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
             <Box>
@@ -549,23 +553,13 @@ export const MatchResultCapture: React.FC = () => {
             </Box>
           </Box>
         </Paper>
-        <Tabs
-          value={activeTab}
-          onChange={(_, v) => setActiveTab(v)}
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab label="Match Details" />
-          <Tab label="Scorecard" />
-          <Tab label="Summary" />
-        </Tabs>
       </Box>
 
       {error && <Alert severity="error"   sx={{ mb: 2 }}>{error}</Alert>}
       {saved  && <Alert severity="success" sx={{ mb: 2 }}>Result saved successfully.</Alert>}
 
-      {/* ── Tab 0: Match Details ── */}
-      {activeTab === 0 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* ── Match Details ── */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
           <Section title="Match Status">
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
@@ -752,109 +746,110 @@ export const MatchResultCapture: React.FC = () => {
             </Box>
           </Section>
         </Box>
-      )}
 
-      {/* ── Tab 1: Scorecard ── */}
-      {activeTab === 1 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {!result.sideBattingFirstId && (
-            <Alert severity="info">
-              Please set the toss and batting order in Match Details before capturing the scorecard.
+      {/* ── Scorecard (collapsed by default) ── */}
+      <Section title="Scorecard" collapsible open={scorecardOpen} onToggle={() => setScorecardOpen(o => !o)}>
+        <input
+          ref={importFileRef}
+          type="file"
+          accept=".json,application/json"
+          style={{ display: 'none' }}
+          onChange={handleImportJson}
+        />
+        {!result.sideBattingFirstId && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Set the toss in the Toss section above before capturing the scorecard.
+          </Alert>
+        )}
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
+          {isAdmin && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<Upload />}
+              disabled={!!result.forfeited}
+              onClick={() => { setImportError(null); importFileRef.current?.click(); }}
+            >
+              Import Scorecard JSON
+            </Button>
+          )}
+          {importError && (
+            <Alert severity="error" onClose={() => setImportError(null)} sx={{ py: 0 }}>
+              {importError}
             </Alert>
           )}
+        </Box>
+        <ScorecardCaptureTab
+          firstInningsLabel={`1st Innings — ${firstTeamName} batting`}
+          secondInningsLabel={`2nd Innings — ${secondTeamName} batting`}
+          firstCard={firstCard}
+          secondCard={secondCard}
+          firstBatterOptions={firstInningsPlayers}
+          firstBowlerOptions={secondInningsPlayers}
+          secondBatterOptions={secondInningsPlayers}
+          secondBowlerOptions={firstInningsPlayers}
+          disabled={!result.sideBattingFirstId || !!result.forfeited}
+          onFirstCardChange={handleFirstCardChange}
+          onSecondCardChange={handleSecondCardChange}
+        />
+      </Section>
 
-          {/* Import — admin only */}
-          <input
-            ref={importFileRef}
-            type="file"
-            accept=".json,application/json"
-            style={{ display: 'none' }}
-            onChange={handleImportJson}
-          />
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            {isAdmin && (
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<Upload />}
-                disabled={!!result.forfeited}
-                onClick={() => { setImportError(null); importFileRef.current?.click(); }}
-              >
-                Import Scorecard JSON
-              </Button>
-            )}
-            {importError && (
-              <Alert severity="error" onClose={() => setImportError(null)} sx={{ py: 0 }}>
-                {importError}
-              </Alert>
-            )}
+      {/* ── Summary (collapsed by default) ── */}
+      <Section title="Summary &amp; Templates" collapsible open={summaryOpen} onToggle={() => setSummaryOpen(o => !o)}>
+        <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>Template:</Typography>
+            <TextField
+              select size="small" value={selectedTemplate}
+              onChange={e => setSelectedTemplate(e.target.value)}
+              sx={{ minWidth: 200 }}
+            >
+              <MenuItem value="whatsapp">📱 WhatsApp Template</MenuItem>
+              <MenuItem value="facebook">📘 Facebook Template</MenuItem>
+              <MenuItem value="scorecard">📺 Scorecard Template</MenuItem>
+              <MenuItem value="broadcast">📡 Broadcast Scorecard</MenuItem>
+            </TextField>
           </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>View:</Typography>
+            <TextField
+              select size="small" value={teamFilter}
+              onChange={e => setTeamFilter(e.target.value as TeamFilter)}
+              sx={{ minWidth: 180 }}
+            >
+              <MenuItem value="both">Both Teams</MenuItem>
+              <MenuItem value="first">{firstTeamName}</MenuItem>
+              <MenuItem value="second">{secondTeamName}</MenuItem>
+            </TextField>
+          </Box>
+        </Paper>
+        {selectedTemplate === 'whatsapp'   && <WhatsAppTemplate           key="whatsapp"   {...templateProps} />}
+        {selectedTemplate === 'facebook'   && <FacebookTemplate           key="facebook"   {...templateProps} />}
+        {selectedTemplate === 'scorecard'  && <ScorecardTemplate          key="scorecard"  {...templateProps} />}
+        {selectedTemplate === 'broadcast'  && <BroadcastScorecardTemplate key="broadcast"  {...templateProps} />}
+      </Section>
 
-          <ScorecardCaptureTab
-            firstInningsLabel={`1st Innings — ${firstTeamName} batting`}
-            secondInningsLabel={`2nd Innings — ${secondTeamName} batting`}
-            firstCard={firstCard}
-            secondCard={secondCard}
-            firstBatterOptions={firstInningsPlayers}
-            firstBowlerOptions={secondInningsPlayers}
-            secondBatterOptions={secondInningsPlayers}
-            secondBowlerOptions={firstInningsPlayers}
-            disabled={!result.sideBattingFirstId || !!result.forfeited}
-            onFirstCardChange={handleFirstCardChange}
-            onSecondCardChange={handleSecondCardChange}
-          />
-        </Box>
-      )}
+      {/* ── Bottom save bar ── */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
+        {syncScorecardButton}
+        {autoCalculateButton}
+        {saveButton}
+      </Box>
 
-      {/* ── Tab 2: Summary ── */}
-      {activeTab === 2 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* Template + team filter selectors */}
-          <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>Template:</Typography>
-              <TextField
-                select size="small" value={selectedTemplate}
-                onChange={e => setSelectedTemplate(e.target.value)}
-                sx={{ minWidth: 200 }}
-              >
-                <MenuItem value=""><em>— Select template —</em></MenuItem>
-                <MenuItem value="whatsapp">📱 WhatsApp Template</MenuItem>
-                <MenuItem value="facebook">📘 Facebook Template</MenuItem>
-                <MenuItem value="scorecard">📺 Scorecard Template</MenuItem>
-                <MenuItem value="broadcast">📡 Broadcast Scorecard</MenuItem>
-              </TextField>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>View:</Typography>
-              <TextField
-                select size="small" value={teamFilter}
-                onChange={e => setTeamFilter(e.target.value as TeamFilter)}
-                sx={{ minWidth: 180 }}
-              >
-                <MenuItem value="both">Both Teams</MenuItem>
-                <MenuItem value="first">{firstTeamName}</MenuItem>
-                <MenuItem value="second">{secondTeamName}</MenuItem>
-              </TextField>
-            </Box>
-          </Paper>
-
-          {/* Active template — only rendered once a template is selected */}
-          {selectedTemplate === '' && (
-            <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
-              <Typography variant="body1">Select a template above to generate the match summary.</Typography>
-            </Box>
-          )}
-          {selectedTemplate === 'whatsapp'   && <WhatsAppTemplate           key="whatsapp"   {...templateProps} />}
-          {selectedTemplate === 'facebook'   && <FacebookTemplate           key="facebook"   {...templateProps} />}
-          {selectedTemplate === 'scorecard'  && <ScorecardTemplate          key="scorecard"  {...templateProps} />}
-          {selectedTemplate === 'broadcast'  && <BroadcastScorecardTemplate key="broadcast"  {...templateProps} />}
-        </Box>
-      )}
     </Box>
   );
 };
 
+
+// ── Route wrapper (reads URL params, locks sidebar) ──────────────────────────
+
+export const MatchResultCapture: React.FC = () => {
+  const { matchId } = useParams<{ matchId: string }>();
+  const navigate = useNavigate();
+  useSidebarLock();
+  if (!matchId) return null;
+  return <MatchResultCaptureContent matchId={+matchId} onBack={() => navigate(-1)} />;
+};
 
 // ── DLS calculation ──────────────────────────────────────────────────────────
 
@@ -954,9 +949,20 @@ const Section: React.FC<{ title: string; children: React.ReactNode; collapsible?
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
+  const prevOpen = useRef(open);
+  const ref = useRef<HTMLDivElement>(null);
+
   const toggle = isControlled ? onToggle : () => setInternalOpen(o => !o);
+
+  useEffect(() => {
+    if (open && !prevOpen.current) {
+      setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    }
+    prevOpen.current = open;
+  }, [open]);
+
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
+    <Paper ref={ref} variant="outlined" sx={{ p: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: open ? 0 : undefined, cursor: collapsible ? 'pointer' : undefined }} onClick={collapsible ? toggle : undefined}>
         <Typography variant="subtitle1" fontWeight={600}>{title}</Typography>
         {collapsible && (

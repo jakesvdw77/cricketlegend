@@ -8,4 +8,5 @@ public class TournamentTeamDTO {
     private Long poolId;
     private Long teamId;
     private String teamName;
+    private String abbreviation;
 }

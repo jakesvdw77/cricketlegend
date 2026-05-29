@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Avatar, Box, Button, Chip, CircularProgress, Typography, useTheme,
+  Avatar, Box, Button, Chip, CircularProgress, IconButton, Tooltip, Typography, useTheme,
 } from '@mui/material';
-import { AccessTime, CalendarMonth, LocationOn, EmojiEvents, CheckCircle, PictureAsPdf } from '@mui/icons-material';
+import { AccessTime, CalendarMonth, LocationOn, EmojiEvents, CheckCircle, PictureAsPdf, Edit } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import { Match, MatchResultSummary, Tournament } from '../../types';
 import { PdfPreviewDialog } from '../PdfPreviewDialog';
@@ -32,6 +32,7 @@ interface Props {
   resultMap: Map<number, MatchResultSummary>;
   tournament?: Tournament;
   showExport?: boolean;
+  onEditMatch?: (match: Match) => void;
 }
 
 const loadImageBase64 = async (url: string): Promise<string | null> => {
@@ -71,7 +72,7 @@ const safeRgb = (color: string, fallback: [number, number, number]): [number, nu
   }
 };
 
-export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tournament, showExport = false }) => {
+export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tournament, showExport = false, onEditMatch }) => {
   const theme = useTheme();
   const primary = theme.palette.primary.main;
   const primaryDark = theme.palette.primary.dark;
@@ -171,8 +172,8 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
           for (const m of slotMatches) {
             checkPage(14);
             const r = m.matchId != null ? resultMap.get(m.matchId) : undefined;
-            const homeWon = r && !r.matchDrawn && r.winningTeamName === m.homeTeamName;
-            const awayWon = r && !r.matchDrawn && r.winningTeamName === m.oppositionTeamName;
+            const homeWon = r && !!r.winningTeamName && r.winningTeamName === m.homeTeamName;
+            const awayWon = r && !!r.winningTeamName && r.winningTeamName === m.oppositionTeamName;
 
             // Pill background — darker when completed
             doc.setFillColor(...(r ? DARK : MID));
@@ -190,7 +191,7 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
             doc.circle(cx, cy, 4.5, 'F');
             doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
             doc.setTextColor(...WHITE);
-            doc.text(r?.matchDrawn ? 'DRW' : 'VS', cx, cy + 2, { align: 'center' });
+            doc.text(r && !r.winningTeamName && r.matchDrawn ? 'DRW' : 'VS', cx, cy + 2, { align: 'center' });
 
             // Away team
             const awayName = m.oppositionTeamName ?? m.awayTeamPlaceholder ?? 'TBD';
@@ -285,16 +286,19 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                     {slotMatches.map(m => {
                       const r = m.matchId != null ? resultMap.get(m.matchId) : undefined;
-                      const homeWon = r && !r.matchDrawn && r.winningTeamName === m.homeTeamName;
-                      const awayWon = r && !r.matchDrawn && r.winningTeamName === m.oppositionTeamName;
+                      const homeWon = r && !!r.winningTeamName && r.winningTeamName === m.homeTeamName;
+                      const awayWon = r && !!r.winningTeamName && r.winningTeamName === m.oppositionTeamName;
                       const isCompleted = !!r;
-                      const isDraw = r?.matchDrawn;
+                      const isDraw = r ? !r.winningTeamName && !!r.matchDrawn : false;
+                      const cardBg   = isCompleted ? '#6b7a6b' : '#27ae60';
+                      const cardText = '#ffffff';
+                      const vsBg     = isCompleted ? '#535f53' : '#1e7c46';
 
                       return (
                         <Box
                           key={m.matchId}
                           sx={{
-                            bgcolor: isCompleted ? primaryDark : primary,
+                            bgcolor: cardBg,
                             borderRadius: 3,
                             overflow: 'hidden',
                             boxShadow: 2,
@@ -315,7 +319,7 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                                 variant="subtitle2"
                                 fontWeight={homeWon ? 800 : 600}
                                 sx={{
-                                  color: primaryContrast,
+                                  color: cardText,
                                   textTransform: m.homeTeamName ? 'uppercase' : 'none',
                                   fontStyle: m.homeTeamName ? 'normal' : 'italic',
                                   letterSpacing: 0.5,
@@ -324,7 +328,7 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                                   textAlign: 'right',
                                 }}
                               >
-                                {m.homeTeamName ?? m.homeTeamPlaceholder ?? 'TBD'}
+                                {m.homeTeamAbbreviation ?? m.homeTeamName ?? m.homeTeamPlaceholder ?? 'TBD'}
                               </Typography>
                               {m.homeTeamName && (
                                 <Avatar src={m.homeTeamLogoUrl} sx={{ width: 36, height: 36, fontSize: 14, flexShrink: 0, bgcolor: 'rgba(255,255,255,0.2)', border: homeWon ? '2px solid #FFD700' : 'none' }}>
@@ -338,13 +342,13 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                               <Box sx={{
                                 width: 44, height: 44,
                                 borderRadius: '50%',
-                                bgcolor: isCompleted ? 'warning.main' : primaryDark,
+                                bgcolor: vsBg,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 border: '2px solid rgba(255,255,255,0.3)',
                                 boxShadow: 3,
                                 flexShrink: 0,
                               }}>
-                                <Typography variant="caption" fontWeight={800} sx={{ color: primaryContrast, fontSize: '0.72rem', letterSpacing: 0.5 }}>
+                                <Typography variant="caption" fontWeight={800} sx={{ color: cardText, fontSize: '0.72rem', letterSpacing: 0.5 }}>
                                   {isDraw ? 'DRW' : 'VS'}
                                 </Typography>
                               </Box>
@@ -361,7 +365,7 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                                 variant="subtitle2"
                                 fontWeight={awayWon ? 800 : 600}
                                 sx={{
-                                  color: primaryContrast,
+                                  color: cardText,
                                   textTransform: m.oppositionTeamName ? 'uppercase' : 'none',
                                   fontStyle: m.oppositionTeamName ? 'normal' : 'italic',
                                   letterSpacing: 0.5,
@@ -369,7 +373,7 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                                   opacity: m.oppositionTeamName ? 1 : 0.75,
                                 }}
                               >
-                                {m.oppositionTeamName ?? m.awayTeamPlaceholder ?? 'TBD'}
+                                {m.oppositionTeamAbbreviation ?? m.oppositionTeamName ?? m.awayTeamPlaceholder ?? 'TBD'}
                               </Typography>
                             </Box>
                           </Box>
@@ -382,10 +386,10 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                           }}>
                             {r ? (
                               isDraw
-                                ? <Chip label="Draw" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: primaryContrast, fontSize: '0.68rem' }} />
-                                : <Chip icon={<CheckCircle sx={{ fontSize: '13px !important', color: '#4caf50 !important' }} />} label={r.winningTeamName ?? 'Completed'} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: primaryContrast, fontSize: '0.68rem' }} />
+                                ? <Chip label="Draw" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: cardText, fontSize: '0.68rem' }} />
+                                : <Chip icon={<CheckCircle sx={{ fontSize: '13px !important', color: '#4caf50 !important' }} />} label={r.winningTeamName ?? 'Completed'} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: cardText, fontSize: '0.68rem' }} />
                             ) : (
-                              <Chip label="Upcoming" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: primaryContrast, fontSize: '0.68rem' }} />
+                              <Chip label="Upcoming" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: cardText, fontSize: '0.68rem' }} />
                             )}
                             {m.fieldName && m.fieldName !== venue && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
@@ -394,6 +398,17 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                                   {m.fieldName}
                                 </Typography>
                               </Box>
+                            )}
+                            {onEditMatch && (
+                              <Tooltip title="Edit match">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => onEditMatch(m)}
+                                  sx={{ ml: 'auto', color: 'rgba(255,255,255,0.7)', '&:hover': { color: 'white' }, p: 0.5 }}
+                                >
+                                  <Edit sx={{ fontSize: 15 }} />
+                                </IconButton>
+                              </Tooltip>
                             )}
                           </Box>
                         </Box>

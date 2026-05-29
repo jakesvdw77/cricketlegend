@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Sort;
+
 import java.util.List;
 
 @Service
@@ -26,8 +28,11 @@ public class PlayerServiceImpl implements PlayerService {
     private final FileStorageService fileStorageService;
 
     @Override
-    public List<PlayerDTO> findAll() {
-        return playerRepository.findAll().stream().map(playerMapper::toDto).toList();
+    public List<PlayerDTO> findAll(String orderBy) {
+        return ("name".equalsIgnoreCase(orderBy)
+                ? playerRepository.findAllByOrderByNameAscSurnameAsc()
+                : playerRepository.findAllByOrderBySurnameAscNameAsc())
+                .stream().map(playerMapper::toDto).toList();
     }
 
     @Override
@@ -38,9 +43,11 @@ public class PlayerServiceImpl implements PlayerService {
     }
 
     @Override
-    public List<PlayerDTO> search(String query) {
-        return playerRepository
-                .findByNameContainingIgnoreCaseOrSurnameContainingIgnoreCase(query, query)
+    public List<PlayerDTO> search(String query, String orderBy) {
+        Sort sort = "name".equalsIgnoreCase(orderBy)
+                ? Sort.by("name").ascending().and(Sort.by("surname").ascending())
+                : Sort.by("surname").ascending().and(Sort.by("name").ascending());
+        return playerRepository.findByNameContainingIgnoreCaseOrSurnameContainingIgnoreCase(query, query, sort)
                 .stream().map(playerMapper::toDto).toList();
     }
 
@@ -114,6 +121,16 @@ public class PlayerServiceImpl implements PlayerService {
     public void delete(Long id) {
         if (!playerRepository.existsById(id)) throw NotFoundException.of("Player", id);
         playerRepository.deleteById(id);
+    }
+
+    @Override
+    public List<PlayerDTO> findByClub(Long clubId, String orderBy) {
+        return playerRepository.findByHomeClubClubId(clubId).stream()
+                .sorted("name".equals(orderBy)
+                        ? java.util.Comparator.comparing(p -> p.getName() + p.getSurname())
+                        : java.util.Comparator.comparing(p -> p.getSurname() + p.getName()))
+                .map(playerMapper::toDto)
+                .toList();
     }
 
     private void resolveClub(Player player, Long clubId) {

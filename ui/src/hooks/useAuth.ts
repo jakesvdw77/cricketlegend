@@ -8,6 +8,7 @@ export function useAuth() {
     isAdmin: roles.includes('admin'),
     isManager: roles.includes('manager'),
     isPlayer: roles.includes('player'),
+    isFinancialAdmin: roles.includes('financial_admin'),
     username: profile?.['preferred_username'] as string ?? '',
     email: profile?.['email'] as string ?? '',
     firstName: profile?.['given_name'] as string ?? '',

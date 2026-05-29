@@ -121,8 +121,11 @@ export const Teams: React.FC = () => {
 
   const closeEdit = () => {
     const viewTournamentId = (location.state as any)?.viewTournamentId;
+    const returnTo = (location.state as any)?.returnTo;
     if (viewTournamentId) {
       navigate('/admin/tournaments', { state: { viewTournamentId } });
+    } else if (returnTo) {
+      navigate(returnTo);
     } else {
       setOpen(false);
     }
@@ -399,7 +402,7 @@ export const Teams: React.FC = () => {
         <Typography variant="h5" sx={{ mr: 'auto' }}>Teams</Typography>
         {!isMobile && (
           <Tooltip title="Toggle columns">
-            <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+            <IconButton size="small" onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
           </Tooltip>
         )}
         {isAdmin && (

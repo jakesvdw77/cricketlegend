@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Box, Typography, Button, Paper, TextField, MenuItem, Chip,
+  Box, Typography, Button, Paper, TextField, MenuItem, Chip, Autocomplete,
   CircularProgress, Alert, IconButton, Dialog, DialogTitle,
   DialogContent, DialogActions, Tooltip, Divider, LinearProgress, useMediaQuery, useTheme,
 } from '@mui/material';
@@ -34,7 +34,11 @@ const emptyUpload = (): Partial<MediaContent> => ({
   clubId: undefined,
 });
 
-export const MediaLibrary: React.FC = () => {
+interface MediaLibraryProps {
+  tournamentId?: number;
+}
+
+export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedTournamentId }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   // Reference data
@@ -57,7 +61,7 @@ export const MediaLibrary: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [uploadMeta, setUploadMeta] = useState<Partial<MediaContent>>(emptyUpload());
+  const [uploadMeta, setUploadMeta] = useState<Partial<MediaContent>>({ ...emptyUpload(), tournamentId: fixedTournamentId });
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -69,23 +73,26 @@ export const MediaLibrary: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<MediaContent | null>(null);
 
   useEffect(() => {
-    Promise.all([
+    const matchLoad = fixedTournamentId
+      ? matchApi.findByTournament(fixedTournamentId)
+      : matchApi.findAll();
+    const refLoads: Promise<any>[] = [
       playerApi.findAll(),
       teamApi.findAll(),
-      matchApi.findAll(),
-      tournamentApi.findAll(),
+      matchLoad,
       fieldApi.findAll(),
-      clubApi.findAll(),
-    ]).then(([p, t, m, to, f, c]) => {
+    ];
+    if (!fixedTournamentId) refLoads.push(tournamentApi.findAll(), clubApi.findAll());
+    Promise.all(refLoads).then(([p, t, m, f, to, c]) => {
       setPlayers(p);
       setTeams(t);
       setMatches(m);
-      setTournaments(to);
       setFields(f);
-      setClubs(c);
+      if (to) setTournaments(to);
+      if (c) setClubs(c);
     });
-    loadGallery({});
-  }, []);
+    loadGallery(fixedTournamentId ? { tournamentId: fixedTournamentId } : {});
+  }, [fixedTournamentId]);
 
   const loadGallery = (params: MediaSearchParams) => {
     setLoadingGallery(true);
@@ -99,8 +106,9 @@ export const MediaLibrary: React.FC = () => {
   const applyFilters = () => loadGallery(filters);
 
   const clearFilters = () => {
-    setFilters({});
-    loadGallery({});
+    const base = fixedTournamentId ? { tournamentId: fixedTournamentId } : {};
+    setFilters(base);
+    loadGallery(base);
   };
 
   const hasFilters = Object.values(filters).some(v => v != null && v !== '');
@@ -164,7 +172,7 @@ export const MediaLibrary: React.FC = () => {
   const resetUploadDialog = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
-    setUploadMeta(emptyUpload());
+    setUploadMeta({ ...emptyUpload(), tournamentId: fixedTournamentId });
     setUploadError(null);
     setUploading(false);
   };
@@ -203,30 +211,58 @@ export const MediaLibrary: React.FC = () => {
     onChange: (patch: Partial<MediaContent>) => void;
   }> = ({ meta, onChange }) => (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      <TextField select label="Player" size="small" value={meta.playerId ?? ''} onChange={e => onChange({ playerId: e.target.value ? +e.target.value : undefined })}>
-        <MenuItem value=""><em>— None —</em></MenuItem>
-        {players.map(p => <MenuItem key={p.playerId} value={p.playerId}>{p.name} {p.surname}</MenuItem>)}
-      </TextField>
-      <TextField select label="Team" size="small" value={meta.teamId ?? ''} onChange={e => onChange({ teamId: e.target.value ? +e.target.value : undefined })}>
-        <MenuItem value=""><em>— None —</em></MenuItem>
-        {teams.map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>)}
-      </TextField>
-      <TextField select label="Match" size="small" value={meta.matchId ?? ''} onChange={e => onChange({ matchId: e.target.value ? +e.target.value : undefined })}>
-        <MenuItem value=""><em>— None —</em></MenuItem>
-        {matches.map(m => <MenuItem key={m.matchId} value={m.matchId}>{matchLabel(m)}</MenuItem>)}
-      </TextField>
-      <TextField select label="Tournament" size="small" value={meta.tournamentId ?? ''} onChange={e => onChange({ tournamentId: e.target.value ? +e.target.value : undefined })}>
-        <MenuItem value=""><em>— None —</em></MenuItem>
-        {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
-      </TextField>
-      <TextField select label="Ground / Field" size="small" value={meta.fieldId ?? ''} onChange={e => onChange({ fieldId: e.target.value ? +e.target.value : undefined })}>
-        <MenuItem value=""><em>— None —</em></MenuItem>
-        {fields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
-      </TextField>
-      <TextField select label="Club" size="small" value={meta.clubId ?? ''} onChange={e => onChange({ clubId: e.target.value ? +e.target.value : undefined })}>
-        <MenuItem value=""><em>— None —</em></MenuItem>
-        {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
-      </TextField>
+      <Autocomplete
+        size="small"
+        options={players}
+        getOptionLabel={p => `${p.name} ${p.surname}`}
+        value={players.find(p => p.playerId === meta.playerId) ?? null}
+        onChange={(_, p) => onChange({ playerId: p?.playerId ?? undefined })}
+        renderInput={params => <TextField {...params} label="Player" />}
+      />
+      <Autocomplete
+        size="small"
+        options={teams}
+        getOptionLabel={t => t.teamName}
+        value={teams.find(t => t.teamId === meta.teamId) ?? null}
+        onChange={(_, t) => onChange({ teamId: t?.teamId ?? undefined })}
+        renderInput={params => <TextField {...params} label="Team" />}
+      />
+      <Autocomplete
+        size="small"
+        options={matches}
+        getOptionLabel={matchLabel}
+        value={matches.find(m => m.matchId === meta.matchId) ?? null}
+        onChange={(_, m) => onChange({ matchId: m?.matchId ?? undefined })}
+        renderInput={params => <TextField {...params} label="Match" />}
+      />
+      {!fixedTournamentId && (
+        <Autocomplete
+          size="small"
+          options={tournaments}
+          getOptionLabel={t => t.name}
+          value={tournaments.find(t => t.tournamentId === meta.tournamentId) ?? null}
+          onChange={(_, t) => onChange({ tournamentId: t?.tournamentId ?? undefined })}
+          renderInput={params => <TextField {...params} label="Tournament" />}
+        />
+      )}
+      <Autocomplete
+        size="small"
+        options={fields}
+        getOptionLabel={f => f.name}
+        value={fields.find(f => f.fieldId === meta.fieldId) ?? null}
+        onChange={(_, f) => onChange({ fieldId: f?.fieldId ?? undefined })}
+        renderInput={params => <TextField {...params} label="Ground / Field" />}
+      />
+      {!fixedTournamentId && (
+        <Autocomplete
+          size="small"
+          options={clubs}
+          getOptionLabel={c => c.name}
+          value={clubs.find(c => c.clubId === meta.clubId) ?? null}
+          onChange={(_, c) => onChange({ clubId: c?.clubId ?? undefined })}
+          renderInput={params => <TextField {...params} label="Club" />}
+        />
+      )}
     </Box>
   );
 
@@ -259,42 +295,64 @@ export const MediaLibrary: React.FC = () => {
         {filtersOpen && (
           <>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
-              <TextField select size="small" label="Type" sx={{ minWidth: 120 }} value={filters.mediaType ?? ''}
+              <TextField select size="small" label="Type" sx={{ flex: '1 1 100px', minWidth: 90 }} value={filters.mediaType ?? ''}
                 onChange={e => setFilter({ mediaType: e.target.value as MediaFileType || undefined })}>
                 <MenuItem value="">All</MenuItem>
                 <MenuItem value="IMAGE">Images</MenuItem>
                 <MenuItem value="VIDEO">Videos</MenuItem>
               </TextField>
-              <TextField select size="small" label="Player" sx={{ minWidth: 180 }} value={filters.playerId ?? ''}
-                onChange={e => setFilter({ playerId: e.target.value ? +e.target.value : undefined })}>
-                <MenuItem value="">All players</MenuItem>
-                {players.map(p => <MenuItem key={p.playerId} value={p.playerId}>{p.name} {p.surname}</MenuItem>)}
-              </TextField>
-              <TextField select size="small" label="Team" sx={{ minWidth: 180 }} value={filters.teamId ?? ''}
-                onChange={e => setFilter({ teamId: e.target.value ? +e.target.value : undefined })}>
-                <MenuItem value="">All teams</MenuItem>
-                {teams.map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>)}
-              </TextField>
-              <TextField select size="small" label="Match" sx={{ minWidth: 220 }} value={filters.matchId ?? ''}
-                onChange={e => setFilter({ matchId: e.target.value ? +e.target.value : undefined })}>
-                <MenuItem value="">All matches</MenuItem>
-                {matches.map(m => <MenuItem key={m.matchId} value={m.matchId}>{matchLabel(m)}</MenuItem>)}
-              </TextField>
-              <TextField select size="small" label="Tournament" sx={{ minWidth: 180 }} value={filters.tournamentId ?? ''}
-                onChange={e => setFilter({ tournamentId: e.target.value ? +e.target.value : undefined })}>
-                <MenuItem value="">All tournaments</MenuItem>
-                {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
-              </TextField>
-              <TextField select size="small" label="Ground" sx={{ minWidth: 160 }} value={filters.fieldId ?? ''}
-                onChange={e => setFilter({ fieldId: e.target.value ? +e.target.value : undefined })}>
-                <MenuItem value="">All grounds</MenuItem>
-                {fields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
-              </TextField>
-              <TextField select size="small" label="Club" sx={{ minWidth: 160 }} value={filters.clubId ?? ''}
-                onChange={e => setFilter({ clubId: e.target.value ? +e.target.value : undefined })}>
-                <MenuItem value="">All clubs</MenuItem>
-                {clubs.map(c => <MenuItem key={c.clubId} value={c.clubId}>{c.name}</MenuItem>)}
-              </TextField>
+              <Autocomplete
+                size="small" sx={{ flex: '2 1 180px' }}
+                options={players}
+                getOptionLabel={p => `${p.name} ${p.surname}`}
+                value={players.find(p => p.playerId === filters.playerId) ?? null}
+                onChange={(_, p) => setFilter({ playerId: p?.playerId ?? undefined })}
+                renderInput={params => <TextField {...params} label="Player" />}
+              />
+              <Autocomplete
+                size="small" sx={{ flex: '2 1 160px' }}
+                options={teams}
+                getOptionLabel={t => t.teamName}
+                value={teams.find(t => t.teamId === filters.teamId) ?? null}
+                onChange={(_, t) => setFilter({ teamId: t?.teamId ?? undefined })}
+                renderInput={params => <TextField {...params} label="Team" />}
+              />
+              <Autocomplete
+                size="small" sx={{ flex: '3 1 200px' }}
+                options={matches}
+                getOptionLabel={matchLabel}
+                value={matches.find(m => m.matchId === filters.matchId) ?? null}
+                onChange={(_, m) => setFilter({ matchId: m?.matchId ?? undefined })}
+                renderInput={params => <TextField {...params} label="Match" />}
+              />
+              {!fixedTournamentId && (
+                <Autocomplete
+                  size="small" sx={{ flex: '2 1 160px' }}
+                  options={tournaments}
+                  getOptionLabel={t => t.name}
+                  value={tournaments.find(t => t.tournamentId === filters.tournamentId) ?? null}
+                  onChange={(_, t) => setFilter({ tournamentId: t?.tournamentId ?? undefined })}
+                  renderInput={params => <TextField {...params} label="Tournament" />}
+                />
+              )}
+              <Autocomplete
+                size="small" sx={{ flex: '2 1 140px' }}
+                options={fields}
+                getOptionLabel={f => f.name}
+                value={fields.find(f => f.fieldId === filters.fieldId) ?? null}
+                onChange={(_, f) => setFilter({ fieldId: f?.fieldId ?? undefined })}
+                renderInput={params => <TextField {...params} label="Ground" />}
+              />
+              {!fixedTournamentId && (
+                <Autocomplete
+                  size="small" sx={{ flex: '2 1 140px' }}
+                  options={clubs}
+                  getOptionLabel={c => c.name}
+                  value={clubs.find(c => c.clubId === filters.clubId) ?? null}
+                  onChange={(_, c) => setFilter({ clubId: c?.clubId ?? undefined })}
+                  renderInput={params => <TextField {...params} label="Club" />}
+                />
+              )}
             </Box>
             <Button variant="contained" size="small" onClick={applyFilters}>Apply Filters</Button>
           </>
@@ -368,11 +426,22 @@ export const MediaLibrary: React.FC = () => {
                   <Chip key={i} label={c.label} color={c.color} size="small" sx={{ maxWidth: 160, fontSize: '0.65rem' }} />
                 ))}
               </Box>
-              {item.uploadedAt && (
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  {new Date(item.uploadedAt).toLocaleDateString()}
-                </Typography>
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                {item.uploadedAt && (
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(item.uploadedAt).toLocaleDateString()}
+                  </Typography>
+                )}
+                <Tooltip title="Delete" sx={{ ml: 'auto' }}>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={e => { e.stopPropagation(); setDeleteTarget(item); }}
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Box>
           </Paper>
         ))}

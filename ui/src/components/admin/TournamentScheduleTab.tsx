@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Avatar, Box, Button, Chip, CircularProgress, Paper,
+  Avatar, Box, Button, Chip, CircularProgress, IconButton, Paper,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography,
 } from '@mui/material';
 import {
-  Add, CheckCircle, EmojiEvents, LocationOn, PictureAsPdf,
+  Add, CheckCircle, EmojiEvents, LocationOn, PictureAsPdf, Edit,
 } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -41,9 +41,11 @@ const loadImageBase64 = async (url: string): Promise<string | null> => {
 interface Props {
   tournament: Tournament;
   onAddMatch?: () => void;
+  onResultClick?: (matchId: number) => void;
+  onEditMatch?: (match: Match) => void;
 }
 
-export const TournamentScheduleTab: React.FC<Props> = ({ tournament, onAddMatch }) => {
+export const TournamentScheduleTab: React.FC<Props> = ({ tournament, onAddMatch, onResultClick, onEditMatch }) => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [results, setResults] = useState<MatchResultSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -191,10 +193,21 @@ export const TournamentScheduleTab: React.FC<Props> = ({ tournament, onAddMatch 
               </Typography>
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small" sx={{
+                  tableLayout: 'fixed',
                   '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' },
                   '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' },
                   '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' },
                 }}>
+                  <colgroup>
+                    <col style={{ width: '15%' }} />  {/* Date */}
+                    <col style={{ width: '7%' }} />   {/* Time */}
+                    <col style={{ width: '20%' }} />  {/* Home Team */}
+                    <col style={{ width: '5%' }} />   {/* vs */}
+                    <col style={{ width: '20%' }} />  {/* Away Team */}
+                    <col style={{ width: '18%' }} />  {/* Venue */}
+                    <col style={{ width: '10%' }} />  {/* Result */}
+                    {onEditMatch && <col style={{ width: '5%' }} />}
+                  </colgroup>
                   <TableHead>
                     <TableRow>
                       <TableCell>Date</TableCell>
@@ -204,28 +217,35 @@ export const TournamentScheduleTab: React.FC<Props> = ({ tournament, onAddMatch 
                       <TableCell>Away Team</TableCell>
                       <TableCell>Venue</TableCell>
                       <TableCell align="center">Result</TableCell>
+                      {onEditMatch && <TableCell />}
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {group.matches.map(m => {
                       const r = m.matchId != null ? resultMap.get(m.matchId) : undefined;
-                      const homeWon = r && !r.matchDrawn && r.winningTeamName === m.homeTeamName;
-                      const awayWon = r && !r.matchDrawn && r.winningTeamName === m.oppositionTeamName;
+                      const homeWon = r && !!r.winningTeamName && r.winningTeamName === m.homeTeamName;
+                      const awayWon = r && !!r.winningTeamName && r.winningTeamName === m.oppositionTeamName;
+                      const winnerLabel = r?.winningTeamName
+                        ? homeWon ? (m.homeTeamAbbreviation ?? r.winningTeamName)
+                        : awayWon ? (m.oppositionTeamAbbreviation ?? r.winningTeamName)
+                        : r.winningTeamName
+                        : undefined;
                       return (
                         <TableRow key={m.matchId}>
-                          <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          <TableCell sx={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
                             <Typography variant="body2">{fmtDate(m.matchDate)}</Typography>
                           </TableCell>
-                          <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          <TableCell sx={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>
                             <Typography variant="body2">{fmtTime(m.scheduledStartTime)}</Typography>
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ overflow: 'hidden' }}>
                             {m.homeTeamName ? (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Avatar src={m.homeTeamLogoUrl} sx={{ width: 24, height: 24, fontSize: 11 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                <Avatar src={m.homeTeamLogoUrl} sx={{ width: 24, height: 24, fontSize: 11, flexShrink: 0 }}>
                                   {m.homeTeamName.charAt(0)}
                                 </Avatar>
-                                <Typography variant="body2" fontWeight={homeWon ? 'bold' : 'normal'}>
+                                <Typography variant="body2" fontWeight={homeWon ? 'bold' : 'normal'}
+                                  sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {m.homeTeamName}
                                 </Typography>
                               </Box>
@@ -238,13 +258,14 @@ export const TournamentScheduleTab: React.FC<Props> = ({ tournament, onAddMatch 
                           <TableCell align="center">
                             <Typography variant="body2" color="text.secondary" fontWeight="bold">vs</Typography>
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ overflow: 'hidden' }}>
                             {m.oppositionTeamName ? (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Avatar src={m.oppositionTeamLogoUrl} sx={{ width: 24, height: 24, fontSize: 11 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                <Avatar src={m.oppositionTeamLogoUrl} sx={{ width: 24, height: 24, fontSize: 11, flexShrink: 0 }}>
                                   {m.oppositionTeamName.charAt(0)}
                                 </Avatar>
-                                <Typography variant="body2" fontWeight={awayWon ? 'bold' : 'normal'}>
+                                <Typography variant="body2" fontWeight={awayWon ? 'bold' : 'normal'}
+                                  sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {m.oppositionTeamName}
                                 </Typography>
                               </Box>
@@ -277,19 +298,41 @@ export const TournamentScheduleTab: React.FC<Props> = ({ tournament, onAddMatch 
                           </TableCell>
                           <TableCell align="center">
                             {r ? (
-                              r.matchDrawn
-                                ? <Chip label="Draw" size="small" variant="outlined" />
-                                : <Chip
+                              winnerLabel
+                                ? <Chip
                                     icon={<CheckCircle sx={{ fontSize: '14px !important' }} />}
-                                    label={r.winningTeamName ?? 'Completed'}
+                                    label={winnerLabel}
                                     size="small"
                                     color="success"
                                     variant="outlined"
+                                    onClick={onResultClick && m.matchId ? () => onResultClick(m.matchId!) : undefined}
+                                    sx={onResultClick ? { cursor: 'pointer' } : {}}
+                                  />
+                                : <Chip
+                                    label={r.matchDrawn ? 'Draw' : 'Completed'}
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={onResultClick && m.matchId ? () => onResultClick(m.matchId!) : undefined}
+                                    sx={onResultClick ? { cursor: 'pointer' } : {}}
                                   />
                             ) : (
-                              <Chip label="Upcoming" size="small" color="primary" variant="outlined" />
+                              <Chip
+                                label="Upcoming"
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                onClick={onResultClick && m.matchId ? () => onResultClick(m.matchId!) : undefined}
+                                sx={onResultClick ? { cursor: 'pointer', '&:hover': { bgcolor: 'primary.light', color: 'white' } } : {}}
+                              />
                             )}
                           </TableCell>
+                          {onEditMatch && (
+                            <TableCell align="center" sx={{ p: 0.5 }}>
+                              <IconButton size="small" onClick={() => onEditMatch(m)}>
+                                <Edit sx={{ fontSize: 15 }} />
+                              </IconButton>
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     })}

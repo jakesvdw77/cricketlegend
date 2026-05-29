@@ -6,7 +6,7 @@ import {
   IconButton, Tooltip,
 } from '@mui/material';
 import { ArrowBack, CheckCircle, Cancel, HelpOutline, Edit, NotificationsActive, WhatsApp } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
 import { matchApi } from '../../api/matchApi';
 import { MatchPoll, PlayerAvailabilityEntry, AvailabilityStatus, Match } from '../../types';
@@ -28,9 +28,13 @@ const STATUS_COLOR: Record<AvailabilityStatus, 'success' | 'error' | 'warning'> 
 export const MatchAvailabilityManager: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as any;
+  const preselectedTeamId: number | undefined = locationState?.teamId;
+  const returnTo: string | undefined = locationState?.returnTo;
   const { teamIds: managerTeamIds, restrictByTeam } = useManagerTeams();
   const [match, setMatch] = useState<Match | null>(null);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | ''>('');
+  const [selectedTeamId, setSelectedTeamId] = useState<number | ''>(preselectedTeamId ?? '');
   const [poll, setPoll] = useState<MatchPoll | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +47,10 @@ export const MatchAvailabilityManager: React.FC = () => {
   useEffect(() => {
     if (matchId) matchApi.findById(Number(matchId)).then(setMatch);
   }, [matchId]);
+
+  useEffect(() => {
+    if (preselectedTeamId && matchId) loadPoll(preselectedTeamId);
+  }, [preselectedTeamId, matchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadPoll = (teamId: number) => {
     if (!matchId) return;
@@ -105,7 +113,7 @@ export const MatchAvailabilityManager: React.FC = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-        <Button variant="outlined" startIcon={<ArrowBack />} onClick={() => navigate('/admin/matches')}>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate(returnTo ?? '/admin/matches')}>
           Back
         </Button>
         <Typography variant="h5">Match Availability</Typography>
@@ -113,21 +121,23 @@ export const MatchAvailabilityManager: React.FC = () => {
 
       <Paper sx={{ p: 2, mb: 3 }}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField
-            select
-            label="Team"
-            size="small"
-            value={selectedTeamId}
-            onChange={e => handleTeamChange(Number(e.target.value))}
-            sx={{ minWidth: 200 }}
-          >
-            {match?.homeTeamId && (!restrictByTeam || managerTeamIds.has(match.homeTeamId)) && (
-              <MenuItem value={match.homeTeamId}>{match.homeTeamName}</MenuItem>
-            )}
-            {match?.oppositionTeamId && (!restrictByTeam || managerTeamIds.has(match.oppositionTeamId)) && (
-              <MenuItem value={match.oppositionTeamId}>{match.oppositionTeamName}</MenuItem>
-            )}
-          </TextField>
+          {!preselectedTeamId && (
+            <TextField
+              select
+              label="Team"
+              size="small"
+              value={selectedTeamId}
+              onChange={e => handleTeamChange(Number(e.target.value))}
+              sx={{ minWidth: 200 }}
+            >
+              {match?.homeTeamId && (!restrictByTeam || managerTeamIds.has(match.homeTeamId)) && (
+                <MenuItem value={match.homeTeamId}>{match.homeTeamName}</MenuItem>
+              )}
+              {match?.oppositionTeamId && (!restrictByTeam || managerTeamIds.has(match.oppositionTeamId)) && (
+                <MenuItem value={match.oppositionTeamId}>{match.oppositionTeamName}</MenuItem>
+              )}
+            </TextField>
+          )}
 
           {poll && (
             <>

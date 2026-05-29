@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, Chip, Divider, Button, ToggleButton, ToggleButtonGroup,
-  Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
+  Table, TableHead, TableRow, TableCell, TableBody, Tooltip, CircularProgress,
 } from '@mui/material';
 import {
   Print, ArrowBack, Star, SportsCricket, ScoreboardOutlined, Share, YouTube,
 } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
 import { teamApi } from '../../api/teamApi';
@@ -61,6 +61,8 @@ function getRoleIcons(player: Player, battingPosition: number, isWK: boolean): R
 export const MatchTeamSheet: React.FC = () => {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo: string | undefined = (location.state as any)?.returnTo;
   const id = Number(matchId);
 
   const [match, setMatch] = useState<Match | null>(null);
@@ -70,6 +72,7 @@ export const MatchTeamSheet: React.FC = () => {
   const [awayTeamData, setAwayTeamData] = useState<Team | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -87,7 +90,7 @@ export const MatchTeamSheet: React.FC = () => {
       if (m.oppositionTeamId) {
         teamApi.findById(m.oppositionTeamId).then(setAwayTeamData).catch(() => {});
       }
-    });
+    }).finally(() => setLoading(false));
   }, [id]);
 
   const getXi = (side: MatchSide): Player[] =>
@@ -101,7 +104,11 @@ export const MatchTeamSheet: React.FC = () => {
   const get12th = (side: MatchSide): Player | undefined =>
     side.twelfthManPlayerId ? players.find(p => p.playerId === side.twelfthManPlayerId) : undefined;
 
-  if (!match || selectedTeamId === null) return null;
+  if (loading || !match || selectedTeamId === null) return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+      <CircularProgress />
+    </Box>
+  );
 
   const teamIds = [match.homeTeamId, match.oppositionTeamId].filter(Boolean) as number[];
   const side = sides.find(s => s.teamId === selectedTeamId);
@@ -140,7 +147,7 @@ export const MatchTeamSheet: React.FC = () => {
     <Box>
       {/* Toolbar — hidden on print */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap', '@media print': { display: 'none' } }}>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)}>Back</Button>
+        <Button startIcon={<ArrowBack />} onClick={() => returnTo ? navigate(returnTo) : navigate(-1)}>Back</Button>
         <ToggleButtonGroup
           exclusive
           value={selectedTeamId}
@@ -325,12 +332,6 @@ export const MatchTeamSheet: React.FC = () => {
                 </Typography>
               )}
             </>
-          )}
-
-          {xi.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
-              Team sheet not yet submitted.
-            </Typography>
           )}
         </Paper>
       </Box>

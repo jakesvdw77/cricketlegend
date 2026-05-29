@@ -248,7 +248,7 @@ export const Players: React.FC = () => {
         <Typography variant="h5" sx={{ mr: 'auto' }}>Players</Typography>
         {!isMobile && (
           <Tooltip title="Toggle columns">
-            <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+            <IconButton size="small" onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
           </Tooltip>
         )}
         {isAdmin && (

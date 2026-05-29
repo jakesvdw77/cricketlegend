@@ -10,6 +10,7 @@ import com.cricketlegend.dto.PagedPaymentResponse;
 import com.cricketlegend.dto.PaymentDTO;
 import com.cricketlegend.dto.TournamentFeePlayerDataDTO;
 import com.cricketlegend.dto.WalletDTO;
+import com.cricketlegend.service.ClubFinancialAdminService;
 import com.cricketlegend.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +31,7 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final ClubFinancialAdminService financialAdminService;
 
     @GetMapping
     @Operation(summary = "Get payments with optional filters (server-side paginated)")
@@ -60,9 +62,21 @@ public class PaymentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('admin')")
-    @Operation(summary = "Update a payment")
-    public ResponseEntity<PaymentDTO> update(@PathVariable Long id, @RequestBody PaymentDTO dto) {
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Update a payment (approve/reject)")
+    public ResponseEntity<PaymentDTO> update(
+            @PathVariable Long id,
+            @RequestBody PaymentDTO dto,
+            @AuthenticationPrincipal Jwt jwt,
+            org.springframework.security.core.Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            PaymentDTO existing = paymentService.findById(id);
+            if (existing.getPlayerId() == null || !financialAdminService.canManagePlayer(email, existing.getPlayerId()))
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(paymentService.update(id, dto));
     }
 
@@ -137,9 +151,19 @@ public class PaymentController {
     }
 
     @GetMapping("/allocations/club/{clubId}")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
     @Operation(summary = "Get annual subscription allocation totals per player for a club")
-    public ResponseEntity<java.util.Map<Long, java.math.BigDecimal>> getClubAllocationTotals(@PathVariable Long clubId) {
+    public ResponseEntity<java.util.Map<Long, java.math.BigDecimal>> getClubAllocationTotals(
+            @PathVariable Long clubId,
+            @AuthenticationPrincipal Jwt jwt,
+            org.springframework.security.core.Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            if (!financialAdminService.isFinancialAdminForClub(email, clubId))
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(paymentService.getClubAllocationTotals(clubId));
     }
 
@@ -215,6 +239,93 @@ public class PaymentController {
             @PathVariable Long playerId,
             @RequestParam java.math.BigDecimal amount,
             @RequestParam String description) {
+        return ResponseEntity.ok(paymentService.allocatePlayerOther(playerId, amount, description));
+    }
+
+    // ── Financial admin scoped endpoints ──────────────────────────────────────
+
+    @GetMapping("/financial-admin")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Get payments for the financial admin's club (club-scoped, server-enforced)")
+    public ResponseEntity<PagedPaymentResponse> findForMyClub(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) PaymentStatus status,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        String email = jwt.getClaimAsString("email");
+        Long clubId = financialAdminService.getClubIdForFinancialAdmin(email)
+                .orElse(null);
+        if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(paymentService.findWithFiltersForClub(clubId, status, year, month, page, size));
+    }
+
+    @GetMapping("/wallet/financial-admin")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Get wallet balances for all players in the financial admin's club")
+    public ResponseEntity<java.util.Map<Long, java.math.BigDecimal>> getMyClubWalletBalances(
+            @AuthenticationPrincipal Jwt jwt) {
+        String email = jwt.getClaimAsString("email");
+        Long clubId = financialAdminService.getClubIdForFinancialAdmin(email)
+                .orElse(null);
+        if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(paymentService.getClubWalletBalances(clubId));
+    }
+
+    @GetMapping("/allocations/financial-admin")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Get allocations for the financial admin's club (server-enforced club scope)")
+    public ResponseEntity<PagedAllocationResponse> findMyClubAllocations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) Long playerId,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        String email = jwt.getClaimAsString("email");
+        Long clubId = financialAdminService.getClubIdForFinancialAdmin(email)
+                .orElse(null);
+        if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        return ResponseEntity.ok(paymentService.findAllocationsWithFilters(playerId, clubId, category, year, month, page, size));
+    }
+
+    @PostMapping("/allocate/annual-subscription/financial-admin/player/{playerId}")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Financial admin: allocate annual subscription for a player in their club")
+    public ResponseEntity<AllocationResultDTO> financialAdminAllocateAnnualSubscription(
+            @PathVariable Long playerId,
+            @RequestParam java.math.BigDecimal amount,
+            @RequestParam(required = false) Integer year,
+            @AuthenticationPrincipal Jwt jwt,
+            org.springframework.security.core.Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            Long clubId = financialAdminService.getClubIdForFinancialAdmin(email).orElse(null);
+            if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(paymentService.allocatePlayerAnnualSubscription(playerId, amount, year));
+    }
+
+    @PostMapping("/allocate/other/financial-admin/player/{playerId}")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Financial admin: allocate other funds for a player in their club")
+    public ResponseEntity<AllocationResultDTO> financialAdminAllocateOther(
+            @PathVariable Long playerId,
+            @RequestParam java.math.BigDecimal amount,
+            @RequestParam String description,
+            @AuthenticationPrincipal Jwt jwt,
+            org.springframework.security.core.Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            Long clubId = financialAdminService.getClubIdForFinancialAdmin(email).orElse(null);
+            if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(paymentService.allocatePlayerOther(playerId, amount, description));
     }
 }

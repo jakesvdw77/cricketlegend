@@ -260,6 +260,7 @@ public class TournamentServiceImpl implements TournamentService {
         return PoolStandingEntryDTO.builder()
                 .teamId(team.getTeamId())
                 .teamName(team.getTeamName())
+                .abbreviation(team.getAbbreviation())
                 .logoUrl(team.getLogoUrl())
                 .gamesPlayed(played)
                 .won(won)

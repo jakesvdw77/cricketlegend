@@ -34,4 +34,7 @@ public interface PaymentService {
     AllocationResultDTO allocatePlayerTournamentFee(Long playerId, java.math.BigDecimal amount, Long tournamentId, java.math.BigDecimal registrationFee, String description);
     AllocationResultDTO allocatePlayerOther(Long playerId, java.math.BigDecimal amount, String description);
     PagedAllocationResponse findAllocationsWithFilters(Long playerId, Long clubId, String category, Integer year, Integer month, int page, int size);
+
+    /** Returns payments scoped to all players in the given club (enforced server-side). */
+    PagedPaymentResponse findWithFiltersForClub(Long clubId, PaymentStatus status, Integer year, Integer month, int page, int size);
 }

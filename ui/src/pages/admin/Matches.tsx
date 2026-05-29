@@ -7,7 +7,7 @@ import {
   Popover, FormGroup, Checkbox, FormControlLabel, Tooltip, useMediaQuery, useTheme, InputAdornment, Chip, Avatar, Link,
 } from '@mui/material';
 import { Add, ArrowBack, Edit, Delete, Assignment, Groups, ViewColumn, Print, HowToVote, YouTube, FilterList } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
 import { fieldApi } from '../../api/fieldApi';
@@ -34,6 +34,9 @@ const MOBILE_VISIBLE = new Set<ColKey>(['date', 'startTime', 'tournament', 'home
 
 export const Matches: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as any;
+  const returnTo: string | undefined = locationState?.returnTo;
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [rows, setRows] = useState<Match[]>([]);
@@ -46,7 +49,7 @@ export const Matches: React.FC = () => {
   };
   const [filterTournament, setFilterTournament] = useState<number | ''>('');
   const [filterStage, setFilterStage] = useState<MatchStage | ''>('');
-  const [filterTeam, setFilterTeam] = useState<number | ''>('');
+  const [filterTeam, setFilterTeam] = useState<number | ''>(locationState?.filterTeamId ?? '');
   const [teams, setTeams] = useState<Team[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -355,10 +358,15 @@ export const Matches: React.FC = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+        {returnTo && (
+          <Button startIcon={<ArrowBack />} onClick={() => navigate(returnTo)} sx={{ mr: 1 }}>
+            Back
+          </Button>
+        )}
         <Typography variant="h5" sx={{ mr: 'auto' }}>Matches</Typography>
         {!isMobile && (
           <Tooltip title="Toggle columns">
-            <IconButton onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
+            <IconButton size="small" onClick={e => setColAnchor(e.currentTarget)}><ViewColumn /></IconButton>
           </Tooltip>
         )}
         <Button variant="contained" startIcon={<Add />} onClick={openCreate}>

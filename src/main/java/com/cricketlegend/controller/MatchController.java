@@ -124,7 +124,7 @@ public class MatchController {
     }
 
     @PostMapping("/{id}/teamsheet")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
     @Operation(summary = "Save or update a team sheet for a match")
     public ResponseEntity<MatchSideDTO> saveTeamSheet(@PathVariable Long id, @RequestBody MatchSideDTO dto) {
         dto.setMatchId(id);

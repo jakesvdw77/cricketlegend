@@ -17,20 +17,26 @@ export function useManagerTeams() {
   const restrictByTeam = isManager && !isAdmin;
 
   useEffect(() => {
-    if (!restrictByTeam) {
+    if (!isManager) {
       setLoaded(true);
       return;
     }
-    Promise.all([
-      managerApi.getMyTeams(),
-      managerApi.getMySquadPlayerIds(),
-      managerApi.getMyClubId(),
-    ]).then(([teams, players, clubId]) => {
-      setTeamIds(new Set(teams));
-      setSquadPlayerIds(new Set(players));
-      setHomeClubId(clubId ?? null);
-    }).finally(() => setLoaded(true));
-  }, [restrictByTeam]);
+    if (restrictByTeam) {
+      Promise.all([
+        managerApi.getMyTeams(),
+        managerApi.getMySquadPlayerIds(),
+        managerApi.getMyClubId(),
+      ]).then(([teams, players, clubId]) => {
+        setTeamIds(new Set(teams));
+        setSquadPlayerIds(new Set(players));
+        setHomeClubId(clubId ?? null);
+      }).finally(() => setLoaded(true));
+    } else {
+      managerApi.getMyClubId()
+        .then(clubId => setHomeClubId(clubId ?? null))
+        .finally(() => setLoaded(true));
+    }
+  }, [isManager, restrictByTeam]);
 
   return { teamIds, squadPlayerIds, homeClubId, restrictByTeam, loaded };
 }

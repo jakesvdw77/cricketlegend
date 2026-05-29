@@ -210,6 +210,7 @@ export interface TournamentTeam {
   poolId?: number;
   teamId?: number;
   teamName?: string;
+  abbreviation?: string;
 }
 
 export interface TournamentPool {
@@ -370,6 +371,7 @@ export interface MatchResultSummary {
 export interface PoolStandingEntry {
   teamId: number;
   teamName: string;
+  abbreviation?: string;
   logoUrl?: string;
   gamesPlayed: number;
   won: number;

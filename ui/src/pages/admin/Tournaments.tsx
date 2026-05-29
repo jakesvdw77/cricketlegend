@@ -6,10 +6,10 @@ import {
   DialogContent, DialogActions, DialogTitle, TextField, MenuItem, Chip, Autocomplete,
   Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
-  Tabs, Tab, Tooltip, useMediaQuery, useTheme, Link, ListSubheader, Switch,
+  Tabs, Tab, Tooltip, useMediaQuery, useTheme, Link, ListSubheader,
   ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
-import { Add, ArrowBack, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, HighlightOff, ReceiptLong, FilterList, Visibility, VisibilityOff } from '@mui/icons-material';
+import { Add, ArrowBack, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, ReceiptLong, FilterList } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -18,10 +18,14 @@ import { teamApi } from '../../api/teamApi';
 import { paymentApi } from '../../api/paymentApi';
 import { matchApi } from '../../api/matchApi';
 import { fieldApi } from '../../api/fieldApi';
-import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender, Payment, Match, MatchResultSummary, Field, MatchStage } from '../../types';
+import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender, Payment, Match, MatchResultSummary, Field } from '../../types';
 import { DetailSection, DetailGrid, DetailField } from '../../components/admin/DetailView';
 import { TournamentScheduleTab } from '../../components/admin/TournamentScheduleTab';
 import { MatchScheduleVisual } from '../../components/admin/MatchScheduleVisual';
+import { TournamentGeneralInfoForm } from '../../components/admin/TournamentGeneralInfoForm';
+import { TournamentPoolsForm, LocalPool, LocalPoolTeam } from '../../components/admin/TournamentPoolsForm';
+import { TournamentSocialLinksForm } from '../../components/admin/TournamentSocialLinksForm';
+import { MatchEditDialog } from '../../components/admin/MatchEditDialog';
 import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 import { TeamsView } from '../view/TeamsView';
 
@@ -43,9 +47,6 @@ const FORMATS: CricketFormat[] = ['T20', 'T30', 'T45', 'T50'];
 
 const empty: Tournament = { name: '', pointsForWin: 2, pointsForDraw: 1, pointsForNoResult: 1, pointsForBonus: 1, showOnFrontPage: true, sponsors: [] };
 
-interface LocalPoolTeam { teamId: number; teamName: string; tournamentTeamId?: number }
-interface LocalPool { poolId?: number; poolName: string; teams: LocalPoolTeam[] }
-
 const AGE_GROUP_LABEL: Record<string, string> = {
   UNDER_9: 'Under 9', UNDER_10: 'Under 10', UNDER_11: 'Under 11', UNDER_12: 'Under 12',
   UNDER_13: 'Under 13', UNDER_14: 'Under 14', UNDER_15: 'Under 15', UNDER_16: 'Under 16',
@@ -59,8 +60,6 @@ const STAGE_LABELS: Record<string, string> = {
   FRIENDLY: 'Friendly', POOL: 'Pool', PLAYOFFS: 'Playoffs', ROUND_OF_16: 'Round of 16',
   QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final',
 };
-const PLAYOFF_STAGES: MatchStage[] = ['PLAYOFFS', 'ROUND_OF_16', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'];
-const isPlayoffStage = (stage?: MatchStage) => PLAYOFF_STAGES.includes(stage as MatchStage);
 const formatCategory = (ageGroup?: string, gender?: string): string => {
   const g = gender ? GENDER_LABEL[gender] : '';
   const a = ageGroup ? AGE_GROUP_LABEL[ageGroup] : '';
@@ -100,11 +99,7 @@ export const Tournaments: React.FC = () => {
   const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Tournament>(empty);
-  const [uploading, setUploading] = useState(false);
-  const [uploadingPdf, setUploadingPdf] = useState(false);
   const [viewLogoUrl, setViewLogoUrl] = useState<string | null>(null);
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const [nameError, setNameError] = useState('');
   const [dateError, setDateError] = useState('');
@@ -139,11 +134,8 @@ export const Tournaments: React.FC = () => {
 
   // Schedule tab state
   const [tournamentMatches, setTournamentMatches] = useState<Match[]>([]);
-  const [editingMatch, setEditingMatch] = useState<Match | null>(null);
-  const [matchErrors, setMatchErrors] = useState<{ matchDate?: string; homeTeam?: string; oppTeam?: string; startTime?: string }>({});
+  const [editingMatch, setEditingMatch] = useState<Partial<Match> | null>(null);
   const [matchFields, setMatchFields] = useState<Field[]>([]);
-  const [homeMode, setHomeMode] = useState<'team' | 'tbd'>('team');
-  const [awayMode, setAwayMode] = useState<'team' | 'tbd'>('team');
 
   const col = (key: ColKey) => isMobile ? key === 'name' : visibleCols.has(key);
 
@@ -153,44 +145,6 @@ export const Tournaments: React.FC = () => {
       if (next.has(key)) { next.delete(key); } else { next.add(key); }
       return next;
     });
-  };
-
-  const placeholderSuggestions = useMemo(() => {
-    const sugs: string[] = [];
-    localPools.forEach((pool, i) => {
-      const letter = String.fromCharCode(65 + i);
-      const count = Math.max(pool.teams.length, 2);
-      for (let pos = 1; pos <= count; pos++) {
-        const ord = pos === 1 ? '1st' : pos === 2 ? '2nd' : pos === 3 ? '3rd' : `${pos}th`;
-        sugs.push(`${ord} Pool ${letter}`);
-      }
-    });
-    if (sugs.length === 0) {
-      ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'].forEach(ord => sugs.push(`${ord} Place`));
-    }
-    ['1', '2', '3', '4'].forEach(n => sugs.push(`Winner QF ${n}`));
-    ['1', '2'].forEach(n => sugs.push(`Winner SF ${n}`));
-    return sugs;
-  }, [localPools]);
-
-  const openMatchEdit = (match: Partial<Match>) => {
-    const m = match as Match;
-    setMatchErrors({});
-    setEditingMatch(m);
-    const playoff = isPlayoffStage(m.matchStage);
-    setHomeMode(m.homeTeamPlaceholder ? 'tbd' : (m.homeTeamId ? 'team' : playoff ? 'tbd' : 'team'));
-    setAwayMode(m.awayTeamPlaceholder ? 'tbd' : (m.oppositionTeamId ? 'team' : playoff ? 'tbd' : 'team'));
-  };
-
-  const switchHomeMode = (mode: 'team' | 'tbd') => {
-    setHomeMode(mode);
-    if (mode === 'team') setEditingMatch(m => m && ({ ...m, homeTeamPlaceholder: undefined }));
-    else setEditingMatch(m => m && ({ ...m, homeTeamId: undefined, homeTeamName: undefined }));
-  };
-  const switchAwayMode = (mode: 'team' | 'tbd') => {
-    setAwayMode(mode);
-    if (mode === 'team') setEditingMatch(m => m && ({ ...m, awayTeamPlaceholder: undefined }));
-    else setEditingMatch(m => m && ({ ...m, oppositionTeamId: undefined, oppositionTeamName: undefined }));
   };
 
   const load = () => tournamentApi.findAll().then(setRows);
@@ -324,110 +278,6 @@ export const Tournaments: React.FC = () => {
   };
 
   const set = (patch: Partial<Tournament>) => setEditing(e => ({ ...e, ...patch }));
-
-  const saveMatch = async () => {
-    if (!editingMatch) return;
-    const errs: typeof matchErrors = {};
-    if (!editingMatch.matchDate) errs.matchDate = 'Required';
-    if (homeMode === 'tbd') {
-      if (!editingMatch.homeTeamPlaceholder?.trim()) errs.homeTeam = 'Enter a placeholder (e.g. "1st Pool A")';
-    } else {
-      if (!editingMatch.homeTeamId) errs.homeTeam = 'Required';
-    }
-    if (awayMode === 'tbd') {
-      if (!editingMatch.awayTeamPlaceholder?.trim()) errs.oppTeam = 'Enter a placeholder (e.g. "2nd Pool B")';
-    } else {
-      if (!editingMatch.oppositionTeamId) errs.oppTeam = 'Required';
-      else if (editingMatch.homeTeamId && editingMatch.homeTeamId === editingMatch.oppositionTeamId) errs.oppTeam = 'Must differ from home team';
-    }
-    if (!editingMatch.scheduledStartTime) errs.startTime = 'Required';
-    if (Object.keys(errs).length > 0) { setMatchErrors(errs); return; }
-    setMatchErrors({});
-    if (editingMatch.matchId) {
-      await matchApi.update(editingMatch.matchId, editingMatch);
-    } else {
-      await matchApi.create(editingMatch);
-    }
-    setEditingMatch(null);
-    setViewScheduleKey(k => k + 1);
-    if (editing.tournamentId) loadTournamentMatches(editing.tournamentId);
-  };
-
-  const renderMatchTeamItems = (excludeId?: number) => {
-    const allPoolTeams = localPools.flatMap(p => p.teams ?? []);
-    // Fall back to all teams when no pools defined or pools have no teams yet
-    if (allPoolTeams.length === 0) {
-      return allTeams
-        .filter(t => t.teamId !== excludeId)
-        .map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>);
-    }
-    if (localPools.length > 1) {
-      return localPools.flatMap(pool => [
-        <ListSubheader key={`h-${pool.poolId ?? pool.poolName}`}>{pool.poolName}</ListSubheader>,
-        ...(pool.teams ?? [])
-          .filter(t => t.teamId !== excludeId)
-          .map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>),
-      ]);
-    }
-    return allPoolTeams
-      .filter(t => t.teamId !== excludeId)
-      .map(t => <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>);
-  };
-
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const url = await paymentApi.uploadFile(formData);
-      set({ logoUrl: url });
-    } finally {
-      setUploading(false);
-      if (logoInputRef.current) logoInputRef.current.value = '';
-    }
-  };
-
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingPdf(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const url = await paymentApi.uploadFile(formData);
-      set({ playingConditionsUrl: url });
-    } finally {
-      setUploadingPdf(false);
-      if (pdfInputRef.current) pdfInputRef.current.value = '';
-    }
-  };
-
-  // Pool helpers
-  const addPool = () => {
-    const name = newPoolName.trim() || `Pool ${String.fromCharCode(65 + localPools.length)}`;
-    setLocalPools(p => [...p, { poolName: name, teams: [] }]);
-    setNewPoolName('');
-  };
-
-  const removePool = (idx: number) => {
-    setLocalPools(p => p.filter((_, i) => i !== idx));
-  };
-
-  const addTeamToLocalPool = (poolIdx: number, team: Team) => {
-    setLocalPools(pools => pools.map((p, i) => {
-      if (i !== poolIdx) return p;
-      if (p.teams.find(t => t.teamId === team.teamId)) return p;
-      return { ...p, teams: [...p.teams, { teamId: team.teamId!, teamName: team.teamName }] };
-    }));
-  };
-
-  const removeTeamFromLocalPool = (poolIdx: number, teamId: number) => {
-    setLocalPools(pools => pools.map((p, i) =>
-      i !== poolIdx ? p : { ...p, teams: p.teams.filter(t => t.teamId !== teamId) }
-    ));
-  };
 
   const generateTournamentPdf = async (tournament: Tournament) => {
     if (!tournament.tournamentId) return;
@@ -652,131 +502,17 @@ export const Tournaments: React.FC = () => {
   const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   const matchEditDialog = (
-    <Dialog open={!!editingMatch} onClose={() => setEditingMatch(null)} maxWidth="sm" fullWidth>
-      <DialogTitle>{editingMatch?.matchId ? 'Edit Match' : 'Add Match'}</DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 3, overflow: 'visible' }}>
-        {editingMatch && (
-          <>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <TextField label="Match Date" type="date" value={editingMatch.matchDate ?? ''} required
-                InputLabelProps={{ shrink: true }} error={!!matchErrors.matchDate} helperText={matchErrors.matchDate}
-                sx={{ flex: '1 1 140px' }}
-                onChange={e => setEditingMatch(m => m && ({ ...m, matchDate: e.target.value }))} />
-              <TextField label="Arrival Time" type="time" value={editingMatch.arrivalTime ?? ''}
-                InputLabelProps={{ shrink: true }} sx={{ flex: '1 1 110px' }}
-                onChange={e => setEditingMatch(m => m && ({ ...m, arrivalTime: e.target.value }))} />
-              <TextField label="Toss Time" type="time" value={editingMatch.tossTime ?? ''}
-                InputLabelProps={{ shrink: true }} sx={{ flex: '1 1 110px' }}
-                onChange={e => setEditingMatch(m => m && ({ ...m, tossTime: e.target.value }))} />
-              <TextField label="Start Time" type="time" value={editingMatch.scheduledStartTime ?? ''} required
-                InputLabelProps={{ shrink: true }} error={!!matchErrors.startTime} helperText={matchErrors.startTime}
-                sx={{ flex: '1 1 110px' }}
-                onChange={e => {
-                  const startTime = e.target.value;
-                  const patch: Partial<Match> = { scheduledStartTime: startTime };
-                  if (startTime) {
-                    const [h, m] = startTime.split(':').map(Number);
-                    const mins = h * 60 + m;
-                    const offset = (n: number) => {
-                      const t = ((mins - n) % 1440 + 1440) % 1440;
-                      return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-                    };
-                    patch.arrivalTime = offset(45);
-                    patch.tossTime = offset(15);
-                  }
-                  setEditingMatch(m => m && ({ ...m, ...patch }));
-                }} />
-            </Box>
-            <TextField select label="Stage" value={editingMatch.matchStage ?? ''}
-              onChange={e => {
-                const stage = e.target.value as MatchStage;
-                setEditingMatch(m => m && ({ ...m, matchStage: stage }));
-                if (isPlayoffStage(stage)) {
-                  if (!editingMatch.homeTeamId) setHomeMode('tbd');
-                  if (!editingMatch.oppositionTeamId) setAwayMode('tbd');
-                } else {
-                  setHomeMode('team');
-                  setAwayMode('team');
-                }
-              }}>
-              <MenuItem value="FRIENDLY">Friendly</MenuItem>
-              <MenuItem value="POOL">Pool</MenuItem>
-              <MenuItem value="PLAYOFFS">Playoffs</MenuItem>
-              <MenuItem value="ROUND_OF_16">Round of 16</MenuItem>
-              <MenuItem value="QUARTER_FINAL">Quarter-Final</MenuItem>
-              <MenuItem value="SEMI_FINAL">Semi-Final</MenuItem>
-              <MenuItem value="FINAL">Final</MenuItem>
-            </TextField>
-
-            {/* Home team */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-              {isPlayoffStage(editingMatch.matchStage) && (
-                <ToggleButtonGroup size="small" exclusive value={homeMode} onChange={(_, v) => v && switchHomeMode(v)}>
-                  <ToggleButton value="team" sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}>Select Team</ToggleButton>
-                  <ToggleButton value="tbd" sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}>TBD / Placeholder</ToggleButton>
-                </ToggleButtonGroup>
-              )}
-              {homeMode === 'tbd' ? (
-                <TextField
-                  label="Home Team — Placeholder" required
-                  value={editingMatch.homeTeamPlaceholder ?? ''}
-                  onChange={e => setEditingMatch(m => m && ({ ...m, homeTeamPlaceholder: e.target.value || undefined }))}
-                  error={!!matchErrors.homeTeam}
-                  helperText={matchErrors.homeTeam || `e.g. ${placeholderSuggestions.slice(0, 3).join(' · ')}`}
-                />
-              ) : (
-                <TextField select label="Home Team" value={editingMatch.homeTeamId ?? ''} required
-                  error={!!matchErrors.homeTeam} helperText={matchErrors.homeTeam}
-                  onChange={e => setEditingMatch(m => m && ({ ...m, homeTeamId: +e.target.value }))}>
-                  {renderMatchTeamItems(editingMatch.oppositionTeamId)}
-                </TextField>
-              )}
-            </Box>
-
-            {/* Away team */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-              {isPlayoffStage(editingMatch.matchStage) && (
-                <ToggleButtonGroup size="small" exclusive value={awayMode} onChange={(_, v) => v && switchAwayMode(v)}>
-                  <ToggleButton value="team" sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}>Select Team</ToggleButton>
-                  <ToggleButton value="tbd" sx={{ textTransform: 'none', fontSize: '0.75rem', py: 0.25 }}>TBD / Placeholder</ToggleButton>
-                </ToggleButtonGroup>
-              )}
-              {awayMode === 'tbd' ? (
-                <TextField
-                  label="Away Team — Placeholder" required
-                  value={editingMatch.awayTeamPlaceholder ?? ''}
-                  onChange={e => setEditingMatch(m => m && ({ ...m, awayTeamPlaceholder: e.target.value || undefined }))}
-                  error={!!matchErrors.oppTeam}
-                  helperText={matchErrors.oppTeam || `e.g. ${placeholderSuggestions.slice(1, 4).join(' · ')}`}
-                />
-              ) : (
-                <TextField select label="Opposition Team" value={editingMatch.oppositionTeamId ?? ''} required
-                  error={!!matchErrors.oppTeam} helperText={matchErrors.oppTeam}
-                  onChange={e => setEditingMatch(m => m && ({ ...m, oppositionTeamId: +e.target.value }))}>
-                  {renderMatchTeamItems(editingMatch.homeTeamId)}
-                </TextField>
-              )}
-            </Box>
-            <TextField select label="Ground" value={editingMatch.fieldId ?? ''}
-              onChange={e => setEditingMatch(m => m && ({ ...m, fieldId: +e.target.value }))}>
-              <MenuItem value="">— None —</MenuItem>
-              {matchFields.map(f => <MenuItem key={f.fieldId} value={f.fieldId}>{f.name}</MenuItem>)}
-            </TextField>
-            <TextField label="Umpire" value={editingMatch.umpire ?? ''}
-              onChange={e => setEditingMatch(m => m && ({ ...m, umpire: e.target.value }))} />
-            <TextField label="Live Scoring URL" value={editingMatch.scoringUrl ?? ''}
-              onChange={e => setEditingMatch(m => m && ({ ...m, scoringUrl: e.target.value }))} />
-            <TextField label="YouTube Stream URL" value={editingMatch.youtubeUrl ?? ''}
-              onChange={e => setEditingMatch(m => m && ({ ...m, youtubeUrl: e.target.value }))}
-              InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
-          </>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setEditingMatch(null)}>Cancel</Button>
-        <Button variant="contained" onClick={saveMatch}>Save</Button>
-      </DialogActions>
-    </Dialog>
+    <MatchEditDialog
+      match={editingMatch}
+      onClose={() => setEditingMatch(null)}
+      onSaved={() => {
+        setViewScheduleKey(k => k + 1);
+        if (editing.tournamentId) loadTournamentMatches(editing.tournamentId);
+      }}
+      pools={localPools}
+      allTeams={allTeams}
+      fields={matchFields}
+    />
   );
 
   if (open) {
@@ -805,173 +541,28 @@ export const Tournaments: React.FC = () => {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 700 }}>
 
           {activeTab === 0 && (
-            <>
-              <Box>
-                <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleLogoUpload} />
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                  <Avatar src={editing.logoUrl ?? ''} variant="rounded"
-                    sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.logoUrl ? 'pointer' : 'default' }}
-                    onClick={() => editing.logoUrl && setViewLogoUrl(editing.logoUrl)}>
-                    {editing.name.charAt(0)}
-                  </Avatar>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Button variant="outlined" size="small"
-                      startIcon={uploading ? <CircularProgress size={14} /> : <CloudUpload />}
-                      onClick={() => logoInputRef.current?.click()} disabled={uploading}>
-                      {uploading ? 'Uploading…' : 'Upload Logo'}
-                    </Button>
-                    {editing.logoUrl && (
-                      <Tooltip title="Remove logo">
-                        <IconButton size="small" color="error" onClick={() => set({ logoUrl: undefined })}>
-                          <HighlightOff fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                  </Box>
-                </Box>
-              </Box>
-              <TextField label="Name" value={editing.name} required error={!!nameError} helperText={nameError}
-                onChange={e => { set({ name: e.target.value }); setNameError(''); }} />
-              <TextField label="Description" value={editing.description ?? ''} multiline rows={2}
-                onChange={e => set({ description: e.target.value })} />
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField select label="Format" value={editing.cricketFormat ?? ''} fullWidth
-                  onChange={e => set({ cricketFormat: e.target.value as CricketFormat })}>
-                  {FORMATS.map(f => <MenuItem key={f} value={f}>{f}</MenuItem>)}
-                </TextField>
-                <TextField select label="Gender" value={editing.tournamentGender ?? ''} fullWidth
-                  onChange={e => set({ tournamentGender: e.target.value as TournamentGender || undefined })}>
-                  <MenuItem value="">— None —</MenuItem>
-                  <MenuItem value="MEN">Men</MenuItem>
-                  <MenuItem value="WOMEN">Women</MenuItem>
-                  <MenuItem value="BOYS">Boys</MenuItem>
-                  <MenuItem value="GIRLS">Girls</MenuItem>
-                </TextField>
-              </Box>
-              <TextField select label="Age Group" value={editing.ageGroup ?? ''}
-                onChange={e => set({ ageGroup: e.target.value as AgeGroup || undefined })}>
-                <MenuItem value="">— None —</MenuItem>
-                <MenuItem value="UNDER_9">Under 9</MenuItem>
-                <MenuItem value="UNDER_10">Under 10</MenuItem>
-                <MenuItem value="UNDER_11">Under 11</MenuItem>
-                <MenuItem value="UNDER_12">Under 12</MenuItem>
-                <MenuItem value="UNDER_13">Under 13</MenuItem>
-                <MenuItem value="UNDER_14">Under 14</MenuItem>
-                <MenuItem value="UNDER_15">Under 15</MenuItem>
-                <MenuItem value="UNDER_16">Under 16</MenuItem>
-                <MenuItem value="UNDER_18">Under 18</MenuItem>
-                <MenuItem value="UNDER_19">Under 19</MenuItem>
-                <MenuItem value="OPEN">Open</MenuItem>
-                <MenuItem value="VETERANS">Veterans</MenuItem>
-                <MenuItem value="OVER_50">Over 50</MenuItem>
-                <MenuItem value="OVER_60">Over 60</MenuItem>
-              </TextField>
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField label="Start Date" type="date" value={editing.startDate ?? ''} fullWidth
-                  InputLabelProps={{ shrink: true }} inputProps={{ max: editing.endDate || undefined }}
-                  error={!!dateError} onChange={e => { set({ startDate: e.target.value }); setDateError(''); }} />
-                <TextField label="End Date" type="date" value={editing.endDate ?? ''} fullWidth
-                  InputLabelProps={{ shrink: true }} inputProps={{ min: editing.startDate || undefined }}
-                  error={!!dateError} helperText={dateError}
-                  onChange={e => { set({ endDate: e.target.value }); setDateError(''); }} />
-              </Box>
-              <Divider />
-              <Typography variant="subtitle2" color="text.secondary">Scoring</Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <TextField label="Win Pts" type="number" value={editing.pointsForWin ?? 2}
-                  onChange={e => set({ pointsForWin: +e.target.value })} />
-                <TextField label="Draw Pts" type="number" value={editing.pointsForDraw ?? 1}
-                  onChange={e => set({ pointsForDraw: +e.target.value })} />
-                <TextField label="No Result Pts" type="number" value={editing.pointsForNoResult ?? 1}
-                  onChange={e => set({ pointsForNoResult: +e.target.value })} />
-                <TextField label="Bonus Pts" type="number" value={editing.pointsForBonus ?? 1}
-                  onChange={e => set({ pointsForBonus: +e.target.value })} />
-              </Box>
-              <Divider />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                {(editing.showOnFrontPage ?? true)
-                  ? <Visibility fontSize="small" color="primary" />
-                  : <VisibilityOff fontSize="small" color="disabled" />}
-                <Box>
-                  <Typography variant="subtitle2">Show on Front Page</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    When off, this tournament (and its standings) will not appear on the public front page.
-                  </Typography>
-                </Box>
-                <Switch
-                  checked={editing.showOnFrontPage ?? true}
-                  onChange={e => set({ showOnFrontPage: e.target.checked })}
-                  sx={{ ml: 'auto' }}
-                />
-              </Box>
-            </>
+            <TournamentGeneralInfoForm
+              value={editing}
+              onChange={set}
+              nameError={nameError}
+              onNameErrorClear={() => setNameError('')}
+              dateError={dateError}
+              onDateErrorClear={() => setDateError('')}
+            />
           )}
 
           {activeTab === 1 && (
-            <>
-              {localPools.map((pool, poolIdx) => (
-                <Paper key={poolIdx} variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TextField label="Pool Name" value={pool.poolName} size="small" sx={{ flex: 1 }}
-                      onChange={e => setLocalPools(pools => pools.map((p, i) =>
-                        i === poolIdx ? { ...p, poolName: e.target.value } : p))} />
-                    <IconButton size="small" color="error" onClick={() => removePool(poolIdx)}>
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', minHeight: 28 }}>
-                    {pool.teams.map(t => (
-                      <Chip key={t.teamId} label={t.teamName} size="small"
-                        onDelete={() => removeTeamFromLocalPool(poolIdx, t.teamId)} />
-                    ))}
-                  </Box>
-                  <Autocomplete
-                    options={allTeams.filter(t => !localPools.some(p => p.teams.find(pt => pt.teamId === t.teamId)))}
-                    getOptionLabel={t => t.teamName} onChange={(_, team) => { if (team) addTeamToLocalPool(poolIdx, team); }}
-                    value={null} blurOnSelect
-                    renderInput={params => <TextField {...params} label="Add team to pool" size="small" />} />
-                </Paper>
-              ))}
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <TextField label="New Pool Name" value={newPoolName} size="small" sx={{ flex: 1 }}
-                  onChange={e => setNewPoolName(e.target.value)}
-                  placeholder={`Pool ${String.fromCharCode(65 + localPools.length)}`}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPool(); } }} />
-                <Button variant="outlined" size="small" startIcon={<Add />} onClick={addPool}>Add Pool</Button>
-              </Box>
-            </>
+            <TournamentPoolsForm
+              localPools={localPools}
+              onPoolsChange={setLocalPools}
+              allTeams={allTeams}
+              newPoolName={newPoolName}
+              onNewPoolNameChange={setNewPoolName}
+            />
           )}
 
           {activeTab === mediaTab && (
-            <>
-              <input type="file" ref={pdfInputRef} style={{ display: 'none' }} accept="application/pdf" onChange={handlePdfUpload} />
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Box sx={{ width: 64, height: 64, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {editing.playingConditionsUrl ? (
-                    <IconButton component="a" href={editing.playingConditionsUrl} target="_blank" rel="noopener noreferrer" color="error" size="large">
-                      <PictureAsPdf sx={{ fontSize: 40 }} />
-                    </IconButton>
-                  ) : (
-                    <PictureAsPdf sx={{ fontSize: 40, color: 'text.disabled' }} />
-                  )}
-                </Box>
-                <Button variant="outlined" size="small"
-                  startIcon={uploadingPdf ? <CircularProgress size={14} /> : <CloudUpload />}
-                  onClick={() => pdfInputRef.current?.click()} disabled={uploadingPdf} sx={{ alignSelf: 'flex-start' }}>
-                  {uploadingPdf ? 'Uploading…' : 'Upload Playing Conditions'}
-                </Button>
-              </Box>
-              <TextField label="Website" value={editing.websiteLink ?? ''} onChange={e => set({ websiteLink: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Language fontSize="small" /></InputAdornment> }} />
-              <TextField label="Facebook" value={editing.facebookLink ?? ''} onChange={e => set({ facebookLink: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField label="Instagram" value={editing.instagramLink ?? ''} onChange={e => set({ instagramLink: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField label="YouTube" value={editing.youtubeLink ?? ''} onChange={e => set({ youtubeLink: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField label="Registration Page URL" value={editing.registrationPageUrl ?? ''}
-                onChange={e => set({ registrationPageUrl: e.target.value })} />
-            </>
+            <TournamentSocialLinksForm value={editing} onChange={set} />
           )}
 
           {activeTab === sponsorsTab && (
@@ -1018,7 +609,7 @@ export const Tournaments: React.FC = () => {
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
                 <Button variant="outlined" size="small" startIcon={<Add />}
-                  onClick={() => openMatchEdit({ tournamentId: editing.tournamentId, tournamentName: editing.name, matchStage: 'POOL' })}>
+                  onClick={() => setEditingMatch({ tournamentId: editing.tournamentId, tournamentName: editing.name, matchStage: 'POOL' })}>
                   Add Match
                 </Button>
               </Box>
@@ -1066,7 +657,7 @@ export const Tournaments: React.FC = () => {
                           </TableCell>
                           <TableCell>{m.fieldName}</TableCell>
                           <TableCell align="right">
-                            <IconButton size="small" onClick={() => openMatchEdit(m)}>
+                            <IconButton size="small" onClick={() => setEditingMatch(m)}>
                               <Edit fontSize="small" />
                             </IconButton>
                             <IconButton size="small" color="error" onClick={async () => {
@@ -1086,13 +677,6 @@ export const Tournaments: React.FC = () => {
             </Box>
           )}
         </Box>
-
-        <Dialog open={!!viewLogoUrl} onClose={() => setViewLogoUrl(null)} maxWidth="sm">
-          <DialogContent sx={{ p: 0, lineHeight: 0 }}>
-            <img src={viewLogoUrl ?? ''} alt="Tournament logo" style={{ display: 'block', maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
-          </DialogContent>
-          <DialogActions><Button onClick={() => setViewLogoUrl(null)}>Close</Button></DialogActions>
-        </Dialog>
 
         {matchEditDialog}
       </>
@@ -1212,13 +796,15 @@ export const Tournaments: React.FC = () => {
             </Box>
 
             {viewScheduleMode === 'table' && (
-              <TournamentScheduleTab key={viewScheduleKey} tournament={viewItem} onAddMatch={() => {
+              <TournamentScheduleTab key={viewScheduleKey} tournament={viewItem}
+                onResultClick={(id) => navigate(`/admin/matches/${id}/result`)}
+                onAddMatch={() => {
                 const pools = (viewItem.pools ?? []).map(p => ({
                   poolId: p.poolId, poolName: p.poolName,
                   teams: (p.teams ?? []).map(t => ({ teamId: t.teamId!, teamName: t.teamName! })),
                 }));
                 setLocalPools(pools);
-                openMatchEdit({ tournamentId: viewItem.tournamentId, tournamentName: viewItem.name, matchStage: 'POOL' });
+                setEditingMatch({ tournamentId: viewItem.tournamentId, tournamentName: viewItem.name, matchStage: 'POOL' });
               }} />
             )}
 

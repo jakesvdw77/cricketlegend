@@ -10,6 +10,7 @@ public interface TournamentTeamMapper {
     @Mapping(source = "pool.poolId", target = "poolId")
     @Mapping(source = "team.teamId", target = "teamId")
     @Mapping(source = "team.teamName", target = "teamName")
+    @Mapping(source = "team.abbreviation", target = "abbreviation")
     TournamentTeamDTO toDto(TournamentTeam entity);
 
     @Mapping(target = "pool", ignore = true)

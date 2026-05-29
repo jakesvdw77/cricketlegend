@@ -6,6 +6,7 @@ import lombok.*;
 public class PoolStandingEntryDTO {
     private Long teamId;
     private String teamName;
+    private String abbreviation;
     private String logoUrl;
     private int gamesPlayed;
     private int won;

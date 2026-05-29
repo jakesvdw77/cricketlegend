@@ -7,6 +7,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { useAuth } from './hooks/useAuth';
 import keycloak from './keycloak';
 import { LandingPage } from './pages/LandingPage';
+import { PublicTournamentPage } from './pages/PublicTournamentPage';
 
 // Admin pages
 import { Tournaments } from './pages/admin/Tournaments';
@@ -26,11 +27,18 @@ import { MatchResultCapture } from './pages/admin/MatchResultCapture';
 import { MatchAvailabilityManager } from './pages/admin/MatchAvailabilityManager';
 import { ManagerTeams } from './pages/admin/ManagerTeams';
 import { Managers } from './pages/admin/Managers';
+import { FinancialAdmins } from './pages/admin/FinancialAdmins';
 import { MediaLibrary } from './pages/admin/MediaLibrary';
 import { Setup } from './pages/admin/Setup';
 import { SendNotification } from './pages/admin/SendNotification';
 import { LoginHistory } from './pages/admin/LoginHistory';
 import { Events } from './pages/admin/Events';
+import { FinancePayments } from './pages/finance/FinancePayments';
+import { FinanceAllocation } from './pages/finance/FinanceAllocation';
+import { ManageClub } from './pages/manage/ManageClub';
+import { ManageClubTeams } from './pages/manage/ManageClubTeams';
+import { ManageClubSchedule } from './pages/manage/ManageClubSchedule';
+import { ManageClubPlayers } from './pages/manage/ManageClubPlayers';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
@@ -75,6 +83,11 @@ const ManagerRoute: React.FC<{ element: React.ReactElement }> = ({ element }) =>
   return (isAdmin || isManager) ? element : <Navigate to="/matches/upcoming" replace />;
 };
 
+const FinancialAdminRoute: React.FC<{ element: React.ReactElement }> = ({ element }) => {
+  const { isAdmin, isFinancialAdmin } = useAuth();
+  return (isAdmin || isFinancialAdmin) ? element : <Navigate to="/matches/upcoming" replace />;
+};
+
 function ThemedApp() {
   const { mode } = useColorMode();
   return (
@@ -83,6 +96,7 @@ function ThemedApp() {
       <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
         <Routes>
           <Route path="/" element={<LandingRoute />} />
+          <Route path="tournament/:id" element={<PublicTournamentPage />} />
           <Route path="tournaments/:tournamentId/schedule" element={<TournamentSchedule />} />
           <Route element={<ProtectedLayout />}>
             <Route path="home" element={<HomeLandingRoute />} />
@@ -91,6 +105,12 @@ function ThemedApp() {
             <Route path="my-payments" element={<Navigate to="/my-wallet" replace />} />
             <Route path="my-wallet" element={<MyWallet />} />
             <Route path="my-schedule" element={<MySchedule />} />
+
+            {/* Club Manager routes */}
+            <Route path="manage-club/club" element={<ManagerRoute element={<ManageClub />} />} />
+            <Route path="manage-club/teams" element={<ManagerRoute element={<ManageClubTeams />} />} />
+            <Route path="manage-club/teams/:teamId/schedule" element={<ManagerRoute element={<ManageClubSchedule />} />} />
+            <Route path="manage-club/players" element={<ManagerRoute element={<ManageClubPlayers />} />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />
@@ -114,6 +134,7 @@ function ThemedApp() {
             <Route path="admin/reports" element={<AdminRoute element={<Reports />} />} />
             <Route path="admin/fund-allocation" element={<AdminRoute element={<FundAllocation />} />} />
             <Route path="admin/login-history" element={<AdminRoute element={<LoginHistory />} />} />
+            <Route path="admin/financial-admins" element={<AdminRoute element={<FinancialAdmins />} />} />
             <Route path="admin/tournaments/:tournamentId/pools" element={<ManagerRoute element={<TournamentPools />} />} />
 
             {/* View routes (all authenticated users) */}
@@ -126,6 +147,8 @@ function ThemedApp() {
             <Route path="my-availability" element={<MyAvailability />} />
             <Route path="teams" element={<TeamsView />} />
             <Route path="my-club" element={<MyClubView />} />
+            <Route path="finance/payments" element={<FinancialAdminRoute element={<FinancePayments />} />} />
+            <Route path="finance/allocation" element={<FinancialAdminRoute element={<FinanceAllocation />} />} />
             <Route path="tournaments" element={<TournamentView />} />
             <Route path="tournaments/:tournamentId/pools" element={<TournamentPools />} />
             <Route path="tournaments/:tournamentId/standings" element={<TournamentStandings />} />
