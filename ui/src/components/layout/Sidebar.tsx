@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Login, Event, Settings,
+    PermMedia, Campaign, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Login, Event, Settings, Email, Psychology,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -305,6 +305,14 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/setup')}>
                                 <ListItemIcon><Settings/></ListItemIcon>
                                 <ListItemText primary="Page Setup"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/email-settings')}>
+                                <ListItemIcon><Email/></ListItemIcon>
+                                <ListItemText primary="Email Settings"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/ai-settings')}>
+                                <ListItemIcon><Psychology/></ListItemIcon>
+                                <ListItemText primary="AI Settings"/>
                             </ListItemButton>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/login-history')}>
                                 <ListItemIcon><Login/></ListItemIcon>

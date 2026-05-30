@@ -19,9 +19,42 @@ import { Team, Player, Club, Tournament } from '../../types';
 import { playerDescription } from '../../utils/playerDescription';
 import { printSquad } from '../../utils/printSquad';
 import { generateSquadPdf } from '../../utils/matchPdf';
-import { generateSquadImage } from '../../utils/teamsheetImage';
+import { generateSquadImage, generateSquadNamesImage } from '../../utils/teamsheetImage';
 import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 import SquadShareDialog from './SquadShareDialog';
+
+// ── Squad image template picker ───────────────────────────────────────────────
+
+const SquadImageTemplateDialog: React.FC<{
+  open: boolean;
+  loading: boolean;
+  onClose: () => void;
+  onPhotoGrid: () => void;
+  onNames: () => void;
+}> = ({ open, loading, onClose, onPhotoGrid, onNames }) => (
+  <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <DialogTitle>Squad Image — Choose Template</DialogTitle>
+    <DialogContent sx={{ p: 0 }}>
+      <List disablePadding>
+        <ListItemButton onClick={onPhotoGrid} disabled={loading}>
+          <ListItemIcon>
+            {loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}
+          </ListItemIcon>
+          <ListItemText primary="Photo Grid" secondary="Player photos in a grid layout" />
+        </ListItemButton>
+        <ListItemButton onClick={onNames} disabled={loading}>
+          <ListItemIcon>
+            {loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}
+          </ListItemIcon>
+          <ListItemText primary="Squad Names Template" secondary="Team name, player list in columns with logo" />
+        </ListItemButton>
+      </List>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose}>Cancel</Button>
+    </DialogActions>
+  </Dialog>
+);
 
 export const TeamSquad: React.FC = () => {
   const { teamId } = useParams<{ teamId: string }>();
@@ -49,6 +82,7 @@ export const TeamSquad: React.FC = () => {
   const [shareLoading, setShareLoading] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [squadTemplateOpen, setSquadTemplateOpen] = useState(false);
 
   useEffect(() => {
     teamApi.findById(id).then(t => {
@@ -89,12 +123,29 @@ export const TeamSquad: React.FC = () => {
     }
   };
 
-  const handleSquadImage = async () => {
+  const handleSquadImage = () => {
+    setShareOptionsOpen(false);
+    setSquadTemplateOpen(true);
+  };
+
+  const handleSquadPhotoGrid = async () => {
     if (!team) return;
     setShareLoading(true);
     try {
       const url = await generateSquadImage(team, squad, selectedTournament);
-      setShareOptionsOpen(false);
+      setSquadTemplateOpen(false);
+      setImageUrl(url);
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSquadNamesTemplate = async () => {
+    if (!team) return;
+    setShareLoading(true);
+    try {
+      const url = await generateSquadNamesImage(team, squad, selectedTournament);
+      setSquadTemplateOpen(false);
       setImageUrl(url);
     } finally {
       setShareLoading(false);
@@ -381,6 +432,15 @@ export const TeamSquad: React.FC = () => {
           <Button onClick={() => setShareOptionsOpen(false)}>Cancel</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Squad image template picker */}
+      <SquadImageTemplateDialog
+        open={squadTemplateOpen}
+        loading={shareLoading}
+        onClose={() => setSquadTemplateOpen(false)}
+        onPhotoGrid={handleSquadPhotoGrid}
+        onNames={handleSquadNamesTemplate}
+      />
 
       {/* WhatsApp / email dialog */}
       {team && (

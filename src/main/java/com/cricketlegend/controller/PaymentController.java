@@ -323,9 +323,94 @@ public class PaymentController {
                 .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
         if (!isAdmin) {
             String email = jwt.getClaimAsString("email");
-            Long clubId = financialAdminService.getClubIdForFinancialAdmin(email).orElse(null);
-            if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            if (!financialAdminService.canManagePlayer(email, playerId))
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         return ResponseEntity.ok(paymentService.allocatePlayerOther(playerId, amount, description));
+    }
+
+    @GetMapping("/match-fee/financial-admin/players")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Financial admin: get match fee player data filtered to their club")
+    public ResponseEntity<List<MatchFeePlayerDataDTO>> getMyMatchFeePlayerData(
+            @AuthenticationPrincipal Jwt jwt,
+            org.springframework.security.core.Authentication authentication,
+            @RequestParam Long matchId,
+            @RequestParam(required = false) List<Long> sideIds) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        List<MatchFeePlayerDataDTO> data = paymentService.getMatchFeePlayerData(matchId, sideIds);
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            Long clubId = financialAdminService.getClubIdForFinancialAdmin(email).orElse(null);
+            if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            data = data.stream()
+                    .filter(p -> financialAdminService.canManagePlayer(email, p.getPlayerId()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        return ResponseEntity.ok(data);
+    }
+
+    @PostMapping("/allocate/match-fee/financial-admin/player/{playerId}")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Financial admin: allocate match fee for a player in their club")
+    public ResponseEntity<AllocationResultDTO> financialAdminAllocateMatchFee(
+            @PathVariable Long playerId,
+            @RequestParam java.math.BigDecimal amount,
+            @RequestParam Long matchId,
+            @RequestParam(required = false) java.math.BigDecimal matchFee,
+            @RequestParam(required = false) String description,
+            @AuthenticationPrincipal Jwt jwt,
+            org.springframework.security.core.Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            if (!financialAdminService.canManagePlayer(email, playerId))
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(paymentService.allocatePlayerMatchFee(playerId, amount, matchId, matchFee, description));
+    }
+
+    @GetMapping("/tournament-fee/financial-admin/players")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Financial admin: get tournament fee player data filtered to their club")
+    public ResponseEntity<List<TournamentFeePlayerDataDTO>> getMyTournamentFeePlayerData(
+            @AuthenticationPrincipal Jwt jwt,
+            org.springframework.security.core.Authentication authentication,
+            @RequestParam Long tournamentId) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        List<TournamentFeePlayerDataDTO> data = paymentService.getTournamentFeePlayerData(tournamentId);
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            Long clubId = financialAdminService.getClubIdForFinancialAdmin(email).orElse(null);
+            if (clubId == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            data = data.stream()
+                    .filter(p -> financialAdminService.canManagePlayer(email, p.getPlayerId()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+        return ResponseEntity.ok(data);
+    }
+
+    @PostMapping("/allocate/tournament-fee/financial-admin/player/{playerId}")
+    @PreAuthorize("hasAnyRole('admin','financial_admin')")
+    @Operation(summary = "Financial admin: allocate tournament fee for a player in their club")
+    public ResponseEntity<AllocationResultDTO> financialAdminAllocateTournamentFee(
+            @PathVariable Long playerId,
+            @RequestParam java.math.BigDecimal amount,
+            @RequestParam Long tournamentId,
+            @RequestParam(required = false) java.math.BigDecimal registrationFee,
+            @RequestParam(required = false) String description,
+            @AuthenticationPrincipal Jwt jwt,
+            org.springframework.security.core.Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
+        if (!isAdmin) {
+            String email = jwt.getClaimAsString("email");
+            if (!financialAdminService.canManagePlayer(email, playerId))
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(paymentService.allocatePlayerTournamentFee(playerId, amount, tournamentId, registrationFee, description));
     }
 }

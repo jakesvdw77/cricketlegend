@@ -10,10 +10,8 @@ import {
   Handshake, Language, Facebook, Close, Instagram, YouTube, OpenInNew,
   AccountBalance, Groups, HowToVote, AppRegistration,
   LightMode, DarkMode, FiberManualRecord, ChevronRight, Tune,
-  Image as ImageIcon, Download,
+  Image as ImageIcon,
 } from '@mui/icons-material';
-import CircularProgress from '@mui/material/CircularProgress';
-import DialogActions from '@mui/material/DialogActions';
 import { SchedulePickerDialog } from '../components/SchedulePickerDialog';
 import { useColorMode } from '../context/ColorModeContext';
 import { matchApi } from '../api/matchApi';
@@ -338,7 +336,7 @@ export const LandingPage: React.FC = () => {
   const [liveMatchIndex, setLiveMatchIndex] = useState(0);
   const [manageTournament, setManageTournament] = useState<Tournament | null>(null);
 
-  const { isAdmin, isManager } = useAuth();
+  const { isAdmin } = useAuth();
   const canManage = keycloak.authenticated && isAdmin;
 
   useEffect(() => {

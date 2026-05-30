@@ -224,18 +224,18 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
 
       <PdfPreviewDialog pdfUrl={pdfUrl} onClose={() => setPdfUrl(null)} />
       {groups.map(group => {
-        // Sort then group by date + start time
+        // Sort by date then time, then group by date only
         const sorted = [...group.matches].sort((a, b) => {
           const dc = (a.matchDate ?? '').localeCompare(b.matchDate ?? '');
           return dc !== 0 ? dc : (a.scheduledStartTime ?? '').localeCompare(b.scheduledStartTime ?? '');
         });
-        const byDateTime = new Map<string, Match[]>();
+        const byDate = new Map<string, Match[]>();
         for (const m of sorted) {
-          const key = `${m.matchDate ?? '__none__'}__${m.scheduledStartTime ?? ''}`;
-          if (!byDateTime.has(key)) byDateTime.set(key, []);
-          byDateTime.get(key)!.push(m);
+          const key = m.matchDate ?? '__none__';
+          if (!byDate.has(key)) byDate.set(key, []);
+          byDate.get(key)!.push(m);
         }
-        const slotGroups = [...byDateTime.values()];
+        const dateGroups = [...byDate.entries()];
 
         return (
           <Box key={group.label}>
@@ -251,25 +251,29 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
               </Typography>
             </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {slotGroups.map((slotMatches, si) => {
-                const first = slotMatches[0];
-                const date = first.matchDate;
-                const time = fmtTime(first.scheduledStartTime);
-                const venue = first.fieldName;
-                return (
-                <Box key={si}>
-                  {/* Match cards */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {dateGroups.map(([dateKey, dateMatches]) => (
+                <Box key={dateKey}>
+                  {/* Date header */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.5 }}>
+                    <CalendarMonth sx={{ fontSize: 14, color: 'text.secondary' }} />
+                    <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: 2, fontSize: '0.7rem', color: 'text.secondary', lineHeight: 1 }}>
+                      {fmtDate(dateKey !== '__none__' ? dateKey : undefined)}
+                    </Typography>
+                  </Box>
+
+                  {/* Match cards sorted by time */}
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    {slotMatches.map(m => {
+                    {dateMatches.map(m => {
                       const r = m.matchId != null ? resultMap.get(m.matchId) : undefined;
                       const homeWon = r && !!r.winningTeamName && r.winningTeamName === m.homeTeamName;
                       const awayWon = r && !!r.winningTeamName && r.winningTeamName === m.oppositionTeamName;
                       const isCompleted = !!r;
                       const isDraw = r ? !r.winningTeamName && !!r.matchDrawn : false;
-                      const cardBg   = isCompleted ? '#6b7a6b' : '#27ae60';
-                      const cardText = '#ffffff';
-                      const vsBg     = isCompleted ? '#535f53' : '#1e7c46';
+                      const cardBg   = isCompleted ? '#1a2e1a' : theme.palette.background.paper;
+                      const cardText = theme.palette.text.primary;
+                      const vsBg     = isCompleted ? '#0a160a' : '#162616';
+                      const time     = fmtTime(m.scheduledStartTime);
 
                       return (
                         <Box
@@ -359,7 +363,7 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                           <Box sx={{
                             bgcolor: 'rgba(0,0,0,0.18)',
                             px: 2, py: 0.75,
-                            display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1.5,
+                            display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1.5, flexWrap: 'wrap',
                           }}>
                             {r ? (
                               isDraw
@@ -368,7 +372,15 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                             ) : (
                               <Chip label="Upcoming" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: cardText, fontSize: '0.68rem' }} />
                             )}
-                            {m.fieldName && m.fieldName !== venue && (
+                            {time && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+                                <AccessTime sx={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }} />
+                                <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1 }}>
+                                  {time}
+                                </Typography>
+                              </Box>
+                            )}
+                            {m.fieldName && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
                                 <LocationOn sx={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }} />
                                 <Typography sx={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1 }}>
@@ -392,44 +404,8 @@ export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tourn
                       );
                     })}
                   </Box>
-
-                  {/* Date · time · venue — centred below the cards */}
-                  <Box sx={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    gap: 1.5, mt: 1, flexWrap: 'wrap',
-                  }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                      <CalendarMonth sx={{ fontSize: 13, color: 'text.secondary' }} />
-                      <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: 2, fontSize: '0.65rem', color: 'text.secondary', lineHeight: 1 }}>
-                        {fmtDate(date !== '__none__' ? date : undefined)}
-                      </Typography>
-                    </Box>
-                    {time && (
-                      <>
-                        <Box sx={{ width: 3, height: 3, borderRadius: '50%', bgcolor: 'text.disabled' }} />
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
-                          <AccessTime sx={{ fontSize: 13, color: 'text.secondary' }} />
-                          <Typography variant="overline" sx={{ fontWeight: 700, letterSpacing: 1.5, fontSize: '0.65rem', color: 'text.secondary', lineHeight: 1 }}>
-                            {time}
-                          </Typography>
-                        </Box>
-                      </>
-                    )}
-                    {venue && (
-                      <>
-                        <Box sx={{ width: 3, height: 3, borderRadius: '50%', bgcolor: 'text.disabled' }} />
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          <LocationOn sx={{ fontSize: 13, color: 'text.secondary' }} />
-                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, fontSize: '0.65rem' }}>
-                            {venue}
-                          </Typography>
-                        </Box>
-                      </>
-                    )}
-                  </Box>
                 </Box>
-                );
-              })}
+              ))}
             </Box>
           </Box>
         );

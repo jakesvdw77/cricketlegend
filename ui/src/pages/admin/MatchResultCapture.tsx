@@ -17,11 +17,6 @@ import { playerApi } from '../../api/playerApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { teamApi } from '../../api/teamApi';
 import { Match, MatchResult, Player, MatchSide, TeamScorecard, TossWinner, TossDecision, Tournament, ResultVisibility } from '../../types';
-import WhatsAppTemplate from './templates/WhatsAppTemplate';
-import FacebookTemplate from './templates/FacebookTemplate';
-import ScorecardTemplate from './templates/ScorecardTemplate';
-import BroadcastScorecardTemplate from './templates/BroadcastScorecardTemplate';
-import { TemplateProps, TeamFilter } from './templates/types';
 import ScorecardCaptureTab from '../../components/match/ScorecardCaptureTab';
 
 const empty: MatchResult = {
@@ -65,10 +60,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
   const [error, setError]         = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('whatsapp');
   const [scorecardOpen, setScorecardOpen] = useState(false);
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [teamFilter, setTeamFilter] = useState<TeamFilter>('both');
   const [tossOpen, setTossOpen]         = useState(true);
   const [scoresOpen, setScoresOpen]     = useState(false);
   const [resultOpen, setResultOpen]     = useState(false);
@@ -316,13 +308,6 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
 
   const firstTeamName  = firstInningsTeam?.name  ?? result.sideBattingFirstName ?? '1st Innings';
   const secondTeamName = secondInningsTeam?.name ?? '2nd Innings';
-
-  const templateProps: TemplateProps = {
-    match, result, tournament,
-    firstTeamName, secondTeamName,
-    firstCard, secondCard, motmName,
-    teamFilter,
-  };
 
   // DLS par score: assumes team 1 completed their innings and team 2 got reduced overs
   const dlsPar: number | null = (() => {
@@ -792,41 +777,6 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
           onFirstCardChange={handleFirstCardChange}
           onSecondCardChange={handleSecondCardChange}
         />
-      </Section>
-
-      {/* ── Summary (collapsed by default) ── */}
-      <Section title="Summary &amp; Templates" collapsible open={summaryOpen} onToggle={() => setSummaryOpen(o => !o)}>
-        <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>Template:</Typography>
-            <TextField
-              select size="small" value={selectedTemplate}
-              onChange={e => setSelectedTemplate(e.target.value)}
-              sx={{ minWidth: 200 }}
-            >
-              <MenuItem value="whatsapp">📱 WhatsApp Template</MenuItem>
-              <MenuItem value="facebook">📘 Facebook Template</MenuItem>
-              <MenuItem value="scorecard">📺 Scorecard Template</MenuItem>
-              <MenuItem value="broadcast">📡 Broadcast Scorecard</MenuItem>
-            </TextField>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>View:</Typography>
-            <TextField
-              select size="small" value={teamFilter}
-              onChange={e => setTeamFilter(e.target.value as TeamFilter)}
-              sx={{ minWidth: 180 }}
-            >
-              <MenuItem value="both">Both Teams</MenuItem>
-              <MenuItem value="first">{firstTeamName}</MenuItem>
-              <MenuItem value="second">{secondTeamName}</MenuItem>
-            </TextField>
-          </Box>
-        </Paper>
-        {selectedTemplate === 'whatsapp'   && <WhatsAppTemplate           key="whatsapp"   {...templateProps} />}
-        {selectedTemplate === 'facebook'   && <FacebookTemplate           key="facebook"   {...templateProps} />}
-        {selectedTemplate === 'scorecard'  && <ScorecardTemplate          key="scorecard"  {...templateProps} />}
-        {selectedTemplate === 'broadcast'  && <BroadcastScorecardTemplate key="broadcast"  {...templateProps} />}
       </Section>
 
       {/* ── Bottom save bar ── */}

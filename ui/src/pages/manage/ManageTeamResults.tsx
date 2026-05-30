@@ -1,17 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Chip, Avatar, Divider, Stack,
   Card, CardContent, MenuItem, TextField, useTheme, useMediaQuery, Button,
+  Dialog, DialogTitle, DialogContent, IconButton, Paper,
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, AccessTime, LocationOn, SportsScore,
-  CheckCircle, Cancel, Remove, ArrowBack,
+  CheckCircle, Cancel, Remove, ArrowBack, Share, Close, Article,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
+import { tournamentApi } from '../../api/tournamentApi';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
-import { Match, Team } from '../../types';
+import { Match, MatchResult, Team, Tournament } from '../../types';
+import WhatsAppTemplate from '../admin/templates/WhatsAppTemplate';
+import FacebookTemplate from '../admin/templates/FacebookTemplate';
+import ScorecardTemplate from '../admin/templates/ScorecardTemplate';
+import BroadcastScorecardTemplate from '../admin/templates/BroadcastScorecardTemplate';
+import ManOfTheMatchTemplate from '../admin/templates/ManOfTheMatchTemplate';
+import { TemplateProps, TeamFilter } from '../admin/templates/types';
 
 const STAGE_LABELS: Record<string, string> = {
   FRIENDLY: 'Friendly', POOL: 'Pool', PLAYOFFS: 'Playoffs',
@@ -85,9 +93,161 @@ const groupByTournament = (matches: Match[]): TournamentGroup[] => {
   return [...map.values()].sort((a, b) => b.latestDate.localeCompare(a.latestDate));
 };
 
-const MatchRow: React.FC<{ match: Match; teamId: number }> = ({ match: m, teamId }) => {
+type ShareStep = 'type' | 'template' | 'motm';
+
+const SHARE_TYPES: { key: ShareStep; label: string; description: string; icon: React.ReactNode }[] = [
+  { key: 'template', label: 'Match Result',      description: 'Result, scores & share templates', icon: <SportsScore sx={{ fontSize: 32 }} /> },
+  { key: 'motm',     label: 'Man of the Match',   description: 'Player highlight card with photo',  icon: <EmojiEvents  sx={{ fontSize: 32 }} /> },
+];
+
+const ShareMatchDialog: React.FC<{ match: Match | null; onClose: () => void }> = ({ match, onClose }) => {
+  const [step, setStep] = useState<ShareStep>('type');
+  const [result, setResult] = useState<MatchResult | null>(null);
+  const [tournament, setTournament] = useState<Tournament | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('whatsapp');
+  const [teamFilter, setTeamFilter] = useState<TeamFilter>('both');
+
+  useEffect(() => {
+    if (!match?.matchId) { setResult(null); setTournament(null); setStep('type'); return; }
+    setStep('type');
+    setLoading(true);
+    Promise.all([
+      matchApi.getResult(match.matchId).catch(() => null),
+      match.tournamentId ? tournamentApi.findById(match.tournamentId).catch(() => null) : Promise.resolve(null),
+    ]).then(([r, t]) => { setResult(r); setTournament(t); })
+      .finally(() => setLoading(false));
+  }, [match?.matchId]);
+
+  if (!match) return null;
+
+  const teams = [
+    { id: match.homeTeamId, name: match.homeTeamName },
+    { id: match.oppositionTeamId, name: match.oppositionTeamName },
+  ].filter(t => t.id);
+
+  const firstInningsTeam  = result ? teams.find(t => t.id === result.sideBattingFirstId) : null;
+  const secondInningsTeam = result ? teams.find(t => t.id !== result.sideBattingFirstId && t.id != null) : null;
+  const firstTeamName  = firstInningsTeam?.name  ?? match.homeTeamName        ?? '1st Innings';
+  const secondTeamName = secondInningsTeam?.name ?? match.oppositionTeamName  ?? '2nd Innings';
+
+  const emptyResult: MatchResult = {
+    matchCompleted: false, matchDrawn: false, forfeited: false, noResult: false,
+    decidedOnDLS: false, decidedBySuperOver: false, wonWithBonusPoint: false,
+    resultVisibility: 'NOT_PUBLISHED',
+  };
+
+  const firstCard  = result?.scoreCard?.teamA ?? {};
+  const secondCard = result?.scoreCard?.teamB ?? {};
+  const hasScorecard = !!(firstCard.batting?.length || secondCard.batting?.length);
+
+  const templateProps: TemplateProps = {
+    match,
+    result: result ?? emptyResult,
+    tournament,
+    firstTeamName,
+    secondTeamName,
+    firstCard,
+    secondCard,
+    motmName: result?.manOfTheMatchName ?? null,
+    teamFilter,
+  };
+
+  const stepTitle: Record<ShareStep, string> = {
+    type:     'Share',
+    template: 'Match Result',
+    motm:     'Man of the Match',
+  };
+
+  return (
+    <Dialog open={!!match} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 1 }}>
+        {step !== 'type' && (
+          <IconButton size="small" onClick={() => setStep('type')} sx={{ mr: 0.5 }}>
+            <ArrowBack fontSize="small" />
+          </IconButton>
+        )}
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h6" component="span">{stepTitle[step]}</Typography>
+          {step === 'type' && (
+            <Typography variant="body2" color="text.secondary">
+              {match.homeTeamName} vs {match.oppositionTeamName}
+            </Typography>
+          )}
+        </Box>
+        <IconButton size="small" onClick={onClose}><Close /></IconButton>
+      </DialogTitle>
+
+      <DialogContent>
+        {step === 'type' ? (
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 2, py: 1 }}>
+            {SHARE_TYPES.map(type => (
+              <Card
+                key={type.key}
+                variant="outlined"
+                onClick={() => setStep(type.key)}
+                sx={{
+                  cursor: 'pointer', textAlign: 'center',
+                  transition: 'border-color 0.15s, background-color 0.15s',
+                  '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                }}
+              >
+                <CardContent sx={{ py: 3 }}>
+                  <Box sx={{ color: 'primary.main', mb: 1 }}>{type.icon}</Box>
+                  <Typography variant="subtitle2" fontWeight={700}>{type.label}</Typography>
+                  <Typography variant="caption" color="text.secondary">{type.description}</Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+
+        ) : step === 'motm' ? (
+          loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+          ) : (
+            <ManOfTheMatchTemplate {...templateProps} />
+          )
+
+        ) : loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+        ) : (
+          <>
+            <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>Template:</Typography>
+                <TextField select size="small" value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} sx={{ minWidth: 200 }}>
+                  <MenuItem value="whatsapp">📱 WhatsApp Template</MenuItem>
+                  <MenuItem value="facebook">📘 Facebook Template</MenuItem>
+                  <MenuItem value="scorecard">📺 Scorecard Template</MenuItem>
+                  <MenuItem value="broadcast">📡 Broadcast Scorecard</MenuItem>
+                </TextField>
+              </Box>
+              {hasScorecard && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle2" sx={{ whiteSpace: 'nowrap' }}>View:</Typography>
+                  <TextField select size="small" value={teamFilter} onChange={e => setTeamFilter(e.target.value as TeamFilter)} sx={{ minWidth: 180 }}>
+                    <MenuItem value="both">Both Teams</MenuItem>
+                    <MenuItem value="first">{firstTeamName}</MenuItem>
+                    <MenuItem value="second">{secondTeamName}</MenuItem>
+                  </TextField>
+                </Box>
+              )}
+            </Paper>
+            {selectedTemplate === 'whatsapp'  && <WhatsAppTemplate           key="whatsapp"  {...templateProps} />}
+            {selectedTemplate === 'facebook'  && <FacebookTemplate           key="facebook"  {...templateProps} />}
+            {selectedTemplate === 'scorecard' && <ScorecardTemplate          key="scorecard" {...templateProps} />}
+            {selectedTemplate === 'broadcast' && <BroadcastScorecardTemplate key="broadcast" {...templateProps} />}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const MatchRow: React.FC<{ match: Match; teamId: number; onShare: (m: Match) => void }> = ({ match: m, teamId, onShare }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const navigate = useNavigate();
   const isHome = m.homeTeamId === teamId;
   const opponent = isHome ? m.oppositionTeamName : m.homeTeamName;
   const opponentLogo = isHome ? m.oppositionTeamLogoUrl : m.homeTeamLogoUrl;
@@ -122,12 +282,17 @@ const MatchRow: React.FC<{ match: Match; teamId: number }> = ({ match: m, teamId
               {opponentAbbr ?? opponent ?? '—'}
             </Typography>
           </Stack>
-          <Chip
-            label={result.label}
-            color={result.color}
-            size="small"
-            icon={result.icon}
-          />
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Chip label={result.label} color={result.color} size="small" icon={result.icon} />
+            {m.matchId && (
+              <IconButton size="small" onClick={() => navigate(`/matches/scorecards?matchId=${m.matchId}`)} sx={{ color: 'text.secondary' }} title="View Scorecard">
+                <Article sx={{ fontSize: 16 }} />
+              </IconButton>
+            )}
+            <IconButton size="small" onClick={() => onShare(m)} sx={{ color: 'text.secondary' }}>
+              <Share sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Stack>
         </Stack>
 
         {/* Scores */}
@@ -186,13 +351,20 @@ const MatchRow: React.FC<{ match: Match; teamId: number }> = ({ match: m, teamId
 export const ManageTeamResults: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { returnTo } = (location.state ?? {}) as { returnTo?: string };
   const { teamIds, restrictByTeam, loaded: teamsLoaded } = useManagerTeams();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | ''>('');
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
+  const [shareMatch, setShareMatch] = useState<Match | null>(null);
+
+  const selectedTeamId: number | '' = Number(searchParams.get('teamId')) || '';
+
+  const setSelectedTeamId = (id: number | '') => {
+    setSearchParams(id ? { teamId: String(id) } : {}, { replace: true });
+  };
 
   useEffect(() => {
     if (!teamsLoaded) return;
@@ -200,7 +372,7 @@ export const ManageTeamResults: React.FC = () => {
       .then(all => {
         const filtered = restrictByTeam ? all.filter(t => teamIds.has(t.teamId!)) : all;
         setTeams(filtered);
-        if (filtered.length === 1) setSelectedTeamId(filtered[0].teamId!);
+        if (filtered.length === 1 && !searchParams.get('teamId')) setSelectedTeamId(filtered[0].teamId!);
       })
       .finally(() => setTeamsLoading(false));
   }, [teamsLoaded, restrictByTeam, teamIds]);
@@ -280,12 +452,14 @@ export const ManageTeamResults: React.FC = () => {
           </Stack>
 
           {group.matches.map(m => (
-            <MatchRow key={m.matchId} match={m} teamId={selectedTeamId as number} />
+            <MatchRow key={m.matchId} match={m} teamId={selectedTeamId as number} onShare={setShareMatch} />
           ))}
 
           {i < groups.length - 1 && <Divider sx={{ mt: 2 }} />}
         </Box>
       ))}
+
+      <ShareMatchDialog match={shareMatch} onClose={() => setShareMatch(null)} />
     </Box>
   );
 };

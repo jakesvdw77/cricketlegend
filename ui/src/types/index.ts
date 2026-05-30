@@ -515,6 +515,18 @@ export interface AppSettings {
   showMatchResultsSection: boolean;
 }
 
+export interface MailSettings {
+  smtpHost: string;
+  smtpPort: number;
+  username: string;
+  password: string;
+}
+
+export interface AiSettings {
+  apiKey: string;
+  defaultModel: string;
+}
+
 export interface MatchFeePlayerDataDTO {
   playerId: number;
   playerName: string;

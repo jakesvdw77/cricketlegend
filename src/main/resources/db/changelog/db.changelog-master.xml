@@ -67,5 +67,8 @@
     <include file="db/changelog/v1/060-tournament-show-on-front-page.sql"/>
     <include file="db/changelog/v1/061-match-team-placeholder.sql"/>
     <include file="db/changelog/v1/062-club-financial-admin.sql"/>
+    <include file="db/changelog/v1/063-mail-settings.sql"/>
+    <include file="db/changelog/v1/064-ai-settings.sql"/>
+    <include file="db/changelog/v1/065-ai-usage-log.sql"/>
 
 </databaseChangeLog>

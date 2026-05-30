@@ -1,38 +1,60 @@
 package com.cricketlegend.service.impl;
 
+import com.cricketlegend.domain.MailSettings;
 import com.cricketlegend.service.EmailService;
+import com.cricketlegend.service.MailSettingsService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.util.Properties;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 
-    private final JavaMailSender mailSender;
+    private final MailSettingsService mailSettingsService;
 
-    @Value("${spring.mail.username}")
-    private String fromAddress;
+    private JavaMailSenderImpl buildSender() {
+        MailSettings cfg = mailSettingsService.getForSending();
+        if (cfg == null || cfg.getSmtpHost() == null || cfg.getUsername() == null || cfg.getPassword() == null) {
+            throw new IllegalStateException("Mail server is not configured. Please set SMTP settings under System Admin → Email Settings.");
+        }
+        JavaMailSenderImpl sender = new JavaMailSenderImpl();
+        sender.setHost(cfg.getSmtpHost());
+        sender.setPort(cfg.getSmtpPort());
+        sender.setUsername(cfg.getUsername());
+        sender.setPassword(cfg.getPassword());
+        Properties props = sender.getJavaMailProperties();
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.connectiontimeout", "5000");
+        props.put("mail.smtp.timeout", "5000");
+        props.put("mail.smtp.writetimeout", "5000");
+        return sender;
+    }
 
     @Async
     @Override
     public void sendSquadEmail(SquadEmailData data) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
+            JavaMailSenderImpl sender = buildSender();
+            MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(fromAddress, "Cricket Legend");
+            helper.setFrom(sender.getUsername(), "Cricket Legend");
             helper.setTo(data.playerEmail());
             helper.setSubject("Squad Announcement — " + data.teamName()
                     + (data.tournamentName() != null ? " | " + data.tournamentName() : ""));
             helper.setText(buildSquadHtml(data), true);
-            mailSender.send(message);
+            sender.send(message);
+        } catch (IllegalStateException e) {
+            log.warn("Squad email skipped: {}", e.getMessage());
         } catch (MessagingException | java.io.UnsupportedEncodingException e) {
             log.error("Failed to send squad email to {}: {}", data.playerEmail(), e.getMessage());
         }
@@ -42,15 +64,16 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public void sendTeamAnnouncedEmail(TeamAnnouncedEmailData data) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
+            JavaMailSenderImpl sender = buildSender();
+            MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(fromAddress, "Cricket Legend");
+            helper.setFrom(sender.getUsername(), "Cricket Legend");
             helper.setTo(data.playerEmail());
             helper.setSubject("You've Made the Team! " + data.matchTitle());
             helper.setText(buildTeamAnnouncedHtml(data), true);
-
-            mailSender.send(message);
+            sender.send(message);
+        } catch (IllegalStateException e) {
+            log.warn("Team announced email skipped: {}", e.getMessage());
         } catch (MessagingException | java.io.UnsupportedEncodingException e) {
             log.error("Failed to send team announced email to {}: {}", data.playerEmail(), e.getMessage());
         }
@@ -60,15 +83,16 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public void sendAvailabilityPollEmail(PollEmailData data) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
+            JavaMailSenderImpl sender = buildSender();
+            MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(fromAddress, "Cricket Legend");
+            helper.setFrom(sender.getUsername(), "Cricket Legend");
             helper.setTo(data.playerEmail());
             helper.setSubject("Availability Poll: " + data.matchTitle());
             helper.setText(buildHtml(data), true);
-
-            mailSender.send(message);
+            sender.send(message);
+        } catch (IllegalStateException e) {
+            log.warn("Poll email skipped: {}", e.getMessage());
         } catch (MessagingException | java.io.UnsupportedEncodingException e) {
             log.error("Failed to send availability poll email to {}: {}", data.playerEmail(), e.getMessage());
         }

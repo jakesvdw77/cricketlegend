@@ -30,6 +30,8 @@ import { Managers } from './pages/admin/Managers';
 import { FinancialAdmins } from './pages/admin/FinancialAdmins';
 import { MediaLibrary } from './pages/admin/MediaLibrary';
 import { Setup } from './pages/admin/Setup';
+import { EmailSettings } from './pages/admin/EmailSettings';
+import { AiSettingsPage } from './pages/admin/AiSettings';
 import { SendNotification } from './pages/admin/SendNotification';
 import { LoginHistory } from './pages/admin/LoginHistory';
 import { Events } from './pages/admin/Events';
@@ -137,6 +139,8 @@ function ThemedApp() {
             <Route path="admin/matches/:matchId/availability" element={<ManagerRoute element={<MatchAvailabilityManager />} />} />
             <Route path="admin/fields" element={<ManagerRoute element={<Fields />} />} />
             <Route path="admin/setup" element={<AdminRoute element={<Setup />} />} />
+            <Route path="admin/email-settings" element={<AdminRoute element={<EmailSettings />} />} />
+            <Route path="admin/ai-settings" element={<AdminRoute element={<AiSettingsPage />} />} />
             <Route path="admin/managers" element={<AdminRoute element={<Managers />} />} />
             <Route path="admin/manager-teams" element={<AdminRoute element={<ManagerTeams />} />} />
             <Route path="admin/sponsors" element={<AdminRoute element={<Sponsors />} />} />

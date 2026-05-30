@@ -20,7 +20,7 @@ import { mediaApi } from '../../api/mediaApi';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
 import { Match, MatchSide, Player, Team, Tournament, MediaContent } from '../../types';
 import { generateMatchPdf, generateTournamentSchedulePdf, generateTeamsheetPdf, generateTournamentTablePdf, generateSquadPdf } from '../../utils/matchPdf';
-import { generatePlayingXiImage, generatePlayingXiBattingOrderImage, generateMatchScheduleImage, generateSquadImage, generateMatchCountdownImage, generateTournamentCountdownImage, generatePlayingXiWithPhotoImage } from '../../utils/teamsheetImage';
+import { generatePlayingXiImage, generatePlayingXiBattingOrderImage, generateMatchScheduleImage, generateSquadImage, generateSquadNamesImage, generateMatchCountdownImage, generateTournamentCountdownImage, generatePlayingXiWithPhotoImage } from '../../utils/teamsheetImage';
 import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 import TeamsheetTemplatesDialog from '../../components/match/TeamsheetTemplatesDialog';
 
@@ -225,6 +225,39 @@ const PlayingXiTemplateDialog: React.FC<{
             {loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}
           </ListItemIcon>
           <ListItemText primary="Playing XI with Feature Photo" secondary="Pick a photo from the gallery — shown on the left with player list on the right" />
+        </ListItemButton>
+      </List>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose}>Cancel</Button>
+    </DialogActions>
+  </Dialog>
+);
+
+// ── Squad image template picker ───────────────────────────────────────────────
+
+const SquadImageTemplateDialog: React.FC<{
+  open: boolean;
+  loading: boolean;
+  onClose: () => void;
+  onPhotoGrid: () => void;
+  onNames: () => void;
+}> = ({ open, loading, onClose, onPhotoGrid, onNames }) => (
+  <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <DialogTitle>Squad Image — Choose Template</DialogTitle>
+    <DialogContent sx={{ p: 0 }}>
+      <List disablePadding>
+        <ListItemButton onClick={onPhotoGrid} disabled={loading}>
+          <ListItemIcon>
+            {loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}
+          </ListItemIcon>
+          <ListItemText primary="Photo Grid" secondary="Player photos in a grid layout" />
+        </ListItemButton>
+        <ListItemButton onClick={onNames} disabled={loading}>
+          <ListItemIcon>
+            {loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}
+          </ListItemIcon>
+          <ListItemText primary="Squad Names Template" secondary="Team name, player list in columns with logo" />
         </ListItemButton>
       </List>
     </DialogContent>
@@ -448,7 +481,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, title, loading, onClose
           <ListItemIcon>
             {loading ? <CircularProgress size={22} color="error" /> : <PictureAsPdf color="error" />}
           </ListItemIcon>
-          <ListItemText primary="Team Sheet PDF" secondary="Open match fixture card" />
+          <ListItemText primary="Match Detail PDF" secondary="Open match fixture card" />
         </ListItemButton>
         <ListItemButton onClick={onWhatsApp} disabled={loading}>
           <ListItemIcon><WhatsApp sx={{ color: '#25D366' }} /></ListItemIcon>
@@ -611,6 +644,8 @@ export const ManageTeamSchedule: React.FC = () => {
   const [tournamentTarget, setTournamentTarget] = useState<TournamentGroup | null>(null);
   const [schedImageTarget, setSchedImageTarget] = useState<TournamentGroup | null>(null);
   const [schedTournImageTarget, setSchedTournImageTarget] = useState<TournamentGroup | null>(null);
+  const [squadImgTemplateOpen, setSquadImgTemplateOpen] = useState(false);
+  const [squadImgContext, setSquadImgContext] = useState<{ team: Team; squad: Player[]; tournament: Tournament | null } | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [teamsheetData, setTeamsheetData] = useState<TeamsheetData | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
@@ -824,8 +859,8 @@ export const ManageTeamSchedule: React.FC = () => {
   };
 
   const fetchSquadContext = async () => {
-    if (!selectedTeamId || selectedTeamId === '') throw new Error('No team selected');
-    const tid = selectedTeamId as number;
+    if (!selectedTeamId) throw new Error('No team selected');
+    const tid = Number(selectedTeamId);
     const [team, squad, tournament] = await Promise.all([
       teamApi.findById(tid),
       teamApi.getSquad(tid),
@@ -856,12 +891,43 @@ export const ManageTeamSchedule: React.FC = () => {
     setShareLoading(true);
     try {
       const { team, squad, tournament } = await fetchSquadContext();
-      const url = await generateSquadImage(team, squad, tournament);
       setTournamentTarget(null);
+      setSquadImgContext({ team, squad, tournament });
+      setSquadImgTemplateOpen(true);
+    } catch {
+      setSnackbar({ open: true, message: 'Could not load squad data.' });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSquadPhotoGrid = async () => {
+    if (!squadImgContext) return;
+    setShareLoading(true);
+    try {
+      const url = await generateSquadImage(squadImgContext.team, squadImgContext.squad, squadImgContext.tournament);
+      setSquadImgTemplateOpen(false);
+      setSquadImgContext(null);
       setImageTitle('Squad');
       setImageUrl(url);
     } catch {
       setSnackbar({ open: true, message: 'Could not generate squad image.' });
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSquadNamesTemplate = async () => {
+    if (!squadImgContext) return;
+    setShareLoading(true);
+    try {
+      const url = await generateSquadNamesImage(squadImgContext.team, squadImgContext.squad, squadImgContext.tournament);
+      setSquadImgTemplateOpen(false);
+      setSquadImgContext(null);
+      setImageTitle('Squad');
+      setImageUrl(url);
+    } catch {
+      setSnackbar({ open: true, message: 'Could not generate squad names image.' });
     } finally {
       setShareLoading(false);
     }
@@ -1034,6 +1100,15 @@ export const ManageTeamSchedule: React.FC = () => {
         onGenerated={url => { setImageTitle('Tournament Schedule'); setImageUrl(url); }}
       />
 
+      {/* Squad image template picker */}
+      <SquadImageTemplateDialog
+        open={squadImgTemplateOpen}
+        loading={shareLoading}
+        onClose={() => { setSquadImgTemplateOpen(false); setSquadImgContext(null); }}
+        onPhotoGrid={handleSquadPhotoGrid}
+        onNames={handleSquadNamesTemplate}
+      />
+
       {/* Playing XI template picker */}
       <PlayingXiTemplateDialog
         open={xiTemplateOpen}
@@ -1069,11 +1144,12 @@ export const ManageTeamSchedule: React.FC = () => {
         imageUrl={imageUrl}
         title={imageTitle}
         filename={
-          imageTitle === 'Match Schedule'     ? 'match-schedule.png'      :
+          imageTitle === 'Match Schedule'      ? 'match-schedule.png'      :
           imageTitle === 'Tournament Schedule' ? 'tournament-schedule.png' :
           imageTitle === 'Match Countdown'     ? 'match-countdown.png'     :
           imageTitle === 'Tournament Countdown'? 'tournament-countdown.png':
-          imageTitle === 'Playing XI with Photo'? 'playing-xi-photo.png'   :
+          imageTitle === 'Playing XI with Photo'? 'playing-xi-photo.png'  :
+          imageTitle === 'Squad'               ? 'squad.png'              :
           'playing-xi.png'
         }
         onClose={() => setImageUrl(null)}

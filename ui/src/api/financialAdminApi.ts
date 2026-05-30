@@ -46,6 +46,18 @@ export const financialAdminApi = {
   allocateOther: (playerId: number, amount: number, description: string) =>
     api.post(`/payments/allocate/other/financial-admin/player/${playerId}`, null, { params: { amount, description } }).then(r => r.data),
 
+  getMyMatchFeePlayerData: (matchId: number, sideIds: number[]) =>
+    api.get('/payments/match-fee/financial-admin/players', { params: { matchId, sideIds } }).then(r => r.data),
+
+  allocateMatchFee: (playerId: number, amount: number, matchId: number, matchFee?: number, description?: string) =>
+    api.post(`/payments/allocate/match-fee/financial-admin/player/${playerId}`, null, { params: { amount, matchId, matchFee, description } }).then(r => r.data),
+
+  getMyTournamentFeePlayerData: (tournamentId: number) =>
+    api.get('/payments/tournament-fee/financial-admin/players', { params: { tournamentId } }).then(r => r.data),
+
+  allocateTournamentFee: (playerId: number, amount: number, tournamentId: number, registrationFee?: number, description?: string) =>
+    api.post(`/payments/allocate/tournament-fee/financial-admin/player/${playerId}`, null, { params: { amount, tournamentId, registrationFee, description } }).then(r => r.data),
+
   approvePayment: (id: number, payment: any) =>
     api.put(`/payments/${id}`, { ...payment, status: 'APPROVED' }).then(r => r.data),
 
