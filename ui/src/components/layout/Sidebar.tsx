@@ -127,14 +127,6 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemIcon><Person/></ListItemIcon>
                                 <ListItemText primary="Manage Players"/>
                             </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/events')}>
-                                <ListItemIcon><Event/></ListItemIcon>
-                                <ListItemText primary="Events"/>
-                            </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/send-notification')}>
-                                <ListItemIcon><Campaign/></ListItemIcon>
-                                <ListItemText primary="Notifications"/>
-                            </ListItemButton>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-schedule')}>
                                 <ListItemIcon><Assignment/></ListItemIcon>
                                 <ListItemText primary="Team Schedule"/>
@@ -142,6 +134,18 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-results')}>
                                 <ListItemIcon><SportsScore/></ListItemIcon>
                                 <ListItemText primary="Team Results"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-tournaments')}>
+                                <ListItemIcon><EmojiEvents/></ListItemIcon>
+                                <ListItemText primary="Team Tournaments"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/events')}>
+                                <ListItemIcon><Event/></ListItemIcon>
+                                <ListItemText primary="Team Events"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/send-notification')}>
+                                <ListItemIcon><Campaign/></ListItemIcon>
+                                <ListItemText primary="Team Notifications"/>
                             </ListItemButton>
                         </List>
                     </Collapse>
@@ -312,42 +316,46 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                 </>
             ) : null}
 
-            <Divider/>
-            <List disablePadding>
-                <ListItemButton onClick={() => toggle('matchCentre')}>
-                    <ListItemIcon><SportsScore/></ListItemIcon>
-                    <ListItemText primary="Match Centre" primaryTypographyProps={{fontWeight: 'bold'}}/>
-                    {matchCentreOpen ? <ExpandLess/> : <ExpandMore/>}
-                </ListItemButton>
-            </List>
-            <Collapse in={matchCentreOpen} timeout="auto" unmountOnExit>
-                <List disablePadding>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/tournaments')}>
-                        <ListItemIcon><EmojiEvents/></ListItemIcon>
-                        <ListItemText primary="Tournaments"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/live')}>
-                        <ListItemIcon><Sensors/></ListItemIcon>
-                        <ListItemText primary="Live Matches"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/upcoming')}>
-                        <ListItemIcon><CalendarMonth/></ListItemIcon>
-                        <ListItemText primary="Matches"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/previous')}>
-                        <ListItemIcon><History/></ListItemIcon>
-                        <ListItemText primary="Results"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/scorecards')}>
-                        <ListItemIcon><Assignment/></ListItemIcon>
-                        <ListItemText primary="Scorecards"/>
-                    </ListItemButton>
-                    <ListItemButton sx={{pl: 3}} onClick={() => go('/player/statistics')}>
-                        <ListItemIcon><Leaderboard/></ListItemIcon>
-                        <ListItemText primary="Player Statistics"/>
-                    </ListItemButton>
-                </List>
-            </Collapse>
+            {isAdmin && (
+                <>
+                    <Divider/>
+                    <List disablePadding>
+                        <ListItemButton onClick={() => toggle('matchCentre')}>
+                            <ListItemIcon><SportsScore/></ListItemIcon>
+                            <ListItemText primary="Match Centre" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            {matchCentreOpen ? <ExpandLess/> : <ExpandMore/>}
+                        </ListItemButton>
+                    </List>
+                    <Collapse in={matchCentreOpen} timeout="auto" unmountOnExit>
+                        <List disablePadding>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/tournaments')}>
+                                <ListItemIcon><EmojiEvents/></ListItemIcon>
+                                <ListItemText primary="Tournaments"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/live')}>
+                                <ListItemIcon><Sensors/></ListItemIcon>
+                                <ListItemText primary="Live Matches"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/upcoming')}>
+                                <ListItemIcon><CalendarMonth/></ListItemIcon>
+                                <ListItemText primary="Matches"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/previous')}>
+                                <ListItemIcon><History/></ListItemIcon>
+                                <ListItemText primary="Results"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/matches/scorecards')}>
+                                <ListItemIcon><Assignment/></ListItemIcon>
+                                <ListItemText primary="Scorecards"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/player/statistics')}>
+                                <ListItemIcon><Leaderboard/></ListItemIcon>
+                                <ListItemText primary="Player Statistics"/>
+                            </ListItemButton>
+                        </List>
+                    </Collapse>
+                </>
+            )}
 
             </Box>
         </Drawer>

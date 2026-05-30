@@ -345,7 +345,7 @@ export async function generateSquadImage(
   const availW  = W - HMARGIN * 2;
   const cardW   = (availW - HGAP * (COLS - 1)) / COLS;
   const cardH   = Math.round(cardW * 1.3);
-  const HDR_H   = 290;
+  const HDR_H   = 340;
   const rows    = Math.ceil(sorted.length / COLS);
   const H       = HDR_H + rows * (cardH + VGAP) - VGAP + 32;
 
@@ -648,5 +648,723 @@ export async function generateMatchScheduleImage(
 
   return new Promise<string>(resolve => {
     canvas.toBlob(blob => resolve(URL.createObjectURL(blob!)), 'image/png');
+  });
+}
+
+// ── Countdown helpers ─────────────────────────────────────────────────────────
+
+function calcCountdown(dateStr: string, timeStr?: string): { value: number; unit: 'DAYS' | 'HOURS' | 'MINUTES' } {
+  const combined = timeStr ? `${dateStr}T${timeStr}` : `${dateStr}T00:00:00`;
+  const diffMs   = new Date(combined).getTime() - Date.now();
+  if (diffMs <= 0) return { value: 0, unit: 'MINUTES' };
+  const diffDays  = Math.floor(diffMs / 86_400_000);
+  const diffHours = Math.floor(diffMs /  3_600_000);
+  const diffMins  = Math.floor(diffMs /     60_000);
+  if (diffDays  >= 1) return { value: diffDays,  unit: 'DAYS' };
+  if (diffHours >= 1) return { value: diffHours, unit: 'HOURS' };
+  return { value: diffMins, unit: 'MINUTES' };
+}
+
+function drawCountdownBanner(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number,
+  text: string,
+) {
+  const bW = 620, bH = 80, notch = 22;
+  const bx = cx - bW / 2, by = cy - bH / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(bx + notch, by);
+  ctx.lineTo(bx + bW - notch, by);
+  ctx.lineTo(bx + bW,         cy);
+  ctx.lineTo(bx + bW - notch, by + bH);
+  ctx.lineTo(bx + notch,      by + bH);
+  ctx.lineTo(bx,              cy);
+  ctx.closePath();
+  const bannerGrad = ctx.createLinearGradient(bx, 0, bx + bW, 0);
+  bannerGrad.addColorStop(0,    '#0e5a2c');
+  bannerGrad.addColorStop(0.35, '#1a8040');
+  bannerGrad.addColorStop(0.65, '#1a8040');
+  bannerGrad.addColorStop(1,    '#0e5a2c');
+  ctx.fillStyle = bannerGrad;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(134,239,172,0.85)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = 'bold 44px Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(text, cx, cy);
+  ctx.restore();
+
+  const chSz = 32, chGap = 34;
+  for (let i = 0; i < 3; i++) {
+    const alpha = 0.8 - i * 0.22;
+    const lw    = 4.5 - i * 0.8;
+    const lx    = bx - 22 - i * chGap;
+    ctx.save();
+    ctx.strokeStyle = `rgba(78,160,100,${alpha})`;
+    ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(lx - chSz * 0.44, cy - chSz * 0.5);
+    ctx.lineTo(lx + chSz * 0.44, cy);
+    ctx.lineTo(lx - chSz * 0.44, cy + chSz * 0.5);
+    ctx.stroke();
+    ctx.restore();
+    const rx = bx + bW + 22 + i * chGap;
+    ctx.save();
+    ctx.strokeStyle = `rgba(78,160,100,${alpha})`;
+    ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(rx + chSz * 0.44, cy - chSz * 0.5);
+    ctx.lineTo(rx - chSz * 0.44, cy);
+    ctx.lineTo(rx + chSz * 0.44, cy + chSz * 0.5);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// ── Match countdown image ─────────────────────────────────────────────────────
+
+export async function generateMatchCountdownImage(match: Match): Promise<string> {
+  const [homeImg, awayImg] = await Promise.all([
+    match.homeTeamLogoUrl       ? loadImg(match.homeTeamLogoUrl)       : Promise.resolve(null),
+    match.oppositionTeamLogoUrl ? loadImg(match.oppositionTeamLogoUrl) : Promise.resolve(null),
+  ]);
+
+  const W = 1080, H = 1080;
+  const canvas  = document.createElement('canvas');
+  canvas.width  = W; canvas.height = H;
+  const ctx     = canvas.getContext('2d')!;
+
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0,   '#051a0e');
+  bg.addColorStop(0.5, '#0d3b1e');
+  bg.addColorStop(1,   '#051a0e');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let gx = 24; gx < W; gx += 48)
+    for (let gy = 24; gy < H; gy += 48) {
+      ctx.beginPath(); ctx.arc(gx, gy, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = 'bold 54px Arial, sans-serif';
+  ctx.fillText('MATCH', W / 2, 52);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 118px Arial, sans-serif';
+  ctx.fillText('COUNTDOWN', W / 2, 118);
+
+  const { value, unit } = calcCountdown(match.matchDate ?? '', match.scheduledStartTime);
+  drawCountdownBanner(ctx, W / 2, 420, `${value} ${unit} TO GO`);
+
+  const dg = ctx.createLinearGradient(56, 0, W - 56, 0);
+  dg.addColorStop(0, 'transparent'); dg.addColorStop(0.12, '#4CAF50');
+  dg.addColorStop(0.88, '#4CAF50'); dg.addColorStop(1, 'transparent');
+  ctx.strokeStyle = dg; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(56, 510); ctx.lineTo(W - 56, 510); ctx.stroke();
+
+  const logoR  = 118;
+  const homeCX = W / 4;
+  const awayCX = 3 * W / 4;
+  const logoCY = 700;
+  drawPhoto(ctx, homeImg, homeCX, logoCY, logoR,
+    (match.homeTeamAbbreviation ?? match.homeTeamName ?? '?').slice(0, 2));
+  drawPhoto(ctx, awayImg, awayCX, logoCY, logoR,
+    (match.oppositionTeamAbbreviation ?? match.oppositionTeamName ?? '?').slice(0, 2));
+
+  ctx.beginPath(); ctx.arc(W / 2, logoCY, 44, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff'; ctx.fill();
+  ctx.fillStyle = '#0a3c19';
+  ctx.font = 'bold 26px Arial, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('VS', W / 2, logoCY);
+
+  const nameY = logoCY + logoR + 18;
+  const maxW  = W / 2 - 24;
+  for (const [name, cx] of [
+    [match.homeTeamName ?? 'HOME',        homeCX],
+    [match.oppositionTeamName ?? 'AWAY',  awayCX],
+  ] as [string, number][]) {
+    const label = name.toUpperCase();
+    let fs = 34;
+    ctx.font = `bold ${fs}px Arial, sans-serif`;
+    while (ctx.measureText(label).width > maxW && fs > 16) { fs--; ctx.font = `bold ${fs}px Arial, sans-serif`; }
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(label, cx, nameY, maxW);
+  }
+
+  const footerParts = [
+    match.matchDate ? fmtMatchDate(match.matchDate) : null,
+    match.scheduledStartTime ? match.scheduledStartTime.slice(0, 5) : null,
+    match.fieldName,
+  ].filter(Boolean).join('  ·  ');
+  if (footerParts) {
+    ctx.fillStyle = 'rgba(255,255,255,0.48)';
+    ctx.font = '22px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(footerParts, W / 2, H - 42, W - 80);
+  }
+
+  return new Promise<string>(resolve => {
+    canvas.toBlob(blob => resolve(URL.createObjectURL(blob!)), 'image/png');
+  });
+}
+
+// ── Tournament countdown image ────────────────────────────────────────────────
+
+export async function generateTournamentCountdownImage(
+  tournamentName: string,
+  tournamentLogoUrl: string | undefined,
+  nextMatch: Match,
+): Promise<string> {
+  const [tournLogo, homeImg, awayImg] = await Promise.all([
+    tournamentLogoUrl               ? loadImg(tournamentLogoUrl)               : Promise.resolve(null),
+    nextMatch.homeTeamLogoUrl       ? loadImg(nextMatch.homeTeamLogoUrl)       : Promise.resolve(null),
+    nextMatch.oppositionTeamLogoUrl ? loadImg(nextMatch.oppositionTeamLogoUrl) : Promise.resolve(null),
+  ]);
+
+  const W = 1080, H = 1080;
+  const canvas  = document.createElement('canvas');
+  canvas.width  = W; canvas.height = H;
+  const ctx     = canvas.getContext('2d')!;
+
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0,   '#051a0e');
+  bg.addColorStop(0.5, '#0d3b1e');
+  bg.addColorStop(1,   '#051a0e');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let gx = 24; gx < W; gx += 48)
+    for (let gy = 24; gy < H; gy += 48) {
+      ctx.beginPath(); ctx.arc(gx, gy, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+  const logoR  = 52;
+  const logoCY = 44 + logoR;
+  drawPhoto(ctx, tournLogo, W / 2, logoCY, logoR, tournamentName.charAt(0));
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255,255,255,0.62)';
+  ctx.font = 'bold 30px Arial, sans-serif';
+  ctx.fillText(tournamentName.toUpperCase(), W / 2, logoCY + logoR + 14, W - 80);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 110px Arial, sans-serif';
+  ctx.fillText('COUNTDOWN', W / 2, logoCY + logoR + 58);
+
+  const { value, unit } = calcCountdown(nextMatch.matchDate ?? '', nextMatch.scheduledStartTime);
+  drawCountdownBanner(ctx, W / 2, 430, `${value} ${unit} TO GO`);
+
+  // "OPENING MATCH" label
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#86efac';
+  ctx.font = 'bold 28px Arial, sans-serif';
+  ctx.fillText('— OPENING MATCH —', W / 2, 510);
+
+  const dg = ctx.createLinearGradient(56, 0, W - 56, 0);
+  dg.addColorStop(0, 'transparent'); dg.addColorStop(0.12, '#4CAF50');
+  dg.addColorStop(0.88, '#4CAF50'); dg.addColorStop(1, 'transparent');
+  ctx.strokeStyle = dg; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(56, 540); ctx.lineTo(W - 56, 540); ctx.stroke();
+
+  const matchLogoR = 108;
+  const homeCX     = W / 4;
+  const awayCX     = 3 * W / 4;
+  const matchLogoCY = 700;
+  drawPhoto(ctx, homeImg, homeCX, matchLogoCY, matchLogoR,
+    (nextMatch.homeTeamAbbreviation ?? nextMatch.homeTeamName ?? '?').slice(0, 2));
+  drawPhoto(ctx, awayImg, awayCX, matchLogoCY, matchLogoR,
+    (nextMatch.oppositionTeamAbbreviation ?? nextMatch.oppositionTeamName ?? '?').slice(0, 2));
+
+  ctx.beginPath(); ctx.arc(W / 2, matchLogoCY, 42, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff'; ctx.fill();
+  ctx.fillStyle = '#0a3c19';
+  ctx.font = 'bold 24px Arial, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('VS', W / 2, matchLogoCY);
+
+  const nameY = matchLogoCY + matchLogoR + 16;
+  const maxW  = W / 2 - 24;
+  for (const [name, cx] of [
+    [nextMatch.homeTeamName ?? 'HOME',        homeCX],
+    [nextMatch.oppositionTeamName ?? 'AWAY',  awayCX],
+  ] as [string, number][]) {
+    const label = name.toUpperCase();
+    let fs = 30;
+    ctx.font = `bold ${fs}px Arial, sans-serif`;
+    while (ctx.measureText(label).width > maxW && fs > 15) { fs--; ctx.font = `bold ${fs}px Arial, sans-serif`; }
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(label, cx, nameY, maxW);
+  }
+
+  const footerParts = [
+    nextMatch.matchDate ? fmtMatchDate(nextMatch.matchDate) : null,
+    nextMatch.scheduledStartTime ? nextMatch.scheduledStartTime.slice(0, 5) : null,
+  ].filter(Boolean).join('  ·  ');
+  if (footerParts) {
+    ctx.fillStyle = 'rgba(255,255,255,0.48)';
+    ctx.font = '22px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText(footerParts, W / 2, H - 42, W - 80);
+  }
+
+  return new Promise<string>(resolve => {
+    canvas.toBlob(blob => resolve(URL.createObjectURL(blob!)), 'image/png');
+  });
+}
+
+// ── Role icon helpers ─────────────────────────────────────────────────────────
+
+function drawBatIcon(ctx: CanvasRenderingContext2D, cx: number, cy: number, sz: number) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-Math.PI / 4);
+  ctx.fillStyle = '#86efac';
+  ctx.beginPath();
+  ctx.roundRect(-sz * 0.14, -sz * 0.3, sz * 0.28, sz * 0.52, sz * 0.07);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.beginPath();
+  ctx.roundRect(-sz * 0.055, -sz * 0.52, sz * 0.11, sz * 0.24, sz * 0.03);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBallIcon(ctx: CanvasRenderingContext2D, cx: number, cy: number, sz: number) {
+  const r = sz * 0.33;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#dc2626';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,210,210,0.9)';
+  ctx.lineWidth = sz * 0.05;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.bezierCurveTo(cx + r * 0.4, cy - r * 0.3, cx + r * 0.4, cy + r * 0.3, cx, cy + r);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.bezierCurveTo(cx - r * 0.4, cy - r * 0.3, cx - r * 0.4, cy + r * 0.3, cx, cy + r);
+  ctx.stroke();
+}
+
+function drawGlovesIcon(ctx: CanvasRenderingContext2D, cx: number, cy: number, sz: number) {
+  const gw = sz * 0.26; const gh = sz * 0.5; const gap = sz * 0.05;
+  ctx.fillStyle = '#60a5fa';
+  ctx.beginPath();
+  ctx.roundRect(cx - gap / 2 - gw, cy - gh / 2, gw, gh,
+    [sz * 0.12, sz * 0.12, sz * 0.06, sz * 0.06]);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.roundRect(cx + gap / 2, cy - gh / 2, gw, gh,
+    [sz * 0.12, sz * 0.12, sz * 0.06, sz * 0.06]);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,60,0.2)'; ctx.lineWidth = 1;
+  for (const side of [-1, 1]) {
+    const bx = side === -1 ? cx - gap / 2 - gw : cx + gap / 2;
+    for (let f = 1; f <= 3; f++) {
+      ctx.beginPath();
+      ctx.moveTo(bx + (gw / 4) * f, cy - gh / 2);
+      ctx.lineTo(bx + (gw / 4) * f, cy - gh / 2 + gh * 0.42);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawRoleIcon(
+  ctx: CanvasRenderingContext2D, p: Player, side: MatchSide,
+  cx: number, cy: number, sz: number,
+) {
+  const isWK     = p.playerId === side.wicketKeeperPlayerId;
+  const isBowler = !!(p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler);
+  if (isWK)      drawGlovesIcon(ctx, cx, cy, sz);
+  else if (isBowler) drawBallIcon(ctx, cx, cy, sz);
+  else           drawBatIcon(ctx, cx, cy, sz);
+}
+
+// ── Playing XI — Batting Order image ─────────────────────────────────────────
+
+export async function generatePlayingXiBattingOrderImage(
+  match: Match,
+  sides: MatchSide[],
+  players: Player[],
+  filterTeamId?: number,
+): Promise<string> {
+  const sidesToShow = filterTeamId
+    ? sides.filter(s => s.teamId === filterTeamId)
+    : sides.slice(0, 1);
+  const side = sidesToShow[0];
+  if (!side) throw new Error('No team side found');
+
+  const xi = (side.playingXi ?? [])
+    .map(pid => players.find(p => p.playerId === pid))
+    .filter(Boolean) as Player[];
+  const twelfth = side.twelfthManPlayerId
+    ? players.find(p => p.playerId === side.twelfthManPlayerId)
+    : undefined;
+
+  const teamName    = side.teamId === match.homeTeamId
+    ? (match.homeTeamName ?? 'Home') : (match.oppositionTeamName ?? 'Away');
+  const teamLogoUrl = side.teamId === match.homeTeamId
+    ? match.homeTeamLogoUrl : match.oppositionTeamLogoUrl;
+  const opponent    = side.teamId === match.homeTeamId
+    ? match.oppositionTeamName : match.homeTeamName;
+
+  const teamLogo = teamLogoUrl ? await loadImg(teamLogoUrl) : null;
+
+  const W      = 1080;
+  const HDR_H  = 340;
+  const ROW_H  = 76;
+  const NUM_W  = 90;
+  const ICON_W = 100;
+  const SUB_H  = twelfth ? 64 : 0;
+  const H      = HDR_H + xi.length * ROW_H + SUB_H + 40;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx     = canvas.getContext('2d')!;
+
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0,    '#051a0e');
+  bg.addColorStop(0.45, '#0d3b1e');
+  bg.addColorStop(1,    '#051a0e');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let gx = 24; gx < W; gx += 48)
+    for (let gy = 24; gy < H; gy += 48) {
+      ctx.beginPath(); ctx.arc(gx, gy, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+  // Header
+  const logoR  = 48;
+  const logoCY = 28 + logoR;
+  drawPhoto(ctx, teamLogo, W / 2, logoCY, logoR, teamName.charAt(0));
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#ffffff';
+  ctx.font      = 'bold 68px Arial, sans-serif';
+  ctx.fillText('PLAYING XI', W / 2, logoCY + logoR + 16);
+
+  // Team name pill
+  ctx.font = 'bold 22px Arial, sans-serif';
+  const pW = ctx.measureText(teamName.toUpperCase()).width + 40;
+  const pH = 36; const pX = W / 2 - pW / 2;
+  const pY = logoCY + logoR + 16 + 72 + 8;
+  roundedRect(ctx, pX, pY, pW, pH, pH / 2);
+  ctx.fillStyle = 'rgba(78,160,100,0.35)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(134,239,172,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#86efac'; ctx.textBaseline = 'middle';
+  ctx.fillText(teamName.toUpperCase(), W / 2, pY + pH / 2);
+
+  // Sub-info
+  const sub = [opponent ? `vs ${opponent}` : null, match.matchDate].filter(Boolean).join('  ·  ');
+  if (sub) {
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '20px Arial, sans-serif'; ctx.textBaseline = 'top';
+    ctx.fillText(sub, W / 2, pY + pH + 14, W - 80);
+  }
+
+  // Divider
+  const dg = ctx.createLinearGradient(40, 0, W - 40, 0);
+  dg.addColorStop(0, 'transparent'); dg.addColorStop(0.12, '#4CAF50');
+  dg.addColorStop(0.88, '#4CAF50'); dg.addColorStop(1, 'transparent');
+  ctx.strokeStyle = dg; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(40, pY + pH + 52); ctx.lineTo(W - 40, pY + pH + 52); ctx.stroke();
+
+  // Player rows
+  for (let i = 0; i < xi.length; i++) {
+    const p    = xi[i];
+    const rowY = HDR_H + i * ROW_H;
+    const isCapt = p.playerId === side.captainPlayerId;
+    const isWK   = p.playerId === side.wicketKeeperPlayerId;
+
+    if (i % 2 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(0, rowY, W, ROW_H);
+    }
+    if (i > 0) {
+      ctx.fillStyle = 'rgba(134,239,172,0.12)';
+      ctx.fillRect(0, rowY, W, 1);
+    }
+
+    // Number column
+    ctx.fillStyle = 'rgba(20,90,50,0.85)';
+    ctx.fillRect(0, rowY, NUM_W, ROW_H);
+    ctx.fillStyle = '#86efac';
+    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), NUM_W / 2, rowY + ROW_H / 2);
+
+    // Icon column
+    ctx.fillStyle = 'rgba(10,60,30,0.85)';
+    ctx.fillRect(W - ICON_W, rowY, ICON_W, ROW_H);
+    drawRoleIcon(ctx, p, side, W - ICON_W / 2, rowY + ROW_H / 2, 44);
+
+    // Player name (draw main name first, then gold captain badge if needed)
+    const wkSuffix = isWK ? '  (WK)' : '';
+    const mainName = `${p.name} ${p.surname}${wkSuffix}`.toUpperCase();
+    const nameX       = NUM_W + 20;
+    const maxW        = W - NUM_W - ICON_W - 40 - (isCapt ? 72 : 0);
+    let fs = 26;
+    ctx.font = `bold ${fs}px Arial, sans-serif`;
+    while (ctx.measureText(mainName).width > maxW && fs > 14) {
+      fs--; ctx.font = `bold ${fs}px Arial, sans-serif`;
+    }
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(mainName, nameX, rowY + ROW_H / 2, maxW);
+
+    // Gold captain badge
+    if (isCapt) {
+      const nameEndX = nameX + Math.min(ctx.measureText(mainName).width, maxW) + 14;
+      const badgeW = 52; const badgeH = 28; const badgeR = 8;
+      roundedRect(ctx, nameEndX, rowY + ROW_H / 2 - badgeH / 2, badgeW, badgeH, badgeR);
+      ctx.fillStyle = '#FFD700'; ctx.fill();
+      ctx.fillStyle = '#000'; ctx.font = `bold 16px Arial, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('(C)', nameEndX + badgeW / 2, rowY + ROW_H / 2);
+    }
+  }
+
+  // Bottom border of last row
+  ctx.fillStyle = 'rgba(134,239,172,0.12)';
+  ctx.fillRect(0, HDR_H + xi.length * ROW_H, W, 1);
+
+  // 12th man
+  if (twelfth) {
+    const subY = HDR_H + xi.length * ROW_H + 18;
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '20px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(
+      `12TH MAN:  ${twelfth.name} ${twelfth.surname}`.toUpperCase(),
+      W / 2, subY, W - 80,
+    );
+  }
+
+  return new Promise<string>(resolve => {
+    canvas.toBlob(blob => resolve(URL.createObjectURL(blob!)), 'image/png');
+  });
+}
+
+// ── Playing XI — Feature Photo image ─────────────────────────────────────────
+
+export async function generatePlayingXiWithPhotoImage(
+  match: Match,
+  sides: MatchSide[],
+  players: Player[],
+  photoUrl: string,
+  filterTeamId?: number,
+): Promise<string> {
+  const sidesToShow = filterTeamId
+    ? sides.filter(s => s.teamId === filterTeamId)
+    : sides.slice(0, 1);
+  const side = sidesToShow[0];
+  if (!side) throw new Error('No team side found');
+
+  const xi = (side.playingXi ?? [])
+    .map(pid => players.find(p => p.playerId === pid))
+    .filter(Boolean) as Player[];
+  const twelfth2 = side.twelfthManPlayerId
+    ? players.find(p => p.playerId === side.twelfthManPlayerId) : undefined;
+
+  const teamName2    = side.teamId === match.homeTeamId
+    ? (match.homeTeamName ?? 'Home') : (match.oppositionTeamName ?? 'Away');
+  const opponent2    = side.teamId === match.homeTeamId
+    ? match.oppositionTeamName : match.homeTeamName;
+  const teamLogoUrl2 = side.teamId === match.homeTeamId
+    ? match.homeTeamLogoUrl : match.oppositionTeamLogoUrl;
+
+  const [featurePhoto, teamLogo2] = await Promise.all([
+    loadImg(photoUrl),
+    teamLogoUrl2 ? loadImg(teamLogoUrl2) : Promise.resolve(null),
+  ]);
+
+  const W      = 1600;
+  const H      = 1350;
+  const HDR_H2 = 210;
+  const FOOT_H = 130;
+  const ROW_H2 = Math.max(78, Math.min(100, Math.floor((H - HDR_H2 - FOOT_H) / Math.max(xi.length, 1))));
+  const ROW_X2 = 900;
+  const ROW_W2 = W - ROW_X2 - 32;
+
+  const canvas2 = document.createElement('canvas');
+  canvas2.width = W; canvas2.height = H;
+  const ctx2 = canvas2.getContext('2d')!;
+
+  // Background
+  const bg2 = ctx2.createLinearGradient(0, 0, 0, H);
+  bg2.addColorStop(0,   '#051a0e');
+  bg2.addColorStop(0.5, '#0d3b1e');
+  bg2.addColorStop(1,   '#051a0e');
+  ctx2.fillStyle = bg2;
+  ctx2.fillRect(0, 0, W, H);
+
+  ctx2.fillStyle = 'rgba(255,255,255,0.025)';
+  for (let gx = 24; gx < W; gx += 48)
+    for (let gy = 24; gy < H; gy += 48) {
+      ctx2.beginPath(); ctx2.arc(gx, gy, 1.5, 0, Math.PI * 2); ctx2.fill();
+    }
+
+  // ── Feature photo — diagonal left column ───────────────────────────────────
+  const PHOTO_T = 800;
+  const PHOTO_B = 690;
+
+  if (featurePhoto) {
+    ctx2.save();
+    ctx2.beginPath();
+    ctx2.moveTo(0,       0);
+    ctx2.lineTo(PHOTO_T, 0);
+    ctx2.lineTo(PHOTO_B, H);
+    ctx2.lineTo(0,       H);
+    ctx2.closePath();
+    ctx2.clip();
+    const aspect = featurePhoto.naturalWidth / featurePhoto.naturalHeight;
+    let dw = PHOTO_T, dh = PHOTO_T / aspect;
+    if (dh < H) { dh = H; dw = dh * aspect; }
+    ctx2.drawImage(featurePhoto, 0, H / 2 - dh / 2, dw, dh);
+    ctx2.restore();
+  }
+
+  // Right-edge fade: photo → background
+  const fade2 = ctx2.createLinearGradient(PHOTO_B - 90, 0, PHOTO_T + 10, 0);
+  fade2.addColorStop(0, 'rgba(5,26,14,0)');
+  fade2.addColorStop(1, 'rgba(5,26,14,1)');
+  ctx2.fillStyle = fade2;
+  ctx2.fillRect(PHOTO_B - 90, 0, PHOTO_T - PHOTO_B + 110, H);
+
+  // Bottom vignette on photo
+  const vig = ctx2.createLinearGradient(0, H * 0.68, 0, H);
+  vig.addColorStop(0, 'transparent');
+  vig.addColorStop(1, 'rgba(0,0,0,0.52)');
+  ctx2.fillStyle = vig;
+  ctx2.fillRect(0, 0, PHOTO_T, H);
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+  drawPhoto(ctx2, teamLogo2, W - 54, 54, 42, teamName2.charAt(0));
+
+  ctx2.textAlign = 'right'; ctx2.textBaseline = 'top';
+  ctx2.fillStyle = '#ffffff';
+  ctx2.font = 'bold 74px Arial, sans-serif';
+  ctx2.fillText('PLAYING XI', W - 30, 108);
+
+  ctx2.fillStyle = '#86efac';
+  ctx2.font = 'bold 23px Arial, sans-serif';
+  ctx2.fillText(teamName2.toUpperCase(), W - 30, 186, ROW_W2);
+
+  const hDg2 = ctx2.createLinearGradient(ROW_X2, 0, W - 24, 0);
+  hDg2.addColorStop(0, 'transparent'); hDg2.addColorStop(0.08, '#4CAF50');
+  hDg2.addColorStop(0.92, '#4CAF50'); hDg2.addColorStop(1, 'transparent');
+  ctx2.strokeStyle = hDg2; ctx2.lineWidth = 1.5;
+  ctx2.beginPath(); ctx2.moveTo(ROW_X2, HDR_H2 - 4); ctx2.lineTo(W - 24, HDR_H2 - 4); ctx2.stroke();
+
+  // ── Player rows ──────────────────────────────────────────────────────────────
+  for (let i = 0; i < xi.length; i++) {
+    const p      = xi[i];
+    const rowY   = HDR_H2 + i * ROW_H2;
+    const isCapt = p.playerId === side.captainPlayerId;
+    const isWK   = p.playerId === side.wicketKeeperPlayerId;
+    const pillY  = rowY + 5;
+    const pillH  = ROW_H2 - 10;
+
+    roundedRect(ctx2, ROW_X2, pillY, ROW_W2, pillH, 7);
+    if (isCapt) {
+      const cg = ctx2.createLinearGradient(ROW_X2, 0, ROW_X2 + ROW_W2, 0);
+      cg.addColorStop(0, 'rgba(78,160,100,0.45)');
+      cg.addColorStop(1, 'rgba(78,160,100,0.22)');
+      ctx2.fillStyle = cg;
+    } else {
+      ctx2.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)';
+    }
+    ctx2.fill();
+    if (isCapt) { ctx2.strokeStyle = 'rgba(134,239,172,0.5)'; ctx2.lineWidth = 1.5; ctx2.stroke(); }
+
+    ctx2.fillStyle = isCapt ? '#86efac' : 'rgba(255,255,255,0.36)';
+    ctx2.font = 'bold 16px Arial, sans-serif';
+    ctx2.textAlign = 'left'; ctx2.textBaseline = 'middle';
+    ctx2.fillText(String(i + 1), ROW_X2 + 10, pillY + pillH / 2);
+
+    const captBW = isCapt ? 46 : 0;
+    const wkBW   = isWK   ? 44 : 0;
+    const maxW2  = ROW_W2 - 44 - captBW - wkBW - 14;
+
+    const label = `${p.name} ${p.surname}`.toUpperCase();
+    let fs = 26;
+    ctx2.font = `bold ${fs}px Arial, sans-serif`;
+    while (ctx2.measureText(label).width > maxW2 && fs > 13) {
+      fs--; ctx2.font = `bold ${fs}px Arial, sans-serif`;
+    }
+    ctx2.fillStyle = '#ffffff'; ctx2.textAlign = 'left'; ctx2.textBaseline = 'middle';
+    ctx2.fillText(label, ROW_X2 + 42, pillY + pillH / 2, maxW2);
+
+    if (isCapt) {
+      const bx = ROW_X2 + ROW_W2 - captBW - wkBW - 6;
+      const bh = 24;
+      roundedRect(ctx2, bx, pillY + pillH / 2 - bh / 2, captBW, bh, 5);
+      ctx2.fillStyle = '#FFD700'; ctx2.fill();
+      ctx2.fillStyle = '#000'; ctx2.font = 'bold 14px Arial, sans-serif';
+      ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+      ctx2.fillText('(C)', bx + captBW / 2, pillY + pillH / 2);
+    }
+
+    if (isWK) {
+      const bx = ROW_X2 + ROW_W2 - wkBW - 6;
+      const bh = 24;
+      roundedRect(ctx2, bx, pillY + pillH / 2 - bh / 2, wkBW, bh, 5);
+      ctx2.fillStyle = 'rgba(96,165,250,0.85)'; ctx2.fill();
+      ctx2.fillStyle = '#fff'; ctx2.font = 'bold 13px Arial, sans-serif';
+      ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+      ctx2.fillText('WK', bx + wkBW / 2, pillY + pillH / 2);
+    }
+  }
+
+  // ── Footer ───────────────────────────────────────────────────────────────────
+  const footerY2 = HDR_H2 + xi.length * ROW_H2;
+
+  const fDg2 = ctx2.createLinearGradient(ROW_X2, 0, W - 24, 0);
+  fDg2.addColorStop(0, 'transparent'); fDg2.addColorStop(0.08, '#4CAF50');
+  fDg2.addColorStop(0.92, '#4CAF50'); fDg2.addColorStop(1, 'transparent');
+  ctx2.strokeStyle = fDg2; ctx2.lineWidth = 1.5;
+  ctx2.beginPath(); ctx2.moveTo(ROW_X2, footerY2 + 16); ctx2.lineTo(W - 24, footerY2 + 16); ctx2.stroke();
+
+  if (twelfth2) {
+    ctx2.fillStyle = 'rgba(255,255,255,0.48)';
+    ctx2.font = '18px Arial, sans-serif';
+    ctx2.textAlign = 'right'; ctx2.textBaseline = 'top';
+    ctx2.fillText(`12TH MAN:  ${twelfth2.name} ${twelfth2.surname}`.toUpperCase(), W - 28, footerY2 + 24);
+  }
+
+  const matchLine2 = [
+    opponent2 ? `vs ${opponent2}` : null,
+    match.matchDate ? fmtMatchDate(match.matchDate) : null,
+    match.scheduledStartTime ? match.scheduledStartTime.slice(0, 5) : null,
+    match.fieldName,
+  ].filter(Boolean).join('  ·  ');
+  if (matchLine2) {
+    ctx2.fillStyle = 'rgba(255,255,255,0.42)';
+    ctx2.font = '20px Arial, sans-serif';
+    ctx2.textAlign = 'right'; ctx2.textBaseline = 'bottom';
+    ctx2.fillText(matchLine2, W - 28, H - 36, ROW_W2);
+  }
+
+  return new Promise<string>(resolve => {
+    canvas2.toBlob(blob => resolve(URL.createObjectURL(blob!)), 'image/png');
   });
 }

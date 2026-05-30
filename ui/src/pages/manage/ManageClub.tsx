@@ -82,7 +82,7 @@ export const ManageClub: React.FC = () => {
         <Typography variant="h5" sx={{ mb: 3 }}>Manage Club</Typography>
         <Grid container spacing={2}>
           {[1, 2].map(i => (
-            <Grid item xs={12} sm={6} md={4} key={i}>
+            <Grid item xs={12} sm={6} key={i}>
               <Skeleton variant="rounded" height={260} />
             </Grid>
           ))}
@@ -107,7 +107,7 @@ export const ManageClub: React.FC = () => {
       ) : (
         <Grid container spacing={2}>
           {clubs.map(club => (
-            <Grid item xs={12} sm={6} md={4} key={club.clubId}>
+            <Grid item xs={12} sm={6} key={club.clubId}>
               <ClubCard club={club} onEdit={setEditing} />
             </Grid>
           ))}

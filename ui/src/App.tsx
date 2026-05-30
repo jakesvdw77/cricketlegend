@@ -41,6 +41,7 @@ import { ManageClubSchedule } from './pages/manage/ManageClubSchedule';
 import { ManageClubPlayers } from './pages/manage/ManageClubPlayers';
 import { ManageTeamSchedule } from './pages/manage/ManageTeamSchedule';
 import { ManageTeamResults } from './pages/manage/ManageTeamResults';
+import { ManageTeamTournaments } from './pages/manage/ManageTeamTournaments';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
@@ -119,6 +120,7 @@ function ThemedApp() {
             <Route path="manage-club/players" element={<ManagerRoute element={<ManageClubPlayers />} />} />
             <Route path="manage-club/team-schedule" element={<ManagerRoute element={<ManageTeamSchedule />} />} />
             <Route path="manage-club/team-results" element={<ManagerRoute element={<ManageTeamResults />} />} />
+            <Route path="manage-club/team-tournaments" element={<ManagerRoute element={<ManageTeamTournaments />} />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />

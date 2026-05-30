@@ -675,6 +675,18 @@ export async function generateSquadPdf(
     ...sponsors.map((s: Sponsor) => loadImageBase64(s.printLogoUrl ?? s.brandLogoUrl!)),
   ]);
 
+  const sponsorAspects = await Promise.all(
+    sponsorLogos.map(b64 => b64
+      ? new Promise<number>(resolve => {
+          const img = new Image();
+          img.onload  = () => resolve(img.naturalWidth / img.naturalHeight);
+          img.onerror = () => resolve(2.5);
+          img.src = b64;
+        })
+      : Promise.resolve(2.5)
+    )
+  );
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -883,14 +895,15 @@ export async function generateSquadPdf(
     doc.text('SPONSORS', margin, y + 3);
     y += 8;
 
-    const sLogoH = 14;
+    const sLogoH   = 14;
+    const sLogoMax = 50;
     let sx = margin;
     for (let i = 0; i < sponsors.length; i++) {
       const b64 = sponsorLogos[i];
       if (!b64) continue;
       checkPage(sLogoH + 4);
       try {
-        const sLogoW = sLogoH * 2.5;
+        const sLogoW = Math.min(sLogoH * sponsorAspects[i], sLogoMax);
         if (sx + sLogoW > pageW - margin) { sx = margin; y += sLogoH + 4; }
         doc.addImage(b64, 'PNG', sx, y, sLogoW, sLogoH);
         sx += sLogoW + 8;

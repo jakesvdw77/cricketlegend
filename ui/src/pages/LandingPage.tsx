@@ -10,7 +10,11 @@ import {
   Handshake, Language, Facebook, Close, Instagram, YouTube, OpenInNew,
   AccountBalance, Groups, HowToVote, AppRegistration,
   LightMode, DarkMode, FiberManualRecord, ChevronRight, Tune,
+  Image as ImageIcon, Download,
 } from '@mui/icons-material';
+import CircularProgress from '@mui/material/CircularProgress';
+import DialogActions from '@mui/material/DialogActions';
+import { SchedulePickerDialog } from '../components/SchedulePickerDialog';
 import { useColorMode } from '../context/ColorModeContext';
 import { matchApi } from '../api/matchApi';
 import { sponsorApi } from '../api/sponsorApi';
@@ -90,6 +94,7 @@ interface TournamentCardProps {
 
 const TournamentDirectoryCard: React.FC<TournamentCardProps> = ({ tournament, isLive, isPast, featured, onManage }) => {
   const navigate = useNavigate();
+  const [schedulePickerOpen, setSchedulePickerOpen] = useState(false);
   const teamCount = (tournament.pools ?? []).reduce((n, p) => n + (p.teams?.length ?? 0), 0);
   const poolCount = tournament.pools?.length ?? 0;
 
@@ -218,6 +223,16 @@ const TournamentDirectoryCard: React.FC<TournamentCardProps> = ({ tournament, is
         >
           View Tournament
         </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ImageIcon sx={{ fontSize: '14px !important' }} />}
+          disabled={!tournament.tournamentId}
+          onClick={e => { e.stopPropagation(); setSchedulePickerOpen(true); }}
+          sx={{ textTransform: 'none', flexShrink: 0 }}
+        >
+          Full Schedule
+        </Button>
         {onManage && (
           <Button
             variant="outlined"
@@ -229,6 +244,11 @@ const TournamentDirectoryCard: React.FC<TournamentCardProps> = ({ tournament, is
             Manage
           </Button>
         )}
+
+        <SchedulePickerDialog
+          tournament={schedulePickerOpen ? tournament : null}
+          onClose={() => setSchedulePickerOpen(false)}
+        />
 
         {/* Social icons + Register — right-aligned group */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ml: 'auto' }}>
@@ -319,7 +339,7 @@ export const LandingPage: React.FC = () => {
   const [manageTournament, setManageTournament] = useState<Tournament | null>(null);
 
   const { isAdmin, isManager } = useAuth();
-  const canManage = keycloak.authenticated && (isAdmin || isManager);
+  const canManage = keycloak.authenticated && isAdmin;
 
   useEffect(() => {
     if (liveMatches.length <= 1) return;

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Chip, Avatar, Divider, Stack,
-  Card, CardContent, MenuItem, TextField, useTheme, useMediaQuery,
+  Card, CardContent, MenuItem, TextField, useTheme, useMediaQuery, Button,
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, AccessTime, LocationOn, SportsScore,
-  CheckCircle, Cancel, Remove,
+  CheckCircle, Cancel, Remove, ArrowBack,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
@@ -183,6 +184,9 @@ const MatchRow: React.FC<{ match: Match; teamId: number }> = ({ match: m, teamId
 };
 
 export const ManageTeamResults: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { returnTo } = (location.state ?? {}) as { returnTo?: string };
   const { teamIds, restrictByTeam, loaded: teamsLoaded } = useManagerTeams();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
@@ -216,6 +220,11 @@ export const ManageTeamResults: React.FC = () => {
   return (
     <Box sx={{ maxWidth: 900, mx: 'auto', pb: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        {returnTo && (
+          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ mr: 0.5 }}>
+            Back
+          </Button>
+        )}
         <SportsScore color="primary" />
         <Typography variant="h5">Team Results</Typography>
         {selectedTeamId && !matchesLoading && (
