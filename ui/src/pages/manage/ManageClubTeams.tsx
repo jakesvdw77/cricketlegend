@@ -29,10 +29,10 @@ export const ManageClubTeams: React.FC = () => {
     return (
       <Box>
         <Typography variant="h5" sx={{ mb: 3 }}>Manage Teams</Typography>
-        <Grid container spacing={2}>
+        <Grid container spacing={3}>
           {[1, 2, 3].map(i => (
-            <Grid item xs={12} sm={6} md={4} key={i}>
-              <Skeleton variant="rounded" height={220} />
+            <Grid item xs={12} sm={6} key={i}>
+              <Skeleton variant="rounded" height={280} />
             </Grid>
           ))}
         </Grid>
@@ -54,9 +54,9 @@ export const ManageClubTeams: React.FC = () => {
           <Typography variant="body2">Contact your administrator to be linked to a team.</Typography>
         </Box>
       ) : (
-        <Grid container spacing={2}>
+        <Grid container spacing={3}>
           {teams.map(team => (
-            <Grid item xs={12} sm={6} md={4} key={team.teamId}>
+            <Grid item xs={12} sm={6} key={team.teamId}>
               <TeamCard team={team} onNavigate={navigate} />
             </Grid>
           ))}
@@ -73,43 +73,43 @@ interface TeamCardProps {
 
 const TeamCard: React.FC<TeamCardProps> = ({ team, onNavigate }) => (
   <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-    <CardContent sx={{ flex: 1 }}>
+    <CardContent sx={{ flex: 1, p: 3 }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 2.5, alignItems: 'center', mb: 3 }}>
         <Avatar
           src={team.logoUrl}
-          sx={{ width: 56, height: 56, flexShrink: 0, bgcolor: 'primary.main', fontSize: 22 }}
+          sx={{ width: 72, height: 72, flexShrink: 0, bgcolor: 'primary.main', fontSize: 28 }}
         >
           {team.teamName.charAt(0)}
         </Avatar>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="subtitle1" fontWeight="bold" noWrap>
+          <Typography variant="h6" fontWeight="bold" noWrap>
             {team.teamName}
           </Typography>
           {team.abbreviation && (
-            <Chip label={team.abbreviation} size="small" variant="outlined" sx={{ mt: 0.25 }} />
+            <Chip label={team.abbreviation} size="small" variant="outlined" sx={{ mt: 0.5 }} />
           )}
         </Box>
       </Box>
 
       {/* Meta rows */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {team.associatedClubName && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Shield sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0 }} />
-            <Typography variant="body2" color="text.secondary" noWrap>{team.associatedClubName}</Typography>
+            <Shield sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
+            <Typography variant="body1" color="text.secondary" noWrap>{team.associatedClubName}</Typography>
           </Box>
         )}
         {team.homeFieldName && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Place sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0 }} />
-            <Typography variant="body2" color="text.secondary" noWrap>{team.homeFieldName}</Typography>
+            <Place sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
+            <Typography variant="body1" color="text.secondary" noWrap>{team.homeFieldName}</Typography>
           </Box>
         )}
         {team.captainName && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Person sx={{ fontSize: 16, color: 'text.secondary', flexShrink: 0 }} />
-            <Typography variant="body2" color="text.secondary" noWrap>
+            <Person sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
+            <Typography variant="body1" color="text.secondary" noWrap>
               Capt: {team.captainName}
             </Typography>
           </Box>
@@ -119,37 +119,32 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, onNavigate }) => (
 
     <Divider />
 
-    <CardActions sx={{ px: 1.5, py: 1, gap: 0.5, flexWrap: 'wrap' }}>
+    <CardActions sx={{ px: 2, py: 1.5, gap: 1, flexWrap: 'wrap' }}>
       <Button
-        size="small"
         startIcon={<Settings />}
         onClick={() => onNavigate('/admin/teams', { state: { editTeamId: team.teamId, returnTo: '/manage-club/teams' } })}
       >
         Setup
       </Button>
       <Button
-        size="small"
         startIcon={<Groups />}
         onClick={() => onNavigate(`/admin/teams/${team.teamId}/squad`, { state: { returnTo: '/manage-club/teams' } })}
       >
         Squad
       </Button>
       <Button
-        size="small"
         startIcon={<SportsScore />}
         onClick={() => onNavigate(`/manage-club/teams/${team.teamId}/schedule`, { state: { teamName: team.teamName } })}
       >
         Schedule
       </Button>
       <Button
-        size="small"
         startIcon={<Event />}
         onClick={() => onNavigate('/admin/events', { state: { filterTeamId: team.teamId, returnTo: '/manage-club/teams' } })}
       >
         Events
       </Button>
       <Button
-        size="small"
         startIcon={<Campaign />}
         onClick={() => onNavigate('/admin/send-notification', {
           state: {

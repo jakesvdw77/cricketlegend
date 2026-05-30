@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Drawer, Box, Typography, IconButton, Tabs, Tab, Divider,
+  Drawer, Box, Typography, IconButton, Tabs, Tab,
   useTheme, useMediaQuery, Avatar, Chip, Button, CircularProgress,
   Grid, Tooltip, Autocomplete, TextField,
 } from '@mui/material';
@@ -40,26 +40,6 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   </Box>
 );
 
-interface PlaceholderTabProps {
-  icon: React.ReactElement;
-  label: string;
-  desc: string;
-}
-
-const PlaceholderTab: React.FC<PlaceholderTabProps> = ({ icon, label, desc }) => (
-  <Box sx={{
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    justifyContent: 'center', minHeight: 320, gap: 2,
-  }}>
-    <Box sx={{ display: 'flex', color: 'action.disabled' }}>
-      {React.cloneElement(icon, { sx: { fontSize: 64 } })}
-    </Box>
-    <Typography variant="h6" color="text.secondary" fontWeight={600}>{label}</Typography>
-    <Typography variant="body2" color="text.disabled" sx={{ maxWidth: 340, textAlign: 'center' }}>{desc}</Typography>
-    <Divider sx={{ width: 48, borderColor: 'divider', mt: 1 }} />
-    <Typography variant="caption" color="text.disabled">Coming soon</Typography>
-  </Box>
-);
 
 interface TournamentManageDrawerProps {
   tournament: Tournament | null;

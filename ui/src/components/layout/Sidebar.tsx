@@ -39,7 +39,6 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const financeManagerOpen = openSection === 'financeManager';
 
     const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
-    const goCollapse = (path: string) => { navigate(path); onClose(); };
 
     return (
         <Drawer
@@ -87,7 +86,15 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/my-schedule')}>
                         <ListItemIcon><CalendarMonth/></ListItemIcon>
-                        <ListItemText primary="My Schedule"/>
+                        <ListItemText primary="My Calendar"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/game-schedule')}>
+                        <ListItemIcon><Assignment/></ListItemIcon>
+                        <ListItemText primary="Game Schedule"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/game-results')}>
+                        <ListItemIcon><SportsScore/></ListItemIcon>
+                        <ListItemText primary="Game Results"/>
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/my-wallet')}>
                         <ListItemIcon><AccountBalanceWallet/></ListItemIcon>
@@ -127,6 +134,14 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/send-notification')}>
                                 <ListItemIcon><Campaign/></ListItemIcon>
                                 <ListItemText primary="Notifications"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-schedule')}>
+                                <ListItemIcon><Assignment/></ListItemIcon>
+                                <ListItemText primary="Team Schedule"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-results')}>
+                                <ListItemIcon><SportsScore/></ListItemIcon>
+                                <ListItemText primary="Team Results"/>
                             </ListItemButton>
                         </List>
                     </Collapse>

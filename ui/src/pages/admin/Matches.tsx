@@ -472,7 +472,7 @@ export const Matches: React.FC = () => {
                 {col('date')       && <TableCell><Link component="button" underline="hover" onClick={() => { setViewItem(r); setViewing(true); }} sx={{ textAlign: 'left' }}>{r.matchDate}</Link></TableCell>}
                 {col('startTime')  && <TableCell>{r.scheduledStartTime ? r.scheduledStartTime.slice(0, 5) : ''}</TableCell>}
                 {col('tournament') && <TableCell>{r.tournamentName}</TableCell>}
-                {col('stage')      && <TableCell>{r.matchStage ? { FRIENDLY: 'Friendly', POOL: 'Pool', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final' }[r.matchStage] : ''}</TableCell>}
+                {col('stage')      && <TableCell>{r.matchStage ? ({ FRIENDLY: 'Friendly', POOL: 'Pool', QUARTER_FINAL: 'Quarter-Final', SEMI_FINAL: 'Semi-Final', FINAL: 'Final', PLAYOFFS: 'Playoffs', ROUND_OF_16: 'Round of 16' } as Record<string, string>)[r.matchStage] ?? r.matchStage : ''}</TableCell>}
                 {col('homeTeam')   && <TableCell>{r.homeTeamName}</TableCell>}
                 {col('opposition') && <TableCell>{r.oppositionTeamName}</TableCell>}
                 {col('result') && (

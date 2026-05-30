@@ -50,33 +50,10 @@ const loadImageBase64 = async (url: string): Promise<string | null> => {
   }
 };
 
-const FALLBACK_DARK: [number, number, number]  = [13,  71,  31];
-const FALLBACK_MID:  [number, number, number]  = [27,  94,  51];
-
-const safeRgb = (color: string, fallback: [number, number, number]): [number, number, number] => {
-  try {
-    // Handle rgb(...) / rgba(...) from MUI
-    const rgbMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if (rgbMatch) return [+rgbMatch[1], +rgbMatch[2], +rgbMatch[3]];
-    // Handle hex
-    const hex = color.replace('#', '').trim();
-    const full = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex;
-    if (full.length !== 6) return fallback;
-    const r = parseInt(full.slice(0, 2), 16);
-    const g = parseInt(full.slice(2, 4), 16);
-    const b = parseInt(full.slice(4, 6), 16);
-    if (isNaN(r) || isNaN(g) || isNaN(b)) return fallback;
-    return [r, g, b];
-  } catch {
-    return fallback;
-  }
-};
 
 export const MatchScheduleVisual: React.FC<Props> = ({ matches, resultMap, tournament, showExport = false, onEditMatch }) => {
   const theme = useTheme();
   const primary = theme.palette.primary.main;
-  const primaryDark = theme.palette.primary.dark;
-  const primaryContrast = theme.palette.primary.contrastText;
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 

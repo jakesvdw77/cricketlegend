@@ -3,17 +3,24 @@ import {
   Box, Typography, Button, Avatar, List, ListItem, ListItemAvatar, ListItemText,
   TextField, MenuItem, Divider, Autocomplete, Chip, InputAdornment, IconButton,
   Tabs, Tab, Menu, useTheme, useMediaQuery,
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  ListItemButton, ListItemIcon, CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack, Print, PersonAdd, PersonRemove, Search, Share, SportsCricket, MoreVert,
+  WhatsApp, PictureAsPdf, Image as ImageIcon, Download,
 } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { teamApi } from '../../api/teamApi';
 import { clubApi } from '../../api/clubApi';
 import { playerApi } from '../../api/playerApi';
-import { Team, Player, Club } from '../../types';
+import { tournamentApi } from '../../api/tournamentApi';
+import { Team, Player, Club, Tournament } from '../../types';
 import { playerDescription } from '../../utils/playerDescription';
 import { printSquad } from '../../utils/printSquad';
+import { generateSquadPdf } from '../../utils/matchPdf';
+import { generateSquadImage } from '../../utils/teamsheetImage';
+import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 import SquadShareDialog from './SquadShareDialog';
 
 export const TeamSquad: React.FC = () => {
@@ -31,9 +38,17 @@ export const TeamSquad: React.FC = () => {
   const [clubs, setClubs]     = useState<Club[]>([]);
   const [availSearch, setAvailSearch] = useState('');
   const [availClubId, setAvailClubId] = useState<number | ''>('');
-  const [shareOpen, setShareOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState(0);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+
+  // Share hub state
+  const [shareOptionsOpen, setShareOptionsOpen] = useState(false);
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [selectedTournamentId, setSelectedTournamentId] = useState<number | ''>('');
+  const [shareLoading, setShareLoading] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     teamApi.findById(id).then(t => {
@@ -44,6 +59,47 @@ export const TeamSquad: React.FC = () => {
     playerApi.findAll().then(setAllPlayers);
     clubApi.findAll().then(setClubs);
   }, [id]);
+
+  useEffect(() => {
+    if (shareOptionsOpen && tournaments.length === 0) {
+      tournamentApi.findAll().then(setTournaments).catch(() => {});
+    }
+  }, [shareOptionsOpen]);
+
+  const selectedTournament = tournaments.find(t => t.tournamentId === selectedTournamentId) ?? null;
+
+  const openShareOptions = () => { setShareOptionsOpen(true); };
+
+  const handleWhatsapp = () => { setShareOptionsOpen(false); setWhatsappOpen(true); };
+
+  const handlePrint = () => {
+    setShareOptionsOpen(false);
+    printSquad(team!, [...squad].sort((a, b) => a.name.localeCompare(b.name)));
+  };
+
+  const handleProfessionalPdf = async () => {
+    if (!team) return;
+    setShareLoading(true);
+    try {
+      const url = await generateSquadPdf(team, squad, selectedTournament);
+      setShareOptionsOpen(false);
+      setPdfUrl(url);
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const handleSquadImage = async () => {
+    if (!team) return;
+    setShareLoading(true);
+    try {
+      const url = await generateSquadImage(team, squad, selectedTournament);
+      setShareOptionsOpen(false);
+      setImageUrl(url);
+    } finally {
+      setShareLoading(false);
+    }
+  };
 
   const addToSquad = async (player: Player) => {
     await teamApi.addToSquad(id, player.playerId!);
@@ -180,22 +236,15 @@ export const TeamSquad: React.FC = () => {
               <MoreVert />
             </IconButton>
             <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={closeMenu}>
-              <MenuItem onClick={() => { closeMenu(); setShareOpen(true); }} disabled={!team || squad.length === 0}>
-                <Share fontSize="small" sx={{ mr: 1 }} /> Share / Notify
-              </MenuItem>
-              <MenuItem onClick={() => { closeMenu(); printSquad(team!, [...squad].sort((a, b) => a.name.localeCompare(b.name))); }} disabled={!team}>
-                <Print fontSize="small" sx={{ mr: 1 }} /> Print / Export PDF
+              <MenuItem onClick={() => { closeMenu(); openShareOptions(); }} disabled={!team || squad.length === 0}>
+                <Share fontSize="small" sx={{ mr: 1 }} /> Share
               </MenuItem>
             </Menu>
           </>
         ) : (
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-            <Button variant="outlined" startIcon={<Share />} onClick={() => setShareOpen(true)} disabled={!team || squad.length === 0}>
-              Share / Notify
-            </Button>
-            <Button variant="outlined" startIcon={<Print />}
-              onClick={() => printSquad(team!, [...squad].sort((a, b) => a.name.localeCompare(b.name)))} disabled={!team}>
-              Print / Export PDF
+            <Button variant="outlined" startIcon={<Share />} onClick={openShareOptions} disabled={!team || squad.length === 0}>
+              Share
             </Button>
           </Box>
         )}
@@ -289,14 +338,87 @@ export const TeamSquad: React.FC = () => {
         </Box>
       )}
 
+      {/* ── Share options hub ──────────────────────────────────────────────── */}
+      <Dialog open={shareOptionsOpen} onClose={() => setShareOptionsOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Share Squad</DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          <TextField
+            select fullWidth size="small" label="Tournament (optional)"
+            value={selectedTournamentId}
+            onChange={e => setSelectedTournamentId(e.target.value === '' ? '' : Number(e.target.value))}
+            sx={{ mb: 1 }}
+          >
+            <MenuItem value="">No tournament</MenuItem>
+            {tournaments.map(t => (
+              <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>
+            ))}
+          </TextField>
+
+          <List disablePadding>
+            <ListItemButton onClick={handleWhatsapp} disabled={shareLoading}>
+              <ListItemIcon><WhatsApp sx={{ color: '#25D366' }} /></ListItemIcon>
+              <ListItemText primary="WhatsApp / Email" secondary="Edit and share squad announcement" />
+            </ListItemButton>
+            <ListItemButton onClick={handlePrint} disabled={shareLoading}>
+              <ListItemIcon><Print /></ListItemIcon>
+              <ListItemText primary="Print" secondary="Open browser print dialog" />
+            </ListItemButton>
+            <ListItemButton onClick={handleProfessionalPdf} disabled={shareLoading}>
+              <ListItemIcon>
+                {shareLoading ? <CircularProgress size={22} color="error" /> : <PictureAsPdf color="error" />}
+              </ListItemIcon>
+              <ListItemText primary="Professional PDF" secondary="Tournament & squad details document" />
+            </ListItemButton>
+            <ListItemButton onClick={handleSquadImage} disabled={shareLoading}>
+              <ListItemIcon>
+                {shareLoading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}
+              </ListItemIcon>
+              <ListItemText primary="Squad Image" secondary="Shareable graphic with player photos" />
+            </ListItemButton>
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShareOptionsOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* WhatsApp / email dialog */}
       {team && (
         <SquadShareDialog
-          open={shareOpen}
-          onClose={() => setShareOpen(false)}
+          open={whatsappOpen}
+          onClose={() => setWhatsappOpen(false)}
           team={team}
           squad={squad}
         />
       )}
+
+      {/* PDF preview */}
+      <PdfPreviewDialog pdfUrl={pdfUrl} onClose={() => setPdfUrl(null)} />
+
+      {/* Image preview */}
+      <Dialog open={!!imageUrl} onClose={() => setImageUrl(null)} maxWidth="sm" fullWidth
+        PaperProps={{ sx: { bgcolor: '#0d3b1e' } }}
+      >
+        <DialogTitle sx={{ color: '#fff', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ImageIcon fontSize="small" /> Squad
+        </DialogTitle>
+        <DialogContent sx={{ p: 1, display: 'flex', justifyContent: 'center' }}>
+          {imageUrl && (
+            <Box component="img" src={imageUrl} alt="Squad"
+              sx={{ maxWidth: '100%', maxHeight: '72vh', borderRadius: 2, display: 'block' }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImageUrl(null)} sx={{ color: 'rgba(255,255,255,0.6)' }}>Close</Button>
+          <Button variant="contained" startIcon={<Download />}
+            onClick={() => { const a = document.createElement('a'); a.href = imageUrl!; a.download = 'squad.png'; a.click(); }}
+          >
+            Download PNG
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 };

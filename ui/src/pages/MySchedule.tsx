@@ -434,7 +434,7 @@ export const MySchedule: React.FC = () => {
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <CalendarMonth color="primary" />
-        <Typography variant="h5" sx={{ display: { xs: 'none', sm: 'block' } }}>My Schedule</Typography>
+        <Typography variant="h5" sx={{ display: { xs: 'none', sm: 'block' } }}>My Calendar</Typography>
         <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ ml: 1 }} />
         <Button
           variant="outlined"

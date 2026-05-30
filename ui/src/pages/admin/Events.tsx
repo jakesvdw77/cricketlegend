@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import {
   Add, ArrowBack, Edit, Delete, OpenInNew, VideoCall, FilterList, ViewColumn,
-  Shield, TableRows, GridView, CalendarMonth, AccessTime, Place, Repeat, Notes,
+  Shield, TableRows, GridView, CalendarMonth, AccessTime, Place, Notes,
   ChevronLeft, ChevronRight, CalendarViewMonth,
 } from '@mui/icons-material';
 import { Calendar, dateFnsLocalizer, View } from 'react-big-calendar';

@@ -7,7 +7,7 @@ import {
 import { FilterList, OpenInNew, CheckCircle, Cancel, Undo } from '@mui/icons-material';
 import { financialAdminApi } from '../../api/financialAdminApi';
 import { useFinancialAdmin } from '../../hooks/useFinancialAdmin';
-import { Payment, PagedPaymentResponse, PaymentStatus, PlayerDTO } from '../../types';
+import { Payment, PagedPaymentResponse, PaymentStatus, Player } from '../../types';
 
 const STATUS_COLORS: Record<PaymentStatus, 'warning' | 'success' | 'error'> = {
   PENDING: 'warning', APPROVED: 'success', REJECTED: 'error',
@@ -16,7 +16,7 @@ const STATUS_COLORS: Record<PaymentStatus, 'warning' | 'success' | 'error'> = {
 export const FinancePayments: React.FC = () => {
   const { clubId, loaded } = useFinancialAdmin();
   const [response, setResponse] = useState<PagedPaymentResponse | null>(null);
-  const [players, setPlayers] = useState<PlayerDTO[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [filterStatus, setFilterStatus] = useState<PaymentStatus | ''>('');
   const [filterYear, setFilterYear] = useState<number | ''>('');
   const [filterMonth, setFilterMonth] = useState<number | ''>('');

@@ -1,15 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Button, Table, TableHead, TableRow, TableCell,
   TableBody, TableContainer, Paper, IconButton, Dialog,
-  DialogContent, DialogActions, DialogTitle, TextField, MenuItem, Chip, Autocomplete,
-  Avatar, CircularProgress, Divider, InputAdornment, TableSortLabel,
+  DialogContent, DialogActions, TextField, MenuItem, Chip, Autocomplete,
+  Avatar, CircularProgress, InputAdornment, TableSortLabel,
   TablePagination, Popover, FormGroup, Checkbox, FormControlLabel,
-  Tabs, Tab, Tooltip, useMediaQuery, useTheme, Link, ListSubheader,
+  Tabs, Tab, Tooltip, useMediaQuery, useTheme, Link,
   ToggleButton, ToggleButtonGroup,
 } from '@mui/material';
-import { Add, ArrowBack, Edit, Delete, CloudUpload, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, ReceiptLong, FilterList } from '@mui/icons-material';
+import { Add, ArrowBack, Edit, Delete, PictureAsPdf, Language, Facebook, Instagram, YouTube, AppRegistration, EmojiEvents, ViewColumn, ContentCopy, ReceiptLong, FilterList } from '@mui/icons-material';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -18,12 +18,12 @@ import { teamApi } from '../../api/teamApi';
 import { paymentApi } from '../../api/paymentApi';
 import { matchApi } from '../../api/matchApi';
 import { fieldApi } from '../../api/fieldApi';
-import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, AgeGroup, TournamentGender, Payment, Match, MatchResultSummary, Field } from '../../types';
+import { Tournament, CricketFormat, Sponsor, Team, TournamentPool, Payment, Match, MatchResultSummary, Field } from '../../types';
 import { DetailSection, DetailGrid, DetailField } from '../../components/admin/DetailView';
 import { TournamentScheduleTab } from '../../components/admin/TournamentScheduleTab';
 import { MatchScheduleVisual } from '../../components/admin/MatchScheduleVisual';
 import { TournamentGeneralInfoForm } from '../../components/admin/TournamentGeneralInfoForm';
-import { TournamentPoolsForm, LocalPool, LocalPoolTeam } from '../../components/admin/TournamentPoolsForm';
+import { TournamentPoolsForm, LocalPool } from '../../components/admin/TournamentPoolsForm';
 import { TournamentSocialLinksForm } from '../../components/admin/TournamentSocialLinksForm';
 import { MatchEditDialog } from '../../components/admin/MatchEditDialog';
 import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';

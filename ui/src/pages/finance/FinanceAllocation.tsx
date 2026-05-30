@@ -2,13 +2,12 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody,
   TableContainer, TextField, MenuItem, Chip, TablePagination, Button,
-  Tooltip, IconButton, Tabs, Tab, Dialog, DialogTitle, DialogContent,
-  DialogActions, Alert, Autocomplete,
+  Tooltip, IconButton, Tabs, Tab, Alert, Autocomplete,
 } from '@mui/material';
 import { FilterList, AccountBalanceWallet, Add } from '@mui/icons-material';
 import { financialAdminApi } from '../../api/financialAdminApi';
 import { useFinancialAdmin } from '../../hooks/useFinancialAdmin';
-import { PlayerDTO, PagedAllocationResponse, WalletAllocationDTO } from '../../types';
+import { Player, PagedAllocationResponse } from '../../types';
 
 const CATEGORY_LABELS: Record<string, string> = {
   ANNUAL_SUBSCRIPTION: 'Annual Subscription',
@@ -20,13 +19,13 @@ const CATEGORY_LABELS: Record<string, string> = {
 export const FinanceAllocation: React.FC = () => {
   const { clubId, loaded } = useFinancialAdmin();
   const [tab, setTab] = useState(0);
-  const [players, setPlayers] = useState<PlayerDTO[]>([]);
+  const [players, setPlayers] = useState<Player[]>([]);
   const [walletBalances, setWalletBalances] = useState<Record<number, number>>({});
   const [allocationTotals, setAllocationTotals] = useState<Record<number, number>>({});
 
   // Allocation history filters
   const [historyResponse, setHistoryResponse] = useState<PagedAllocationResponse | null>(null);
-  const [filterPlayer, setFilterPlayer] = useState<PlayerDTO | null>(null);
+  const [filterPlayer, setFilterPlayer] = useState<Player | null>(null);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterYear, setFilterYear] = useState<number | ''>('');
   const [filterMonth, setFilterMonth] = useState<number | ''>('');
@@ -34,7 +33,7 @@ export const FinanceAllocation: React.FC = () => {
   const [filtersOpen, setFiltersOpen] = useState(true);
 
   // Allocate form
-  const [allocPlayer, setAllocPlayer] = useState<PlayerDTO | null>(null);
+  const [allocPlayer, setAllocPlayer] = useState<Player | null>(null);
   const [allocType, setAllocType] = useState<'annual' | 'other'>('annual');
   const [allocAmount, setAllocAmount] = useState('');
   const [allocDesc, setAllocDesc] = useState('');
