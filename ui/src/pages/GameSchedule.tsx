@@ -10,8 +10,9 @@ import {
 import { matchApi } from '../api/matchApi';
 import { tournamentApi } from '../api/tournamentApi';
 import { Match } from '../types';
-import { generateMatchPdf, generateTournamentSchedulePdf } from '../utils/matchPdf';
+import { generateTournamentSchedulePdf } from '../utils/matchPdf';
 import { PdfPreviewDialog } from '../components/PdfPreviewDialog';
+import { MatchSharePanel } from '../components/match/MatchSharePanel';
 
 const STAGE_LABELS: Record<string, string> = {
   FRIENDLY: 'Friendly', POOL: 'Pool', QUARTER_FINAL: 'Quarter-Final',
@@ -68,12 +69,15 @@ const groupByTournament = (matches: Match[]): TournamentGroup[] => {
     .sort((a, b) => a.earliestDate.localeCompare(b.earliestDate));
 };
 
-const MatchRow: React.FC<{ match: Match; onPrint: (m: Match) => void; printing: boolean }> = ({ match: m, onPrint, printing }) => {
+const MatchRow: React.FC<{ match: Match }> = ({ match: m }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [shareOpen, setShareOpen] = useState(false);
 
   return (
-    <Card variant="outlined" sx={{ mb: 1.5 }}>
+    <>
+    <Card variant="outlined" sx={{ mb: 1.5, cursor: 'pointer', transition: 'background-color 0.15s', '&:hover': { bgcolor: 'action.hover' } }}
+      onClick={() => setShareOpen(true)}>
       <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
 
@@ -123,29 +127,18 @@ const MatchRow: React.FC<{ match: Match; onPrint: (m: Match) => void; printing: 
               <Chip label={STAGE_LABELS[m.matchStage] ?? m.matchStage} size="small" variant="outlined" sx={{ height: 20, fontSize: 11 }} />
             )}
 
-            <Tooltip title="Print match card">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={() => onPrint(m)}
-                  disabled={printing}
-                  sx={{ color: 'text.secondary' }}
-                >
-                  {printing ? <CircularProgress size={16} /> : <PictureAsPdf fontSize="small" />}
-                </IconButton>
-              </span>
-            </Tooltip>
           </Stack>
         </Stack>
       </CardContent>
     </Card>
+    <MatchSharePanel open={shareOpen} match={m} onClose={() => setShareOpen(false)} />
+    </>
   );
 };
 
 export const GameSchedule: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [printingId, setPrintingId] = useState<number | null>(null);
   const [printingTournament, setPrintingTournament] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
@@ -155,13 +148,6 @@ export const GameSchedule: React.FC = () => {
       .catch(() => setMatches([]))
       .finally(() => setLoading(false));
   }, []);
-
-  const handlePrint = async (m: Match) => {
-    if (!m.matchId) return;
-    setPrintingId(m.matchId);
-    try { setPdfUrl(await generateMatchPdf(m)); }
-    finally { setPrintingId(null); }
-  };
 
   const handlePrintTournament = async (group: TournamentGroup) => {
     setPrintingTournament(group.tournamentName);
@@ -230,8 +216,6 @@ export const GameSchedule: React.FC = () => {
             <MatchRow
               key={m.matchId}
               match={m}
-              onPrint={handlePrint}
-              printing={printingId === m.matchId}
             />
           ))}
 

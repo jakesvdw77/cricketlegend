@@ -4,7 +4,7 @@ import {
   Avatar, Button, Chip, Skeleton, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, CircularProgress, Tooltip, IconButton, Snackbar,
-  Link,
+  Link, useMediaQuery, useTheme,
 } from '@mui/material';
 import {
   Shield, Email, Phone, Language, Place, Edit, CloudUpload, HighlightOff, Person,
@@ -16,6 +16,8 @@ import { useManagerTeams } from '../../hooks/useManagerTeams';
 import { useAuth } from '../../hooks/useAuth';
 
 export const ManageClub: React.FC = () => {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const { isAdmin } = useAuth();
   const { homeClubId, loaded } = useManagerTeams();
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -114,7 +116,7 @@ export const ManageClub: React.FC = () => {
         </Grid>
       )}
 
-      <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="md" fullWidth fullScreen={fullScreen}>
         <DialogTitle>Edit Club</DialogTitle>
         <DialogContent dividers>
           {editing && (

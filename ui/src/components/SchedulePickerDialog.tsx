@@ -207,8 +207,9 @@ const TeamPickerCard: React.FC<TeamPickerCardProps> = ({
       cursor: loading ? 'default' : 'pointer',
       transition: 'all 0.15s',
       ...(highlighted ? {
-        bgcolor: 'primary.main',
+        bgcolor: 'rgba(232,240,224,0.12)',
         borderColor: 'primary.main',
+        borderWidth: 2,
         '&:hover': { opacity: loading ? 1 : 0.88 },
       } : {
         '&:hover': { borderColor: loading ? undefined : 'primary.main', bgcolor: loading ? undefined : 'action.hover' },
@@ -227,7 +228,7 @@ const TeamPickerCard: React.FC<TeamPickerCardProps> = ({
         {avatar ?? name.charAt(0)}
       </Avatar>
       <Typography fontWeight={highlighted ? 'bold' : 500}
-        sx={{ color: highlighted ? 'white' : 'text.primary', flex: 1 }}>
+        sx={{ color: 'text.primary', flex: 1 }}>
         {name}
       </Typography>
       {loading

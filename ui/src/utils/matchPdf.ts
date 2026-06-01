@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Match, MatchResultSummary, MatchSide, Player, Team, Tournament, Sponsor } from '../types';
+import { AiTeamPick, Match, MatchAnalysis, MatchResultSummary, MatchSide, Player, SquadAnalysis, Team, Tournament, Sponsor, XiAnalysis } from '../types';
 
 const DARK:   [number,number,number] = [10,  60, 25];
 const MID:    [number,number,number] = [26,  90, 50];
@@ -914,6 +914,954 @@ export async function generateSquadPdf(
 
   stampFooter();
   return URL.createObjectURL(doc.output('blob'));
+}
+
+// ── Game Analysis PDF ─────────────────────────────────────────────────────────
+
+export function generateAnalysisPdf(
+  analysis: MatchAnalysis,
+  teamName: string,
+  matchTitle: string,
+): string {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW  = doc.internal.pageSize.getWidth();
+  const pageH  = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const cW     = pageW - margin * 2;
+  const footerH = 14;
+  const safeBottom = pageH - footerH - 4;
+  let pageNum = 1;
+
+  const stampFooter = () => {
+    doc.setFillColor(...DARK);
+    doc.rect(0, pageH - footerH, pageW, footerH, 'F');
+    doc.setFillColor(...MID);
+    doc.rect(0, pageH - footerH, pageW, 0.8, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(180, 230, 190);
+    doc.text('Cricket Legend  ·  AI Game Analysis', margin, pageH - 5);
+    doc.setTextColor(...LGRAY);
+    doc.text(`Page ${pageNum}  ·  ${new Date().toLocaleDateString('en-ZA')}`, pageW - margin, pageH - 5, { align: 'right' });
+  };
+
+  let y = 0;
+
+  const checkPage = (needed: number) => {
+    if (y + needed > safeBottom) {
+      stampFooter();
+      doc.addPage();
+      pageNum++;
+      y = 14;
+    }
+  };
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+  doc.setFillColor(...DARK);
+  doc.rect(0, 0, pageW, 28, 'F');
+  doc.setFillColor(...MID);
+  doc.rect(0, 28, pageW, 1.5, 'F');
+
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('Game Analysis', margin, 12);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(180, 230, 190);
+  doc.text(matchTitle, margin, 20);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...LGRAY);
+  doc.text(teamName.toUpperCase(), pageW - margin, 12, { align: 'right' });
+
+  // AI badge
+  doc.setFillColor(...MID);
+  doc.roundedRect(pageW - margin - 22, 16, 22, 7, 1.5, 1.5, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text('AI POWERED', pageW - margin - 11, 21.2, { align: 'center' });
+
+  y = 36;
+
+  // ── Match summary ────────────────────────────────────────────────────────────
+  const textPad = 6;             // horizontal padding inside each row box
+  const wrapW   = cW - textPad * 2 - 4; // wrap budget: box width minus both side pads + small safety margin
+  const lineH   = 5;             // line height (mm) for 8pt font
+
+  checkPage(24);
+  doc.setFillColor(...LIGHT);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const summaryLines: string[] = doc.splitTextToSize(analysis.matchSummary, wrapW);
+  const summaryH = summaryLines.length * lineH + 10;
+  doc.roundedRect(margin, y, cW, summaryH, 2, 2, 'F');
+  doc.setDrawColor(...MID);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, y, cW, summaryH, 2, 2, 'S');
+
+  doc.setTextColor(...DARK);
+  doc.text(summaryLines, margin + textPad, y + 7);
+  y += summaryH + 6;
+
+  // ── Performance ratings ──────────────────────────────────────────────────────
+  checkPage(30);
+  doc.setFillColor(...MID);
+  doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text('PERFORMANCE RATINGS', margin + 4, y + 5.5);
+  y += 10;
+
+  const { teamPerformance } = analysis;
+  const ratings: [string, number][] = [
+    ['Batting',  teamPerformance.battingRating],
+    ['Bowling',  teamPerformance.bowlingRating],
+    ['Overall',  teamPerformance.overallRating],
+  ];
+  const colW = cW / 3;
+  for (let i = 0; i < ratings.length; i++) {
+    const [label, val] = ratings[i];
+    const bx = margin + i * colW;
+    const rating = val ?? 0;
+    const pct = (rating / 10) * (colW - 8);
+    const color: [number, number, number] = rating >= 7.5 ? [46, 125, 50] : rating >= 5 ? [245, 124, 0] : [198, 40, 40];
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...DARK);
+    doc.text(label, bx + 4, y + 5);
+
+    doc.setTextColor(...color);
+    doc.setFontSize(10);
+    doc.text(`${rating.toFixed(1)}/10`, bx + colW - 4, y + 5, { align: 'right' });
+
+    // Track background
+    doc.setFillColor(220, 235, 222);
+    doc.roundedRect(bx + 4, y + 7, colW - 8, 4, 1, 1, 'F');
+    // Fill
+    doc.setFillColor(...color);
+    doc.roundedRect(bx + 4, y + 7, pct, 4, 1, 1, 'F');
+  }
+  y += 16;
+
+  // Verdict
+  checkPage(14);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY);
+  const verdictLines: string[] = doc.splitTextToSize(teamPerformance.verdict, wrapW);
+  doc.text(verdictLines, margin + textPad, y);
+  y += verdictLines.length * lineH + 6;
+
+  // ── Team comparison ──────────────────────────────────────────────────────────
+  const { teamComparison } = analysis.chartData;
+  if (teamComparison) {
+    checkPage(32);
+    doc.setFillColor(...MID);
+    doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('MATCH COMPARISON', margin + 4, y + 5.5);
+    y += 10;
+
+    const { myTeam, opposition } = teamComparison;
+    const statCols = ['Runs', 'Wickets', 'Overs', 'Run Rate'];
+    const myVals   = [String(myTeam?.runs ?? '—'), String(myTeam?.wickets ?? '—'), myTeam?.overs ?? '—', myTeam?.runRate != null ? myTeam.runRate.toFixed(2) : '—'];
+    const oppVals  = [String(opposition?.runs ?? '—'), String(opposition?.wickets ?? '—'), opposition?.overs ?? '—', opposition?.runRate != null ? opposition.runRate.toFixed(2) : '—'];
+
+    autoTable(doc, {
+      startY: y,
+      head: [['', myTeam?.name ?? teamName, opposition?.name ?? 'Opposition']],
+      body: statCols.map((s, i) => [s, myVals[i], oppVals[i]]),
+      headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8.5, textColor: [30, 30, 30] },
+      alternateRowStyles: { fillColor: [240, 250, 242] },
+      columnStyles: { 0: { fontStyle: 'bold', cellWidth: 36 }, 1: { halign: 'center' }, 2: { halign: 'center' } },
+      styles: { cellPadding: 2.5 },
+      margin: { left: margin, right: margin },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Batting contributions ────────────────────────────────────────────────────
+  if (analysis.chartData.battingContributions?.length > 0) {
+    checkPage(20);
+    doc.setFillColor(...MID);
+    doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(`${teamName.toUpperCase()} — BATTING`, margin + 4, y + 5.5);
+    y += 10;
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Player', 'Runs', 'Balls', 'SR', '4s', '6s']],
+      body: analysis.chartData.battingContributions.map(b => [
+        b.isTopPerformer ? `★ ${b.player}` : b.player,
+        String(b.runs ?? '—'),
+        String(b.balls ?? '—'),
+        b.strikeRate != null ? b.strikeRate.toFixed(1) : '—',
+        String(b.fours ?? '—'),
+        String(b.sixes ?? '—'),
+      ]),
+      headStyles: { fillColor: [46, 125, 50], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+      alternateRowStyles: { fillColor: [240, 250, 242] },
+      columnStyles: {
+        0: { cellWidth: 60 },
+        1: { halign: 'center' }, 2: { halign: 'center' },
+        3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' },
+      },
+      styles: { cellPadding: 2.5 },
+      margin: { left: margin, right: margin },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Bowling analysis ─────────────────────────────────────────────────────────
+  if (analysis.chartData.bowlingAnalysis?.length > 0) {
+    checkPage(20);
+    doc.setFillColor(...MID);
+    doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(`${teamName.toUpperCase()} — BOWLING`, margin + 4, y + 5.5);
+    y += 10;
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Player', 'Overs', 'Runs', 'Wkts', 'Econ', 'Maidens']],
+      body: analysis.chartData.bowlingAnalysis.map(b => [
+        b.isTopPerformer ? `★ ${b.player}` : b.player,
+        b.overs != null ? b.overs.toFixed(1) : '—',
+        String(b.runs ?? '—'),
+        String(b.wickets ?? '—'),
+        b.economy != null ? b.economy.toFixed(2) : '—',
+        String(b.maidens ?? '—'),
+      ]),
+      headStyles: { fillColor: [21, 101, 192], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+      alternateRowStyles: { fillColor: [235, 242, 253] },
+      columnStyles: {
+        0: { cellWidth: 60 },
+        1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' },
+        4: { halign: 'center' }, 5: { halign: 'center' },
+      },
+      styles: { cellPadding: 2.5 },
+      margin: { left: margin, right: margin },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Key insights ─────────────────────────────────────────────────────────────
+  if (analysis.keyInsights?.length > 0) {
+    checkPage(14 + analysis.keyInsights.length * 7);
+    doc.setFillColor(...MID);
+    doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('KEY INSIGHTS', margin + 4, y + 5.5);
+    y += 10;
+
+    for (const insight of analysis.keyInsights) {
+      checkPage(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const insightWrapW = cW - textPad - 7 - 4; // left: 7mm (after bar), right: textPad + safety
+      const lines: string[] = doc.splitTextToSize(insight, insightWrapW);
+      const rowH = lines.length * lineH + 5;
+      doc.setFillColor(248, 252, 249);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+      doc.setFillColor(245, 124, 0);
+      doc.roundedRect(margin, y, 3, rowH, 1, 1, 'F');
+      doc.setTextColor(...DARK);
+      doc.text(lines, margin + 7, y + 4.5);
+      y += rowH + 2;
+    }
+    y += 4;
+  }
+
+  // ── Player highlights ─────────────────────────────────────────────────────────
+  if (analysis.playerHighlights?.length > 0) {
+    checkPage(14 + analysis.playerHighlights.length * 8);
+    doc.setFillColor(...MID);
+    doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('PLAYER HIGHLIGHTS', margin + 4, y + 5.5);
+    y += 10;
+
+    for (const p of analysis.playerHighlights) {
+      checkPage(20);
+      const nameLabel = `${p.isStandout ? '★ ' : ''}${p.name}  [${p.role}]`;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const achievementLines: string[] = doc.splitTextToSize(p.achievement, wrapW);
+      const rowH = achievementLines.length * lineH + 13;
+      doc.setFillColor(248, 252, 249);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...DARK);
+      doc.text(nameLabel, margin + 4, y + 6);
+
+      doc.setTextColor(...GRAY);
+      doc.text(achievementLines, margin + textPad, y + 12);
+      y += rowH + 2;
+    }
+    y += 4;
+  }
+
+  // ── Recommendations ───────────────────────────────────────────────────────────
+  if (analysis.recommendations?.length > 0) {
+    checkPage(14 + analysis.recommendations.length * 8);
+    doc.setFillColor(...MID);
+    doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('RECOMMENDATIONS', margin + 4, y + 5.5);
+    y += 10;
+
+    for (let i = 0; i < analysis.recommendations.length; i++) {
+      checkPage(10);
+      const numW = 8; // space for "1." number
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const lines: string[] = doc.splitTextToSize(analysis.recommendations[i], wrapW - numW);
+      const rowH = lines.length * lineH + 5;
+      doc.setFillColor(240, 250, 242);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...MID);
+      doc.text(`${i + 1}.`, margin + textPad, y + 4.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...DARK);
+      doc.text(lines, margin + textPad + numW, y + 4.5);
+      y += rowH + 2;
+    }
+  }
+
+  stampFooter();
+  return URL.createObjectURL(doc.output('blob'));
+}
+
+// ── AI Team Pick PDF ──────────────────────────────────────────────────────────
+
+export function generateTeamPickPdf(pick: AiTeamPick, teamName: string, matchTitle: string): string {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 14, cW = pageW - margin * 2;
+  const textPad = 6, wrapW = cW - textPad * 2 - 4, lineH = 5;
+  const footerH = 14, safeBottom = pageH - footerH - 4;
+  let pageNum = 1, y = 0;
+
+  const stampFooter = () => {
+    doc.setFillColor(...DARK); doc.rect(0, pageH - footerH, pageW, footerH, 'F');
+    doc.setFillColor(...MID);  doc.rect(0, pageH - footerH, pageW, 0.8, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.setTextColor(180, 230, 190); doc.text('Cricket Legend  ·  AI Team Selection', margin, pageH - 5);
+    doc.setTextColor(...LGRAY); doc.text(`Page ${pageNum}  ·  ${new Date().toLocaleDateString('en-ZA')}`, pageW - margin, pageH - 5, { align: 'right' });
+  };
+  const checkPage = (n: number) => { if (y + n > safeBottom) { stampFooter(); doc.addPage(); pageNum++; y = 14; } };
+  const sectionHeader = (t: string) => {
+    checkPage(14);
+    doc.setFillColor(...MID); doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text(t, margin + textPad, y + 5.5); y += 10;
+  };
+
+  // Header
+  doc.setFillColor(...DARK); doc.rect(0, 0, pageW, 28, 'F');
+  doc.setFillColor(...MID);  doc.rect(0, 28, pageW, 1.5, 'F');
+  doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+  doc.text('AI Team Selection', margin, 12);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(180, 230, 190);
+  doc.text([teamName, matchTitle].filter(Boolean).join('  ·  '), margin, 21);
+  doc.setFillColor(...MID); doc.roundedRect(pageW - margin - 22, 16, 22, 7, 1.5, 1.5, 'F');
+  doc.setTextColor(...WHITE); doc.setFont('helvetica', 'bold'); doc.setFontSize(6.5);
+  doc.text('AI POWERED', pageW - margin - 11, 21.2, { align: 'center' });
+  y = 36;
+
+  // Rationale
+  checkPage(24);
+  doc.setFillColor(...LIGHT); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  const ratLines = doc.splitTextToSize(pick.selectionRationale, wrapW);
+  const ratH = ratLines.length * lineH + 10;
+  doc.roundedRect(margin, y, cW, ratH, 2, 2, 'F');
+  doc.setDrawColor(...MID); doc.setLineWidth(0.4); doc.roundedRect(margin, y, cW, ratH, 2, 2, 'S');
+  doc.setTextColor(...DARK); doc.text(ratLines, margin + textPad, y + 7);
+  y += ratH + 6;
+
+  // Playing XI table
+  sectionHeader('SELECTED PLAYING XI — BATTING ORDER');
+  const xi = [...(pick.selectedXi ?? [])].sort((a, b) => (a.battingPosition ?? 99) - (b.battingPosition ?? 99));
+  autoTable(doc, {
+    startY: y,
+    head: [['#', 'Player', 'Role', 'Selection Reason']],
+    body: xi.map(p => [
+      p.battingPosition != null ? String(p.battingPosition) : '—',
+      p.name, p.role, p.selectionReason,
+    ]),
+    headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+    bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+    alternateRowStyles: { fillColor: [240, 250, 242] },
+    columnStyles: { 0: { halign: 'center', cellWidth: 10 }, 1: { cellWidth: 55 }, 2: { halign: 'center', cellWidth: 16 } },
+    styles: { cellPadding: 2.5 },
+    margin: { left: margin, right: margin },
+  });
+  y = (doc as any).lastAutoTable.finalY + 4;
+
+  if (pick.twelfthMan) {
+    checkPage(10);
+    doc.setFillColor(245, 245, 210); doc.roundedRect(margin, y, cW, 9, 1.5, 1.5, 'F');
+    doc.setTextColor(...GRAY); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+    doc.text('12th Man:', margin + 4, y + 6);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...DARK);
+    doc.text(`${pick.twelfthMan.name}  [${pick.twelfthMan.role}]`, margin + 22, y + 6);
+    y += 12;
+  }
+  y += 4;
+
+  // Bowling plan
+  sectionHeader('BOWLING ROTATION PLAN');
+  checkPage(10);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  const bowlLines = doc.splitTextToSize(pick.bowlingRotation, wrapW);
+  doc.setTextColor(...DARK); doc.text(bowlLines, margin + textPad, y);
+  y += bowlLines.length * lineH + 6;
+
+  // Fairness note
+  if (pick.fairnessNote) {
+    sectionHeader('FAIRNESS & ROTATION NOTE');
+    checkPage(10);
+    const fnLines = doc.splitTextToSize(pick.fairnessNote, wrapW);
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(...GRAY);
+    doc.text(fnLines, margin + textPad, y);
+    y += fnLines.length * lineH + 6;
+  }
+
+  // Tournament appearances table
+  if (pick.chartData.tournamentAppearances.length > 0) {
+    sectionHeader('TOURNAMENT APPEARANCES (ELIGIBLE PLAYERS)');
+    autoTable(doc, {
+      startY: y,
+      head: [['Player', 'Matches', 'Status']],
+      body: pick.chartData.tournamentAppearances.map(a => [
+        a.player, String(a.matches), a.selected ? '★ Selected' : 'Not selected',
+      ]),
+      headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+      alternateRowStyles: { fillColor: [240, 250, 242] },
+      columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },
+      styles: { cellPadding: 2.5 },
+      margin: { left: margin, right: margin },
+    });
+    y = (doc as any).lastAutoTable.finalY + 4;
+  }
+
+  stampFooter();
+  return URL.createObjectURL(doc.output('blob'));
+}
+
+// ── XI Selection Analysis PDF ─────────────────────────────────────────────────
+
+export function generateXiAnalysisPdf(analysis: XiAnalysis, teamName: string, matchTitle: string): string {
+  const doc     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW   = doc.internal.pageSize.getWidth();
+  const pageH   = doc.internal.pageSize.getHeight();
+  const margin  = 14;
+  const cW      = pageW - margin * 2;
+  const textPad = 6;
+  const wrapW   = cW - textPad * 2 - 4;
+  const lineH   = 5;
+  const footerH = 14;
+  const safeBottom = pageH - footerH - 4;
+  let pageNum = 1;
+  let y = 0;
+
+  const stampFooter = () => {
+    doc.setFillColor(...DARK);
+    doc.rect(0, pageH - footerH, pageW, footerH, 'F');
+    doc.setFillColor(...MID);
+    doc.rect(0, pageH - footerH, pageW, 0.8, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(180, 230, 190);
+    doc.text('Cricket Legend  ·  AI XI Selection Analysis', margin, pageH - 5);
+    doc.setTextColor(...LGRAY);
+    doc.text(`Page ${pageNum}  ·  ${new Date().toLocaleDateString('en-ZA')}`, pageW - margin, pageH - 5, { align: 'right' });
+  };
+
+  const checkPage = (needed: number) => {
+    if (y + needed > safeBottom) { stampFooter(); doc.addPage(); pageNum++; y = 14; }
+  };
+
+  const sectionHeader = (title: string) => {
+    checkPage(14);
+    doc.setFillColor(...MID);
+    doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(title, margin + textPad, y + 5.5);
+    y += 10;
+  };
+
+  const textBlock = (text: string, color: [number,number,number] = DARK, italic = false) => {
+    checkPage(10);
+    doc.setFont('helvetica', italic ? 'italic' : 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(text, wrapW);
+    doc.text(lines, margin + textPad, y);
+    y += lines.length * lineH + 4;
+  };
+
+  // ── Header ────────────────────────────────────────────────────────────────────
+  doc.setFillColor(...DARK);
+  doc.rect(0, 0, pageW, 28, 'F');
+  doc.setFillColor(...MID);
+  doc.rect(0, 28, pageW, 1.5, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('XI Selection Analysis', margin, 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(180, 230, 190);
+  const headerSub = [teamName, matchTitle].filter(Boolean).join('  ·  ');
+  doc.text(headerSub, margin, 21);
+  doc.setFillColor(...MID);
+  doc.roundedRect(pageW - margin - 22, 16, 22, 7, 1.5, 1.5, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text('AI POWERED', pageW - margin - 11, 21.2, { align: 'center' });
+  y = 36;
+
+  // ── Summary ───────────────────────────────────────────────────────────────────
+  checkPage(24);
+  doc.setFillColor(...LIGHT);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const summaryLines = doc.splitTextToSize(analysis.xiSummary, wrapW);
+  const summaryH = summaryLines.length * lineH + 10;
+  doc.roundedRect(margin, y, cW, summaryH, 2, 2, 'F');
+  doc.setDrawColor(...MID);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, y, cW, summaryH, 2, 2, 'S');
+  doc.setTextColor(...DARK);
+  doc.text(summaryLines, margin + textPad, y + 7);
+  y += summaryH + 6;
+
+  // ── XI Ratings ────────────────────────────────────────────────────────────────
+  sectionHeader('XI STRENGTH RATINGS');
+  const ratings = analysis.chartData.xiStrengthRadar;
+  const colW2 = (cW - 4) / 2;
+  for (let i = 0; i < ratings.length; i++) {
+    const { skill, score } = ratings[i];
+    const v = score ?? 0;
+    const bx = margin + (i % 2) * (colW2 + 4);
+    if (i % 2 === 0 && i > 0) y += 12;
+    const color: [number, number, number] = v >= 7.5 ? [46, 125, 50] : v >= 5 ? [245, 124, 0] : [198, 40, 40];
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...DARK);
+    doc.text(skill, bx + 2, y + 5);
+    doc.setTextColor(...color);
+    doc.text(v > 0 ? `${v.toFixed(1)}/10` : '—', bx + colW2 - 2, y + 5, { align: 'right' });
+    doc.setFillColor(220, 235, 222);
+    doc.roundedRect(bx + 2, y + 6.5, colW2 - 4, 3.5, 1, 1, 'F');
+    doc.setFillColor(...color);
+    doc.roundedRect(bx + 2, y + 6.5, (v / 10) * (colW2 - 4), 3.5, 1, 1, 'F');
+    if (i % 2 === 1) y += 13;
+  }
+  if (ratings.length % 2 !== 0) y += 13;
+  y += 4;
+
+  // ── Player roles table ────────────────────────────────────────────────────────
+  if (analysis.chartData.playerRoles.length > 0) {
+    sectionHeader('PLAYING XI');
+    const sorted = [...analysis.chartData.playerRoles].sort((a, b) => (a.battingPosition ?? 99) - (b.battingPosition ?? 99));
+    autoTable(doc, {
+      startY: y,
+      head: [['#', 'Player', 'Role', 'Rating', 'Key Contribution']],
+      body: sorted.map(p => [
+        p.battingPosition != null ? String(p.battingPosition) : '—',
+        p.name,
+        p.role,
+        p.rating != null ? `${p.rating.toFixed(1)}/10` : '—',
+        p.keyContribution,
+      ]),
+      headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+      alternateRowStyles: { fillColor: [240, 250, 242] },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 10 },
+        1: { cellWidth: 50 },
+        2: { halign: 'center', cellWidth: 16 },
+        3: { halign: 'center', cellWidth: 22 },
+      },
+      styles: { cellPadding: 2.5 },
+      margin: { left: margin, right: margin },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Batting order ─────────────────────────────────────────────────────────────
+  sectionHeader('SUGGESTED BATTING ORDER');
+  textBlock(analysis.battingOrderSuggestion);
+
+  // ── Bowling plan ──────────────────────────────────────────────────────────────
+  sectionHeader('BOWLING PLAN');
+  textBlock(analysis.bowlingPlanSuggestion);
+
+  // ── Strengths ─────────────────────────────────────────────────────────────────
+  if (analysis.strengths.length > 0) {
+    sectionHeader('STRENGTHS');
+    for (const s of analysis.strengths) {
+      checkPage(10);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      const lines = doc.splitTextToSize(s, wrapW - 7);
+      const rowH = lines.length * lineH + 5;
+      doc.setFillColor(240, 250, 242);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+      doc.setFillColor(...MID);
+      doc.roundedRect(margin, y, 3, rowH, 1, 1, 'F');
+      doc.setTextColor(...DARK);
+      doc.text(lines, margin + 7, y + 4.5);
+      y += rowH + 2;
+    }
+    y += 4;
+  }
+
+  // ── Concerns ──────────────────────────────────────────────────────────────────
+  if (analysis.concerns.length > 0) {
+    sectionHeader('CONCERNS');
+    for (const c of analysis.concerns) {
+      checkPage(10);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      const lines = doc.splitTextToSize(c, wrapW - 7);
+      const rowH = lines.length * lineH + 5;
+      doc.setFillColor(255, 248, 240);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+      doc.setFillColor(245, 124, 0);
+      doc.roundedRect(margin, y, 3, rowH, 1, 1, 'F');
+      doc.setTextColor(...DARK);
+      doc.text(lines, margin + 7, y + 4.5);
+      y += rowH + 2;
+    }
+    y += 4;
+  }
+
+  // ── Recommendations ───────────────────────────────────────────────────────────
+  if (analysis.recommendations.length > 0) {
+    sectionHeader('TACTICAL RECOMMENDATIONS');
+    for (let i = 0; i < analysis.recommendations.length; i++) {
+      checkPage(10);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      const lines = doc.splitTextToSize(analysis.recommendations[i], wrapW - 8);
+      const rowH = lines.length * lineH + 5;
+      doc.setFillColor(240, 250, 242);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...MID);
+      doc.text(`${i + 1}.`, margin + textPad, y + 4.5);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...DARK);
+      doc.text(lines, margin + textPad + 8, y + 4.5);
+      y += rowH + 2;
+    }
+  }
+
+  stampFooter();
+  return URL.createObjectURL(doc.output('blob'));
+}
+
+// ── Squad Analysis PDF ────────────────────────────────────────────────────────
+
+export function generateSquadAnalysisPdf(analysis: SquadAnalysis, teamName: string): string {
+  const doc     = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW   = doc.internal.pageSize.getWidth();
+  const pageH   = doc.internal.pageSize.getHeight();
+  const margin  = 14;
+  const cW      = pageW - margin * 2;
+  const textPad = 6;
+  const wrapW   = cW - textPad * 2 - 4;
+  const lineH   = 5;
+  const footerH = 14;
+  const safeBottom = pageH - footerH - 4;
+  let pageNum = 1;
+  let y = 0;
+
+  const stampFooter = () => {
+    doc.setFillColor(...DARK);
+    doc.rect(0, pageH - footerH, pageW, footerH, 'F');
+    doc.setFillColor(...MID);
+    doc.rect(0, pageH - footerH, pageW, 0.8, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(180, 230, 190);
+    doc.text('Cricket Legend  ·  AI Squad Analysis', margin, pageH - 5);
+    doc.setTextColor(...LGRAY);
+    doc.text(`Page ${pageNum}  ·  ${new Date().toLocaleDateString('en-ZA')}`, pageW - margin, pageH - 5, { align: 'right' });
+  };
+
+  const checkPage = (needed: number) => {
+    if (y + needed > safeBottom) {
+      stampFooter(); doc.addPage(); pageNum++; y = 14;
+    }
+  };
+
+  const sectionHeader = (title: string) => {
+    checkPage(14);
+    doc.setFillColor(...MID);
+    doc.roundedRect(margin, y, cW, 8, 2, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text(title, margin + textPad, y + 5.5);
+    y += 10;
+  };
+
+  // ── Header ────────────────────────────────────────────────────────────────────
+  doc.setFillColor(...DARK);
+  doc.rect(0, 0, pageW, 28, 'F');
+  doc.setFillColor(...MID);
+  doc.rect(0, 28, pageW, 1.5, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('Squad Analysis', margin, 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(180, 230, 190);
+  doc.text(teamName, margin, 20);
+  doc.setFillColor(...MID);
+  doc.roundedRect(pageW - margin - 22, 16, 22, 7, 1.5, 1.5, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.text('AI POWERED', pageW - margin - 11, 21.2, { align: 'center' });
+  y = 36;
+
+  // ── Summary ───────────────────────────────────────────────────────────────────
+  checkPage(24);
+  doc.setFillColor(...LIGHT);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const summaryLines = doc.splitTextToSize(analysis.squadSummary, wrapW);
+  const summaryH = summaryLines.length * lineH + 10;
+  doc.roundedRect(margin, y, cW, summaryH, 2, 2, 'F');
+  doc.setDrawColor(...MID);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(margin, y, cW, summaryH, 2, 2, 'S');
+  doc.setTextColor(...DARK);
+  doc.text(summaryLines, margin + textPad, y + 7);
+  y += summaryH + 4;
+
+  checkPage(10);
+  const verdictLines = doc.splitTextToSize(analysis.balanceVerdict, wrapW);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(...GRAY);
+  doc.text(verdictLines, margin + textPad, y);
+  y += verdictLines.length * lineH + 6;
+
+  // ── Skill ratings ─────────────────────────────────────────────────────────────
+  sectionHeader('SQUAD STRENGTH RATINGS');
+  const ratings = analysis.chartData.squadStrengthRadar;
+  const colW2 = (cW - 4) / 2;
+  for (let i = 0; i < ratings.length; i++) {
+    const { skill, score } = ratings[i];
+    const v = score ?? 0;
+    const bx = margin + (i % 2) * (colW2 + 4);
+    if (i % 2 === 0 && i > 0) y += 10;
+    const color: [number, number, number] = v >= 7.5 ? [46, 125, 50] : v >= 5 ? [245, 124, 0] : [198, 40, 40];
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...DARK);
+    doc.text(skill, bx + 2, y + 5);
+    doc.setTextColor(...color);
+    doc.text(v > 0 ? `${v.toFixed(1)}/10` : '—', bx + colW2 - 2, y + 5, { align: 'right' });
+    doc.setFillColor(220, 235, 222);
+    doc.roundedRect(bx + 2, y + 6.5, colW2 - 4, 3.5, 1, 1, 'F');
+    doc.setFillColor(...color);
+    doc.roundedRect(bx + 2, y + 6.5, (v / 10) * (colW2 - 4), 3.5, 1, 1, 'F');
+    if (i % 2 === 1) y += 13;
+  }
+  if (ratings.length % 2 !== 0) y += 13;
+  y += 4;
+
+  // ── Player profiles table ─────────────────────────────────────────────────────
+  if (analysis.chartData.playerProfiles.length > 0) {
+    sectionHeader('PLAYER PROFILES');
+    autoTable(doc, {
+      startY: y,
+      head: [['Player', 'Role', 'Rating', 'Key Skill']],
+      body: analysis.chartData.playerProfiles.map(p => [
+        `${p.isKeyPlayer ? '★ ' : ''}${p.name}`,
+        p.primaryRole,
+        p.rating != null ? `${p.rating.toFixed(1)}/10` : '—',
+        p.keySkill,
+      ]),
+      headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [30, 30, 30] },
+      alternateRowStyles: { fillColor: [240, 250, 242] },
+      columnStyles: { 0: { cellWidth: 60 }, 1: { halign: 'center', cellWidth: 18 }, 2: { halign: 'center', cellWidth: 22 } },
+      styles: { cellPadding: 2.5 },
+      margin: { left: margin, right: margin },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Role distribution ─────────────────────────────────────────────────────────
+  if (analysis.chartData.roleDistribution.length > 0) {
+    sectionHeader('SQUAD COMPOSITION');
+    autoTable(doc, {
+      startY: y,
+      head: [['Role', 'Count']],
+      body: analysis.chartData.roleDistribution.map(r => [r.label, String(r.count)]),
+      headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      bodyStyles: { fontSize: 8.5 },
+      alternateRowStyles: { fillColor: [240, 250, 242] },
+      columnStyles: { 1: { halign: 'center' } },
+      styles: { cellPadding: 2.5 },
+      margin: { left: margin, right: margin },
+      tableWidth: cW / 2,
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Strengths ─────────────────────────────────────────────────────────────────
+  if (analysis.strengths.length > 0) {
+    sectionHeader('STRENGTHS');
+    for (const s of analysis.strengths) {
+      checkPage(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const lines = doc.splitTextToSize(s, wrapW - 7);
+      const rowH = lines.length * lineH + 5;
+      doc.setFillColor(240, 250, 242);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+      doc.setFillColor(...MID);
+      doc.roundedRect(margin, y, 3, rowH, 1, 1, 'F');
+      doc.setTextColor(...DARK);
+      doc.text(lines, margin + 7, y + 4.5);
+      y += rowH + 2;
+    }
+    y += 4;
+  }
+
+  // ── Weaknesses ────────────────────────────────────────────────────────────────
+  if (analysis.weaknesses.length > 0) {
+    sectionHeader('AREAS FOR IMPROVEMENT');
+    for (const w of analysis.weaknesses) {
+      checkPage(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const lines = doc.splitTextToSize(w, wrapW - 7);
+      const rowH = lines.length * lineH + 5;
+      doc.setFillColor(255, 248, 240);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+      doc.setFillColor(245, 124, 0);
+      doc.roundedRect(margin, y, 3, rowH, 1, 1, 'F');
+      doc.setTextColor(...DARK);
+      doc.text(lines, margin + 7, y + 4.5);
+      y += rowH + 2;
+    }
+    y += 4;
+  }
+
+  // ── Recommendations ───────────────────────────────────────────────────────────
+  if (analysis.selectionRecommendations.length > 0) {
+    sectionHeader('SELECTION RECOMMENDATIONS');
+    for (let i = 0; i < analysis.selectionRecommendations.length; i++) {
+      checkPage(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      const lines = doc.splitTextToSize(analysis.selectionRecommendations[i], wrapW - 8);
+      const rowH = lines.length * lineH + 5;
+      doc.setFillColor(240, 250, 242);
+      doc.roundedRect(margin, y, cW, rowH, 1.5, 1.5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...MID);
+      doc.text(`${i + 1}.`, margin + textPad, y + 4.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...DARK);
+      doc.text(lines, margin + textPad + 8, y + 4.5);
+      y += rowH + 2;
+    }
+  }
+
+  stampFooter();
+  return URL.createObjectURL(doc.output('blob'));
+}
+
+// ── Screen-capture PDF (prints exactly what is visible on screen) ─────────────
+
+export async function printAnalysisAsScreen(
+  element: HTMLElement,
+  teamName: string,
+  _matchTitle: string,
+): Promise<void> {
+  const html2canvas = (await import('html2canvas')).default;
+
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: null,
+    logging: false,
+  });
+
+  const imgW     = canvas.width;
+  const imgH     = canvas.height;
+
+  // Fit to A4 portrait width; add pages if the content is taller
+  const doc    = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const pageW  = doc.internal.pageSize.getWidth();
+  const pageH  = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const printW = pageW - margin * 2;
+  const scale  = printW / imgW;
+  const printH = imgH * scale;
+
+  let remaining = printH;
+  let srcY      = 0;
+
+  while (remaining > 0) {
+    const sliceH   = Math.min(remaining, pageH - margin * 2);
+    const srcSlice = sliceH / scale;
+
+    // Crop the canvas slice into a temporary canvas
+    const slice = document.createElement('canvas');
+    slice.width  = imgW;
+    slice.height = srcSlice;
+    const ctx = slice.getContext('2d')!;
+    ctx.drawImage(canvas, 0, srcY, imgW, srcSlice, 0, 0, imgW, srcSlice);
+
+    doc.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin, printW, sliceH);
+
+    remaining -= sliceH;
+    srcY      += srcSlice;
+    if (remaining > 0) doc.addPage();
+  }
+
+  const filename = `analysis-${teamName.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+  doc.save(filename);
 }
 
 // ── Tournament landscape table PDF (matches + results) ────────────────────────

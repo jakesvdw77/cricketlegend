@@ -13,6 +13,7 @@ import com.cricketlegend.repository.PlayerNotificationRepository;
 import com.cricketlegend.repository.PlayerRepository;
 import com.cricketlegend.repository.TeamRepository;
 import com.cricketlegend.service.EmailService;
+import com.cricketlegend.service.MatchPollService;
 import com.cricketlegend.service.MatchSideService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +37,7 @@ public class MatchSideServiceImpl implements MatchSideService {
     private final PlayerRepository playerRepository;
     private final PlayerNotificationRepository notificationRepository;
     private final EmailService emailService;
+    private final MatchPollService matchPollService;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -81,6 +83,7 @@ public class MatchSideServiceImpl implements MatchSideService {
 
         boolean nowAnnounced = Boolean.TRUE.equals(saved.getTeamAnnounced());
         if (nowAnnounced && !wasAnnounced) {
+            matchPollService.closePollIfOpen(saved.getMatch().getMatchId(), saved.getTeam().getTeamId());
             sendTeamAnnouncedNotifications(saved);
         }
 

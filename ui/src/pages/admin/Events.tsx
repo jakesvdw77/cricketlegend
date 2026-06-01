@@ -652,7 +652,7 @@ export const Events: React.FC = () => {
                 onPageChange={(_, p) => setPage(p)}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={e => { setRowsPerPage(+e.target.value); setPage(0); }}
-                rowsPerPageOptions={[10, 20, 50]}
+                rowsPerPageOptions={[10, 20, 50, 100]}
               />
             </>
           )}
@@ -747,7 +747,7 @@ export const Events: React.FC = () => {
             onPageChange={(_, p) => setPage(p)}
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={e => { setRowsPerPage(+e.target.value); setPage(0); }}
-            rowsPerPageOptions={[10, 20, 50]}
+            rowsPerPageOptions={[10, 20, 50, 100]}
           />
         </TableContainer>
       )}

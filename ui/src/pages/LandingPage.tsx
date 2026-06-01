@@ -42,7 +42,7 @@ const NavCountdown: React.FC<{ tournament: Tournament }> = ({ tournament }) => {
     { v: left.seconds, l: 's' },
   ];
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mr: 1, pl: 1.5, borderRight: '1px solid rgba(255,255,255,0.18)' }}>
+    <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1.25, mr: 1, pl: 1.5, borderRight: '1px solid rgba(255,255,255,0.18)' }}>
       <Box sx={{ display: { sm: 'none', md: 'block' }, textAlign: 'right' }}>
         <Typography sx={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: 1.5, opacity: 0.5, lineHeight: 1 }}>Next</Typography>
         <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, opacity: 0.9, lineHeight: 1.3, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

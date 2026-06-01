@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Box, Button, CircularProgress, IconButton, TextField, Typography,
+  Box, Button, CircularProgress, TextField, Typography,
 } from '@mui/material';
 import { AddPhotoAlternate, Download, Person } from '@mui/icons-material';
 import html2canvas from 'html2canvas';

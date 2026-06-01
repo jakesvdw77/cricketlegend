@@ -11,7 +11,7 @@ export const lightTheme: Theme = createTheme({
 export const darkTheme: Theme = createTheme({
   palette: {
     mode: 'dark',
-    primary:   { main: '#4ade80', contrastText: '#071407' },
+    primary:   { main: '#e8f0e0', contrastText: '#0e1f0e' },
     secondary: { main: '#28b463' },
     background: {
       default: '#0e1f0e',
@@ -78,6 +78,16 @@ export const darkTheme: Theme = createTheme({
       styleOverrides: {
         root: {
           borderBottomColor: 'rgba(100,180,90,0.12)',
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(79,168,58,0.18)',
+            '&:hover': { backgroundColor: 'rgba(79,168,58,0.26)' },
+          },
         },
       },
     },

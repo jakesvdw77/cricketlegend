@@ -1,11 +1,17 @@
 package com.cricketlegend.controller;
 
+import com.cricketlegend.dto.AiTeamPickDTO;
+import com.cricketlegend.dto.MatchAnalysisDTO;
 import com.cricketlegend.dto.MatchDTO;
+import com.cricketlegend.dto.XiAnalysisDTO;
 import com.cricketlegend.dto.MatchResultDTO;
 import com.cricketlegend.dto.MatchResultSummaryDTO;
 import com.cricketlegend.dto.MatchSideDTO;
+import com.cricketlegend.service.MatchAnalysisService;
 import com.cricketlegend.service.MatchService;
 import com.cricketlegend.service.MatchSideService;
+import com.cricketlegend.service.AiTeamPickService;
+import com.cricketlegend.service.XiAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +32,9 @@ public class MatchController {
 
     private final MatchService matchService;
     private final MatchSideService matchSideService;
+    private final MatchAnalysisService matchAnalysisService;
+    private final XiAnalysisService xiAnalysisService;
+    private final AiTeamPickService aiTeamPickService;
 
     @GetMapping
     @Operation(summary = "Get all matches")
@@ -108,6 +117,30 @@ public class MatchController {
     @Operation(summary = "Get match result and scorecard")
     public ResponseEntity<MatchResultDTO> getResult(@PathVariable Long id) {
         return ResponseEntity.ok(matchService.getResult(id));
+    }
+
+    @GetMapping("/{id}/analysis")
+    @Operation(summary = "Generate AI-powered match analysis for a specific team")
+    public ResponseEntity<MatchAnalysisDTO> getAnalysis(
+            @PathVariable Long id,
+            @RequestParam Long teamId) {
+        return ResponseEntity.ok(matchAnalysisService.analyze(id, teamId));
+    }
+
+    @GetMapping("/{id}/teamsheet/pick")
+    @Operation(summary = "Generate AI-recommended playing XI with batting order")
+    public ResponseEntity<AiTeamPickDTO> getAiTeamPick(
+            @PathVariable Long id,
+            @RequestParam Long teamId) {
+        return ResponseEntity.ok(aiTeamPickService.pick(id, teamId));
+    }
+
+    @GetMapping("/{id}/teamsheet/analysis")
+    @Operation(summary = "Generate AI-powered playing XI selection analysis")
+    public ResponseEntity<XiAnalysisDTO> getXiAnalysis(
+            @PathVariable Long id,
+            @RequestParam Long teamId) {
+        return ResponseEntity.ok(xiAnalysisService.analyze(id, teamId));
     }
 
     @PostMapping("/{id}/result")

@@ -218,6 +218,17 @@ public class MatchPollServiceImpl implements MatchPollService {
     }
 
     @Override
+    public void closePollIfOpen(Long matchId, Long teamId) {
+        pollRepository.findByMatchMatchIdAndTeamTeamId(matchId, teamId)
+                .filter(MatchAvailabilityPoll::isOpen)
+                .ifPresent(poll -> {
+                    poll.setOpen(false);
+                    poll.setUpdatedAt(LocalDateTime.now());
+                    pollRepository.save(poll);
+                });
+    }
+
+    @Override
     public void resendPollNotifications(Long matchId, Long teamId) {
         MatchAvailabilityPoll poll = pollRepository
                 .findByMatchMatchIdAndTeamTeamId(matchId, teamId)
@@ -296,6 +307,7 @@ public class MatchPollServiceImpl implements MatchPollService {
                         .playerId(p.getPlayerId())
                         .playerName(p.getName() + " " + p.getSurname())
                         .status(statusMap.get(p.getPlayerId()))
+                        .profilePictureUrl(p.getProfilePictureUrl())
                         .build())
                 .toList();
 

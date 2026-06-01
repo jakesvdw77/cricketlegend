@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Box, Typography, IconButton, Tooltip,
+  useTheme, useMediaQuery,
 } from '@mui/material';
 import { Check, ContentCopy, Refresh, Close, WhatsApp } from '@mui/icons-material';
 import { Match, MatchPoll } from '../../types';
@@ -77,6 +78,8 @@ function generateMessage(match: Match, poll: MatchPoll): string {
 }
 
 const PollWhatsAppDialog: React.FC<Props> = ({ open, onClose, match, poll }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [text, setText] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -104,23 +107,42 @@ const PollWhatsAppDialog: React.FC<Props> = ({ open, onClose, match, poll }) => 
       </DialogTitle>
 
       <DialogContent dividers>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={copied ? <Check /> : <ContentCopy />}
-            color={copied ? 'success' : 'primary'}
-            onClick={handleCopy}
-            disabled={!text}
-            sx={{ minWidth: 160 }}
-          >
-            {copied ? 'Copied!' : 'Copy to Clipboard'}
-          </Button>
-          <Tooltip title="Regenerate from current match data">
-            <Button variant="outlined" size="small" startIcon={<Refresh />} onClick={generate}>
-              Regenerate
-            </Button>
-          </Tooltip>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+          {isMobile ? (
+            <>
+              <Tooltip title={copied ? 'Copied!' : 'Copy to Clipboard'}>
+                <span>
+                  <IconButton size="small" color={copied ? 'success' : 'primary'} onClick={handleCopy} disabled={!text}>
+                    {copied ? <Check fontSize="small" /> : <ContentCopy fontSize="small" />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Regenerate from current match data">
+                <IconButton size="small" onClick={generate}>
+                  <Refresh fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={copied ? <Check /> : <ContentCopy />}
+                color={copied ? 'success' : 'primary'}
+                onClick={handleCopy}
+                disabled={!text}
+                sx={{ minWidth: 160 }}
+              >
+                {copied ? 'Copied!' : 'Copy to Clipboard'}
+              </Button>
+              <Tooltip title="Regenerate from current match data">
+                <Button variant="outlined" size="small" startIcon={<Refresh />} onClick={generate}>
+                  Regenerate
+                </Button>
+              </Tooltip>
+            </>
+          )}
           <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
             Edit below before copying
           </Typography>
@@ -134,9 +156,9 @@ const PollWhatsAppDialog: React.FC<Props> = ({ open, onClose, match, poll }) => 
           onChange={e => setText(e.target.value)}
           placeholder="Click Regenerate to build the message…"
           inputProps={{
-            style: { fontFamily: 'monospace', fontSize: '0.82rem', lineHeight: 1.7 },
+            style: { fontFamily: 'monospace', fontSize: '0.82rem', lineHeight: 1.7, color: '#1a1a1a' },
           }}
-          sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'grey.50', alignItems: 'flex-start' } }}
+          sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#ffffff', alignItems: 'flex-start' } }}
         />
       </DialogContent>
 

@@ -21,13 +21,23 @@ interface Props {
   teamId: number;
   teamName: string;
   players: Player[];
+  matchCompleted?: boolean;
+  externalAnnounceOpen?: boolean;
+  externalEditAnnounceOpen?: boolean;
+  onExternalDialogClose?: () => void;
+  onSideChange?: (side: MatchSide) => void;
 }
 
 type DragSource =
   | { type: 'squad'; playerId: number }
   | { type: 'xi'; index: number };
 
-export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, players }) => {
+export const TeamSidePanel: React.FC<Props> = ({
+  matchId, teamId, teamName, players,
+  matchCompleted = false,
+  externalAnnounceOpen, externalEditAnnounceOpen, onExternalDialogClose,
+  onSideChange,
+}) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -78,13 +88,16 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
     const prev = latestSide.current;
     setSide(next);
     latestSide.current = next;
+    onSideChange?.(next);
     try {
       const saved = await matchApi.saveTeamSheet(matchId, next);
       setSide(saved);
       latestSide.current = saved;
+      onSideChange?.(saved);
     } catch {
       setSide(prev);
       latestSide.current = prev;
+      onSideChange?.(prev);
     }
   };
 
@@ -190,7 +203,7 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
     if (src?.type === 'squad' && !announced) persist({ ...side, twelfthManPlayerId: src.playerId });
   };
 
-  const announced = !!side.teamAnnounced;
+  const announced = !!side.teamAnnounced || matchCompleted;
 
   const xi = (side.playingXi ?? [])
     .map(pid => allKnownPlayers.find(p => p.playerId === pid))
@@ -204,6 +217,8 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
   const available = players.filter(
     p => !side.playingXi?.includes(p.playerId!) && p.playerId !== side.twelfthManPlayerId,
   );
+
+  const twelfthManOptions = allKnownPlayers.filter(p => !side.playingXi?.includes(p.playerId!));
 
   const canAddMore = xi.length < 11 && !announced;
 
@@ -339,22 +354,24 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
         </DialogActions>
       </Dialog>
 
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Announce Team</DialogTitle>
+      <Dialog open={confirmOpen || !!externalAnnounceOpen}
+        onClose={() => { setConfirmOpen(false); onExternalDialogClose?.(); }} maxWidth="xs" fullWidth>
+        <DialogTitle>Announce</DialogTitle>
         <DialogContent>
           <Typography>
             Are you sure you want to announce the {teamName} team? All selected players will receive a notification and this cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="success" onClick={async () => { setConfirmOpen(false); await persist({ ...side, teamAnnounced: true }); }}>
+          <Button onClick={() => { setConfirmOpen(false); onExternalDialogClose?.(); }}>Cancel</Button>
+          <Button variant="contained" color="success" onClick={async () => { setConfirmOpen(false); onExternalDialogClose?.(); await persist({ ...side, teamAnnounced: true }); }}>
             Confirm &amp; Announce
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Dialog open={editConfirmOpen} onClose={() => setEditConfirmOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={editConfirmOpen || !!externalEditAnnounceOpen}
+        onClose={() => { setEditConfirmOpen(false); onExternalDialogClose?.(); }} maxWidth="xs" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Warning color="warning" /> Edit Announced Team
         </DialogTitle>
@@ -365,8 +382,8 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditConfirmOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="warning" onClick={async () => { setEditConfirmOpen(false); await persist({ ...side, teamAnnounced: false }); }}>
+          <Button onClick={() => { setEditConfirmOpen(false); onExternalDialogClose?.(); }}>Cancel</Button>
+          <Button variant="contained" color="warning" onClick={async () => { setEditConfirmOpen(false); onExternalDialogClose?.(); await persist({ ...side, teamAnnounced: false }); }}>
             Edit Team
           </Button>
         </DialogActions>
@@ -403,6 +420,15 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
           disableClearable={keepersInXi.length === 1}
         />
       )}
+      <Autocomplete
+        options={twelfthManOptions}
+        getOptionLabel={p => `${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`}
+        value={twelfthMan ?? null}
+        onChange={(_, p) => persist({ ...latestSide.current, twelfthManPlayerId: p?.playerId ?? undefined })}
+        disabled={announced}
+        renderInput={params => <TextField {...params} label="🏏 12th Man" size="small" />}
+        blurOnSelect
+      />
     </Box>
   );
 
@@ -414,9 +440,9 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
       </Button>
     </Box>
   ) : (
-    <Button size="small" variant="outlined" color="success" startIcon={<Campaign />}
+    <Button size="small" variant="outlined" startIcon={<Campaign />}
       onClick={() => setConfirmOpen(true)} disabled={xi.length < 11} sx={{ whiteSpace: 'nowrap' }}>
-      Announce Team
+      Announce
     </Button>
   );
 
@@ -432,12 +458,9 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
         {/* XI tab */}
         {mobileTab === 0 && (
           <Box sx={{ p: 1.5 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="subtitle1" fontWeight="bold">{teamName}</Typography>
-                <Chip label={`${xi.length}/11`} size="small" color={xi.length === 11 ? 'success' : 'warning'} />
-              </Box>
-              {announceButton}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+              <Typography variant="subtitle1" fontWeight="bold">{teamName}</Typography>
+              <Chip label={`${xi.length}/11`} size="small" color={xi.length === 11 ? 'success' : 'warning'} />
             </Box>
 
             <Divider sx={{ mb: 1 }} />
@@ -492,28 +515,7 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
               </List>
             )}
 
-            {/* 12th Man */}
-            <Divider sx={{ my: 1 }} />
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>12th Man</Typography>
-            {twelfthMan ? (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 1, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                <Typography variant="body2">
-                  {twelfthMan.name} {twelfthMan.surname}
-                  {twelfthMan.shirtNumber != null && <Typography component="span" variant="caption" color="text.secondary"> #{twelfthMan.shirtNumber}</Typography>}
-                </Typography>
-                <IconButton size="small" disabled={announced} onClick={() => persist({ ...latestSide.current, twelfthManPlayerId: undefined })}>
-                  <PersonRemove fontSize="small" />
-                </IconButton>
-              </Box>
-            ) : (
-              <Box sx={{ p: 1, border: '2px dashed', borderColor: 'divider', borderRadius: 1, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  {available.length > 0 ? 'Add from Squad tab' : 'No available players'}
-                </Typography>
-              </Box>
-            )}
-
-            {/* Selectors */}
+            {/* Selectors (captain, keeper, 12th man) */}
             {selectors}
           </Box>
         )}
@@ -523,7 +525,7 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
           <Box sx={{ p: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="subtitle2" fontWeight="bold">Available Squad</Typography>
-              <Button size="small" variant="outlined" color="secondary" startIcon={<PersonAdd />}
+              <Button size="small" variant="outlined" startIcon={<PersonAdd />}
                 disabled={announced}
                 onClick={() => { setSubOpen(true); setSubSearch(''); setSubAllPlayers([]); }}>
                 Substitute
@@ -611,7 +613,6 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
               sx={{ flex: 1 }} blurOnSelect
             />
           )}
-          {announceButton}
         </Box>
 
         <Divider sx={{ mb: 1 }} />
@@ -670,26 +671,16 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
 
         <Divider sx={{ my: 1 }} />
 
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>12th Man</Typography>
-        <Box onDragOver={handleTwelfthDragOver} onDragLeave={handleTwelfthDragLeave} onDrop={handleTwelfthDrop}
-          sx={{ border: '2px dashed', borderColor: twelfthHover ? 'primary.main' : 'divider', borderRadius: 1, px: 1.5, minHeight: 44, display: 'flex', alignItems: 'center', bgcolor: twelfthHover ? 'action.hover' : 'transparent', transition: 'border-color 0.15s, background-color 0.15s', mb: 2 }}>
-          {twelfthMan ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <DragIndicator sx={{ color: 'text.disabled', fontSize: 18 }} />
-                <Typography variant="body2">
-                  {twelfthMan.name} {twelfthMan.surname}
-                  {twelfthMan.shirtNumber != null && <Typography component="span" variant="caption" color="text.secondary"> #{twelfthMan.shirtNumber}</Typography>}
-                </Typography>
-              </Box>
-              <IconButton size="small" disabled={announced} onClick={() => persist({ ...side, twelfthManPlayerId: undefined })}>
-                <PersonRemove fontSize="small" />
-              </IconButton>
-            </Box>
-          ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ width: '100%', textAlign: 'center' }}>Drag 12th man here</Typography>
-          )}
-        </Box>
+        <Autocomplete
+          options={twelfthManOptions}
+          getOptionLabel={p => `${p.name} ${p.surname}${p.shirtNumber != null ? ` (#${p.shirtNumber})` : ''}`}
+          value={twelfthMan ?? null}
+          onChange={(_, p) => persist({ ...latestSide.current, twelfthManPlayerId: p?.playerId ?? undefined })}
+          disabled={announced}
+          renderInput={params => <TextField {...params} label="🏏 12th Man" size="small" />}
+          blurOnSelect
+          sx={{ mb: 2 }}
+        />
 
         {keepersInXi.length > 0 && (
           <Autocomplete
@@ -713,7 +704,7 @@ export const TeamSidePanel: React.FC<Props> = ({ matchId, teamId, teamName, play
       <Box sx={{ flex: 8, p: 2, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="subtitle2" fontWeight="bold">Available Squad</Typography>
-          <Button size="small" variant="outlined" color="secondary" startIcon={<PersonAdd />}
+          <Button size="small" variant="outlined" startIcon={<PersonAdd />}
             disabled={announced}
             onClick={() => { setSubOpen(true); setSubSearch(''); setSubAllPlayers([]); }}>
             Add Substitute

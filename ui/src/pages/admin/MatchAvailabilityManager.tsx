@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, CircularProgress, Alert, Button,
-  Table, TableHead, TableRow, TableCell, TableBody, TableContainer,
+  Avatar, Card, CardActionArea, Grid,
   Chip, MenuItem, TextField, Switch, FormControlLabel,
-  IconButton, Tooltip,
+  IconButton, Tooltip, Menu,
 } from '@mui/material';
-import { ArrowBack, CheckCircle, Cancel, HelpOutline, Edit, NotificationsActive, WhatsApp } from '@mui/icons-material';
+import { ArrowBack, CheckCircle, Cancel, HelpOutline, NotificationsActive, WhatsApp, Share } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
 import { matchApi } from '../../api/matchApi';
@@ -25,12 +25,18 @@ const STATUS_COLOR: Record<AvailabilityStatus, 'success' | 'error' | 'warning'> 
   UNSURE: 'warning',
 };
 
-export const MatchAvailabilityManager: React.FC = () => {
+interface MatchAvailabilityManagerProps {
+  embedded?: boolean;
+  preselectedTeamIdProp?: number;
+  onAvailabilityCount?: (confirmed: number, total: number, pollOpen: boolean) => void;
+}
+
+export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> = ({ embedded = false, preselectedTeamIdProp, onAvailabilityCount }) => {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as any;
-  const preselectedTeamId: number | undefined = locationState?.teamId;
+  const preselectedTeamId: number | undefined = preselectedTeamIdProp ?? locationState?.teamId;
   const returnTo: string | undefined = locationState?.returnTo;
   const { teamIds: managerTeamIds, restrictByTeam } = useManagerTeams();
   const [match, setMatch] = useState<Match | null>(null);
@@ -39,14 +45,22 @@ export const MatchAvailabilityManager: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOnlyConfirmed, setShowOnlyConfirmed] = useState(false);
-  const [overridePlayer, setOverridePlayer] = useState<number | null>(null);
+  const [overrideAnchor, setOverrideAnchor] = useState<{ el: HTMLElement; playerId: number } | null>(null);
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [whatsAppOpen, setWhatsAppOpen] = useState(false);
+  const [shareAnchor, setShareAnchor] = useState<null | HTMLElement>(null);
 
   useEffect(() => {
     if (matchId) matchApi.findById(Number(matchId)).then(setMatch);
   }, [matchId]);
+
+  useEffect(() => {
+    if (!onAvailabilityCount) return;
+    const confirmed = poll?.availability?.filter(a => a.status === 'YES').length ?? 0;
+    const total = poll?.availability?.length ?? 0;
+    onAvailabilityCount(confirmed, total, poll?.open ?? false);
+  }, [poll]);
 
   useEffect(() => {
     if (preselectedTeamId && matchId) loadPoll(preselectedTeamId);
@@ -92,11 +106,12 @@ export const MatchAvailabilityManager: React.FC = () => {
     }
   };
 
-  const handleOverride = async (playerId: number, status: AvailabilityStatus) => {
-    if (!matchId || !selectedTeamId) return;
+  const handleOverride = async (status: AvailabilityStatus) => {
+    if (!matchId || !selectedTeamId || !overrideAnchor) return;
+    const { playerId } = overrideAnchor;
+    setOverrideAnchor(null);
     try {
       await pollApi.setPlayerAvailability(Number(matchId), selectedTeamId, playerId, status);
-      setOverridePlayer(null);
       loadPoll(selectedTeamId as number);
     } catch {
       setError('Failed to update player availability.');
@@ -112,14 +127,45 @@ export const MatchAvailabilityManager: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate(returnTo ?? '/admin/matches')}>
-          Back
-        </Button>
-        <Typography variant="h5">Match Availability</Typography>
-      </Box>
+      {!embedded && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => navigate(returnTo ?? '/admin/matches')}>
+            Back
+          </Button>
+          <Typography variant="h5">Match Availability</Typography>
+        </Box>
+      )}
 
-      <Paper sx={{ p: 2, mb: 3 }}>
+      <Paper sx={{ p: 2, mb: 3, position: 'relative' }}>
+        {poll && (
+          <>
+            <Tooltip title="Share">
+              <IconButton
+                size="small"
+                onClick={e => setShareAnchor(e.currentTarget)}
+                sx={{ position: 'absolute', top: 8, right: 8 }}
+              >
+                <Share fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Menu anchorEl={shareAnchor} open={!!shareAnchor} onClose={() => setShareAnchor(null)}>
+              {poll.open && (
+                <MenuItem
+                  disabled={resending}
+                  onClick={() => { setShareAnchor(null); handleResend(); }}
+                >
+                  {resending ? <CircularProgress size={16} sx={{ mr: 1 }} /> : <NotificationsActive fontSize="small" sx={{ mr: 1 }} />}
+                  {resendSuccess ? 'Sent!' : 'Resend Notifications'}
+                </MenuItem>
+              )}
+              <MenuItem onClick={() => { setShareAnchor(null); setWhatsAppOpen(true); }}>
+                <WhatsApp fontSize="small" sx={{ mr: 1, color: '#25D366' }} />
+                WhatsApp
+              </MenuItem>
+            </Menu>
+          </>
+        )}
+
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
           {!preselectedTeamId && (
             <TextField
@@ -140,48 +186,20 @@ export const MatchAvailabilityManager: React.FC = () => {
           )}
 
           {poll && (
-            <>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={poll.open}
-                    onChange={e => handleTogglePoll(e.target.checked)}
-                    color="success"
-                  />
-                }
-                label={poll.open ? 'Poll Open' : 'Poll Closed'}
-              />
-              {poll.open && (
-                <Tooltip title="Resend in-app and email notifications to all squad members">
-                  <span>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={resending ? <CircularProgress size={16} /> : <NotificationsActive />}
-                      onClick={handleResend}
-                      disabled={resending}
-                      color={resendSuccess ? 'success' : 'primary'}
-                    >
-                      {resendSuccess ? 'Sent!' : 'Resend Notifications'}
-                    </Button>
-                  </span>
-                </Tooltip>
-              )}
-              <Tooltip title="Generate WhatsApp message for this poll">
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<WhatsApp />}
-                  onClick={() => setWhatsAppOpen(true)}
-                  sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', color: '#128C7E' } }}
-                >
-                  WhatsApp
-                </Button>
-              </Tooltip>
-            </>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={poll.open}
+                  onChange={e => handleTogglePoll(e.target.checked)}
+                  color="success"
+                  disabled={!!match?.matchCompleted}
+                />
+              }
+              label={poll.open ? 'Poll Open' : 'Poll Closed'}
+            />
           )}
 
-          {!poll && selectedTeamId !== '' && !loading && (
+          {!poll && selectedTeamId !== '' && !loading && !match?.matchCompleted && (
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ mr: 1, display: 'inline' }}>
                 No poll exists yet.
@@ -203,44 +221,63 @@ export const MatchAvailabilityManager: React.FC = () => {
 
       {poll && (
         <>
-          <Paper sx={{ p: 2, mb: 2 }}>
-            <Typography variant="h6">{poll.homeTeamName} vs {poll.oppositionTeamName}</Typography>
-            <Typography color="text.secondary">{poll.matchDate}</Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Confirmed available: <strong>{confirmedCount}</strong> / {totalCount}
-            </Typography>
-          </Paper>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
             <FormControlLabel
               control={
                 <Switch
+                  size="small"
                   checked={showOnlyConfirmed}
                   onChange={e => setShowOnlyConfirmed(e.target.checked)}
                 />
               }
-              label="Show only confirmed (Yes)"
+              label={<Typography variant="caption">Show Only Confirmed</Typography>}
+              labelPlacement="start"
+              sx={{ mr: 0, ml: 0 }}
             />
           </Box>
 
-          <TableContainer component={Paper}>
-            <Table size="small" sx={{
-              '& .MuiTableHead-root .MuiTableCell-root': { bgcolor: 'primary.main', color: 'common.white', fontWeight: 'bold' },
-              '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(odd)': { bgcolor: 'grey.50' },
-              '& .MuiTableBody-root .MuiTableRow-root:nth-of-type(even)': { bgcolor: 'common.white' },
-            }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Player</TableCell>
-                  <TableCell>Availability</TableCell>
-                  <TableCell>Override</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {displayedPlayers.map(entry => (
-                  <TableRow key={entry.playerId}>
-                    <TableCell>{entry.playerName}</TableCell>
-                    <TableCell>
+          <Grid container spacing={2} justifyContent="center">
+            {displayedPlayers.map(entry => {
+              const canOverride = !match?.matchCompleted && poll?.open;
+              const initials = entry.playerName
+                .split(' ')
+                .map(p => p[0])
+                .filter(Boolean)
+                .slice(0, 2)
+                .join('')
+                .toUpperCase();
+              const avatarBg =
+                entry.status === 'YES' ? 'success.main' :
+                entry.status === 'NO' ? 'error.main' :
+                entry.status === 'UNSURE' ? 'warning.main' :
+                'grey.400';
+              return (
+                <Grid item xs={6} sm={4} md={3} key={entry.playerId}>
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: '100%',
+                      borderColor:
+                        entry.status === 'YES' ? 'success.main' :
+                        entry.status === 'NO' ? 'error.main' :
+                        entry.status === 'UNSURE' ? 'warning.main' :
+                        'divider',
+                    }}
+                  >
+                    <CardActionArea
+                      disabled={!canOverride}
+                      onClick={canOverride ? e => setOverrideAnchor({ el: e.currentTarget, playerId: entry.playerId }) : undefined}
+                      sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, height: '100%' }}
+                    >
+                      <Avatar
+                        src={entry.profilePictureUrl ?? undefined}
+                        sx={{ bgcolor: avatarBg, width: 48, height: 48, fontSize: '1rem', fontWeight: 700 }}
+                      >
+                        {initials}
+                      </Avatar>
+                      <Typography variant="body2" align="center" sx={{ fontWeight: 500, lineHeight: 1.3 }}>
+                        {entry.playerName}
+                      </Typography>
                       {entry.status ? (
                         <Chip
                           label={STATUS_LABELS[entry.status]}
@@ -255,35 +292,30 @@ export const MatchAvailabilityManager: React.FC = () => {
                       ) : (
                         <Chip label="No response" size="small" variant="outlined" />
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {overridePlayer === entry.playerId ? (
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          {(['YES', 'NO', 'UNSURE'] as AvailabilityStatus[]).map(s => (
-                            <Chip
-                              key={s}
-                              label={STATUS_LABELS[s]}
-                              color={STATUS_COLOR[s]}
-                              size="small"
-                              clickable
-                              variant={entry.status === s ? 'filled' : 'outlined'}
-                              onClick={() => handleOverride(entry.playerId, s)}
-                            />
-                          ))}
-                        </Box>
-                      ) : (
-                        <Tooltip title="Override availability">
-                          <IconButton size="small" onClick={() => setOverridePlayer(entry.playerId)}>
-                            <Edit fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
+
+          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
+            {match?.matchCompleted || !poll?.open
+              ? 'Poll is closed — availability can no longer be changed.'
+              : 'Click a player\'s availability status to change it.'}
+          </Typography>
+
+          <Menu
+            anchorEl={overrideAnchor?.el}
+            open={!!overrideAnchor}
+            onClose={() => setOverrideAnchor(null)}
+          >
+            {(['YES', 'NO', 'UNSURE'] as AvailabilityStatus[]).map(s => (
+              <MenuItem key={s} onClick={() => handleOverride(s)} selected={overrideAnchor && displayedPlayers.find(p => p.playerId === overrideAnchor.playerId)?.status === s}>
+                <Chip label={STATUS_LABELS[s]} color={STATUS_COLOR[s]} size="small" sx={{ pointerEvents: 'none' }} />
+              </MenuItem>
+            ))}
+          </Menu>
         </>
       )}
 

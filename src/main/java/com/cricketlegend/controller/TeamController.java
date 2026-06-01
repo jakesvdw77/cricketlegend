@@ -2,8 +2,10 @@ package com.cricketlegend.controller;
 
 import com.cricketlegend.dto.ManagerDTO;
 import com.cricketlegend.dto.PlayerDTO;
+import com.cricketlegend.dto.SquadAnalysisDTO;
 import com.cricketlegend.dto.TeamDTO;
 import com.cricketlegend.service.ManagerTeamService;
+import com.cricketlegend.service.SquadAnalysisService;
 import com.cricketlegend.service.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +28,7 @@ public class TeamController {
 
     private final TeamService teamService;
     private final ManagerTeamService managerTeamService;
+    private final SquadAnalysisService squadAnalysisService;
 
     private boolean isAdmin(Authentication auth) {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_admin"));
@@ -85,6 +88,12 @@ public class TeamController {
     @Operation(summary = "Get team squad")
     public ResponseEntity<List<PlayerDTO>> getSquad(@PathVariable Long id) {
         return ResponseEntity.ok(teamService.getSquad(id));
+    }
+
+    @GetMapping("/{id}/squad/analysis")
+    @Operation(summary = "Generate AI-powered squad analysis")
+    public ResponseEntity<SquadAnalysisDTO> getSquadAnalysis(@PathVariable Long id) {
+        return ResponseEntity.ok(squadAnalysisService.analyze(id));
     }
 
     @PostMapping("/{id}/squad/{playerId}")

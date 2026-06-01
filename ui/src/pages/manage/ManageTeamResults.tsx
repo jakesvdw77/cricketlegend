@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, AccessTime, LocationOn, SportsScore,
-  CheckCircle, Cancel, Remove, ArrowBack, Share, Close, Article,
+  CheckCircle, Cancel, Remove, ArrowBack, Share, Close, Psychology,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
@@ -20,6 +20,7 @@ import ScorecardTemplate from '../admin/templates/ScorecardTemplate';
 import BroadcastScorecardTemplate from '../admin/templates/BroadcastScorecardTemplate';
 import ManOfTheMatchTemplate from '../admin/templates/ManOfTheMatchTemplate';
 import { TemplateProps, TeamFilter } from '../admin/templates/types';
+import { GameAnalysisView } from '../../components/match/GameAnalysisView';
 
 const STAGE_LABELS: Record<string, string> = {
   FRIENDLY: 'Friendly', POOL: 'Pool', PLAYOFFS: 'Playoffs',
@@ -93,14 +94,15 @@ const groupByTournament = (matches: Match[]): TournamentGroup[] => {
   return [...map.values()].sort((a, b) => b.latestDate.localeCompare(a.latestDate));
 };
 
-type ShareStep = 'type' | 'template' | 'motm';
+type ShareStep = 'type' | 'template' | 'motm' | 'analysis';
 
 const SHARE_TYPES: { key: ShareStep; label: string; description: string; icon: React.ReactNode }[] = [
-  { key: 'template', label: 'Match Result',      description: 'Result, scores & share templates', icon: <SportsScore sx={{ fontSize: 32 }} /> },
-  { key: 'motm',     label: 'Man of the Match',   description: 'Player highlight card with photo',  icon: <EmojiEvents  sx={{ fontSize: 32 }} /> },
+  { key: 'template', label: 'Match Result',    description: 'Result, scores & share templates',    icon: <SportsScore sx={{ fontSize: 32 }} /> },
+  { key: 'motm',     label: 'Man of the Match', description: 'Player highlight card with photo',   icon: <EmojiEvents  sx={{ fontSize: 32 }} /> },
+  { key: 'analysis', label: 'Game Analysis',   description: 'AI-powered insights & chart data',    icon: <Psychology   sx={{ fontSize: 32 }} /> },
 ];
 
-const ShareMatchDialog: React.FC<{ match: Match | null; onClose: () => void }> = ({ match, onClose }) => {
+export const ShareMatchDialog: React.FC<{ match: Match | null; teamId: number | ''; teamName: string; onClose: () => void }> = ({ match, teamId, teamName, onClose }) => {
   const [step, setStep] = useState<ShareStep>('type');
   const [result, setResult] = useState<MatchResult | null>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -157,10 +159,11 @@ const ShareMatchDialog: React.FC<{ match: Match | null; onClose: () => void }> =
     type:     'Share',
     template: 'Match Result',
     motm:     'Man of the Match',
+    analysis: 'Game Analysis',
   };
 
   return (
-    <Dialog open={!!match} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={!!match} onClose={onClose} maxWidth={step === 'analysis' ? 'lg' : 'md'} fullWidth fullScreen={step === 'analysis'}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 1 }}>
         {step !== 'type' && (
           <IconButton size="small" onClick={() => setStep('type')} sx={{ mr: 0.5 }}>
@@ -206,6 +209,20 @@ const ShareMatchDialog: React.FC<{ match: Match | null; onClose: () => void }> =
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
           ) : (
             <ManOfTheMatchTemplate {...templateProps} />
+          )
+
+        ) : step === 'analysis' ? (
+          teamId ? (
+            <GameAnalysisView
+              matchId={match.matchId!}
+              teamId={teamId as number}
+              teamName={teamName}
+              matchTitle={`${match.homeTeamName ?? ''} vs ${match.oppositionTeamName ?? ''}`}
+            />
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+              <Typography variant="body2">Select a team before running analysis.</Typography>
+            </Box>
           )
 
         ) : loading ? (
@@ -268,7 +285,11 @@ const MatchRow: React.FC<{ match: Match; teamId: number; onShare: (m: Match) => 
   const oppScore = fmtScore(oppRuns, oppWkts, oppOvers);
 
   return (
-    <Card variant="outlined" sx={{ mb: 1.5 }}>
+    <Card
+      variant="outlined"
+      onClick={() => m.matchId && navigate(`/matches/scorecards?matchId=${m.matchId}`)}
+      sx={{ mb: 1.5, cursor: m.matchId ? 'pointer' : 'default', '&:hover': m.matchId ? { borderColor: 'primary.main' } : {} }}
+    >
       <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
 
         {/* Teams + result chip */}
@@ -284,12 +305,7 @@ const MatchRow: React.FC<{ match: Match; teamId: number; onShare: (m: Match) => 
           </Stack>
           <Stack direction="row" alignItems="center" spacing={0.5}>
             <Chip label={result.label} color={result.color} size="small" icon={result.icon} />
-            {m.matchId && (
-              <IconButton size="small" onClick={() => navigate(`/matches/scorecards?matchId=${m.matchId}`)} sx={{ color: 'text.secondary' }} title="View Scorecard">
-                <Article sx={{ fontSize: 16 }} />
-              </IconButton>
-            )}
-            <IconButton size="small" onClick={() => onShare(m)} sx={{ color: 'text.secondary' }}>
+            <IconButton size="small" onClick={e => { e.stopPropagation(); onShare(m); }} sx={{ color: 'text.secondary' }}>
               <Share sx={{ fontSize: 16 }} />
             </IconButton>
           </Stack>
@@ -343,6 +359,7 @@ const MatchRow: React.FC<{ match: Match; teamId: number; onShare: (m: Match) => 
           )}
         </Stack>
 
+
       </CardContent>
     </Card>
   );
@@ -361,6 +378,7 @@ export const ManageTeamResults: React.FC = () => {
   const [shareMatch, setShareMatch] = useState<Match | null>(null);
 
   const selectedTeamId: number | '' = Number(searchParams.get('teamId')) || '';
+  const selectedTeam = teams.find(t => t.teamId === selectedTeamId);
 
   const setSelectedTeamId = (id: number | '') => {
     setSearchParams(id ? { teamId: String(id) } : {}, { replace: true });
@@ -459,7 +477,12 @@ export const ManageTeamResults: React.FC = () => {
         </Box>
       ))}
 
-      <ShareMatchDialog match={shareMatch} onClose={() => setShareMatch(null)} />
+      <ShareMatchDialog
+        match={shareMatch}
+        teamId={selectedTeamId}
+        teamName={selectedTeam?.teamName ?? ''}
+        onClose={() => setShareMatch(null)}
+      />
     </Box>
   );
 };

@@ -147,6 +147,10 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemIcon><Campaign/></ListItemIcon>
                                 <ListItemText primary="Team Notifications"/>
                             </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/media')}>
+                                <ListItemIcon><PermMedia/></ListItemIcon>
+                                <ListItemText primary="Media Library"/>
+                            </ListItemButton>
                         </List>
                     </Collapse>
                     <Divider/>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Chip, Avatar, Divider, Stack,
   Card, CardContent, MenuItem, TextField, useTheme, useMediaQuery,
@@ -518,13 +518,23 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, title, loading, onClose
 const MatchRow: React.FC<{ match: Match; teamId: number; onShare: (m: Match) => void }> = ({ match: m, teamId, onShare }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const navigate = useNavigate();
   const isHome = m.homeTeamId === teamId;
   const opponent = isHome ? m.oppositionTeamName : m.homeTeamName;
   const opponentLogo = isHome ? m.oppositionTeamLogoUrl : m.homeTeamLogoUrl;
   const opponentAbbr = isHome ? m.oppositionTeamAbbreviation : m.homeTeamAbbreviation;
 
+  const toDetail = (tab = 0) =>
+    navigate(`/admin/matches/${m.matchId}/detail`, {
+      state: { teamId, returnTo: `/manage-club/team-schedule?teamId=${teamId}`, initialTab: tab },
+    });
+
   return (
-    <Card variant="outlined" sx={{ mb: 1.5 }}>
+    <Card
+      variant="outlined"
+      onClick={() => toDetail(0)}
+      sx={{ mb: 1.5, cursor: 'pointer', transition: 'border-color 0.15s', '&:hover': { borderColor: 'primary.main' } }}
+    >
       <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
           <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1 }}>
@@ -560,7 +570,7 @@ const MatchRow: React.FC<{ match: Match; teamId: number; onShare: (m: Match) => 
               <Chip label={STAGE_LABELS[m.matchStage] ?? m.matchStage} size="small" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
             )}
             <Tooltip title="Share match">
-              <IconButton size="small" onClick={() => onShare(m)} sx={{ color: 'text.secondary' }}>
+              <IconButton size="small" onClick={e => { e.stopPropagation(); onShare(m); }} sx={{ color: 'text.secondary' }}>
                 <Share fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -628,10 +638,14 @@ export const ManageTeamSchedule: React.FC = () => {
   const { filterTournamentId, tournamentName: filterTournamentName, returnTo } =
     (location.state ?? {}) as { filterTournamentId?: number; tournamentName?: string; returnTo?: string };
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const { teamIds, restrictByTeam, loaded: teamsLoaded } = useManagerTeams();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
-  const [selectedTeamId, setSelectedTeamId] = useState<number | ''>('');
+
+  const selectedTeamId: number | '' = Number(searchParams.get('teamId')) || '';
+  const setSelectedTeamId = (id: number | '') =>
+    setSearchParams(id ? { teamId: String(id) } : {}, { replace: true });
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -656,7 +670,7 @@ export const ManageTeamSchedule: React.FC = () => {
       .then(all => {
         const filtered = restrictByTeam ? all.filter(t => teamIds.has(t.teamId!)) : all;
         setTeams(filtered);
-        if (filtered.length === 1) setSelectedTeamId(filtered[0].teamId!);
+        if (filtered.length === 1 && !searchParams.get('teamId')) setSelectedTeamId(filtered[0].teamId!);
       })
       .finally(() => setTeamsLoading(false));
   }, [teamsLoaded, restrictByTeam, teamIds]);

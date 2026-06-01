@@ -223,11 +223,12 @@ export const Teams: React.FC = () => {
           </Box>
           <Tabs value={dialogTab} onChange={(_, v) => setDialogTab(v)} sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}>
             <Tab label="Details" />
+            <Tab label="Media" />
             <Tab label="Sponsors" />
           </Tabs>
 
           {dialogTab === 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 700 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <input type="file" ref={logoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleLogoUpload} />
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                 <Avatar src={editing.logoUrl ?? ''} sx={{ width: 64, height: 64, flexShrink: 0, cursor: editing.logoUrl ? 'pointer' : 'default' }}
@@ -286,18 +287,17 @@ export const Teams: React.FC = () => {
                 <TextField label="Email" value={editing.email ?? ''} fullWidth onChange={e => set({ email: e.target.value })} />
                 <TextField label="Contact Number" value={editing.contactNumber ?? ''} fullWidth onChange={e => set({ contactNumber: e.target.value })} />
               </Box>
-              <TextField label="Website URL" value={editing.websiteUrl ?? ''} onChange={e => set({ websiteUrl: e.target.value })} />
-              <TextField label="Facebook URL" value={editing.facebookUrl ?? ''} onChange={e => set({ facebookUrl: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField label="Instagram URL" value={editing.instagramUrl ?? ''} onChange={e => set({ instagramUrl: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
-              <TextField label="YouTube URL" value={editing.youtubeUrl ?? ''} onChange={e => set({ youtubeUrl: e.target.value })}
-                InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
+            </Box>
+          )}
+
+          {dialogTab === 1 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <input type="file" ref={photoInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePhotoUpload} />
+              <Typography variant="subtitle2" color="text.secondary">Team Photo</Typography>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                 {editing.teamPhotoUrl && (
                   <Box component="img" src={editing.teamPhotoUrl} alt="Team photo"
-                    sx={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 1, flexShrink: 0, cursor: 'pointer' }}
+                    sx={{ width: 120, height: 80, objectFit: 'cover', borderRadius: 1, flexShrink: 0, cursor: 'pointer' }}
                     onClick={() => setViewLogoUrl(editing.teamPhotoUrl!)} />
                 )}
                 <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -311,12 +311,21 @@ export const Teams: React.FC = () => {
                     helperText="Upload a photo above or paste a URL" />
                 </Box>
               </Box>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>Social Media & Web</Typography>
+              <TextField label="Website URL" value={editing.websiteUrl ?? ''} onChange={e => set({ websiteUrl: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Language sx={{ fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="Facebook URL" value={editing.facebookUrl ?? ''} onChange={e => set({ facebookUrl: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Facebook sx={{ color: '#1877F2', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="Instagram URL" value={editing.instagramUrl ?? ''} onChange={e => set({ instagramUrl: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Instagram sx={{ color: '#E1306C', fontSize: 20 }} /></InputAdornment> }} />
+              <TextField label="YouTube URL" value={editing.youtubeUrl ?? ''} onChange={e => set({ youtubeUrl: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start"><YouTube sx={{ color: '#FF0000', fontSize: 20 }} /></InputAdornment> }} />
             </Box>
           )}
 
-          {dialogTab === 1 && (
-            <Box sx={{ maxWidth: 700 }}>
-              <Autocomplete multiple options={sponsors} getOptionLabel={s => s.name}
+          {dialogTab === 2 && (
+            <Box>
+              <Autocomplete fullWidth multiple options={sponsors} getOptionLabel={s => s.name}
                 value={editing.sponsors ?? []} onChange={(_, value) => set({ sponsors: value })}
                 isOptionEqualToValue={(o, v) => o.sponsorId === v.sponsorId}
                 renderTags={(value, getTagProps) =>

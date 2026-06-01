@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import {
   ArrowBack, Print, PersonAdd, PersonRemove, Search, Share, SportsCricket, MoreVert,
-  WhatsApp, PictureAsPdf, Image as ImageIcon, Download,
+  WhatsApp, PictureAsPdf, Image as ImageIcon, Download, Psychology,
 } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { teamApi } from '../../api/teamApi';
@@ -22,6 +22,7 @@ import { generateSquadPdf } from '../../utils/matchPdf';
 import { generateSquadImage, generateSquadNamesImage } from '../../utils/teamsheetImage';
 import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 import SquadShareDialog from './SquadShareDialog';
+import { SquadAnalysisView } from '../../components/team/SquadAnalysisView';
 
 // ── Squad image template picker ───────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ export const TeamSquad: React.FC = () => {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [squadTemplateOpen, setSquadTemplateOpen] = useState(false);
+  const [squadAnalysisOpen, setSquadAnalysisOpen] = useState(false);
 
   useEffect(() => {
     teamApi.findById(id).then(t => {
@@ -290,10 +292,16 @@ export const TeamSquad: React.FC = () => {
               <MenuItem onClick={() => { closeMenu(); openShareOptions(); }} disabled={!team || squad.length === 0}>
                 <Share fontSize="small" sx={{ mr: 1 }} /> Share
               </MenuItem>
+              <MenuItem onClick={() => { closeMenu(); setSquadAnalysisOpen(true); }} disabled={!team || squad.length === 0}>
+                <Psychology fontSize="small" sx={{ mr: 1 }} /> Squad Analysis
+              </MenuItem>
             </Menu>
           </>
         ) : (
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+            <Button variant="outlined" startIcon={<Psychology />} onClick={() => setSquadAnalysisOpen(true)} disabled={!team || squad.length === 0}>
+              Analysis
+            </Button>
             <Button variant="outlined" startIcon={<Share />} onClick={openShareOptions} disabled={!team || squad.length === 0}>
               Share
             </Button>
@@ -450,6 +458,21 @@ export const TeamSquad: React.FC = () => {
           team={team}
           squad={squad}
         />
+      )}
+
+      {/* Squad Analysis */}
+      {team && (
+        <Dialog open={squadAnalysisOpen} onClose={() => setSquadAnalysisOpen(false)} maxWidth="lg" fullWidth fullScreen={isMobile}>
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Psychology fontSize="small" /> Squad Analysis — {team.teamName}
+          </DialogTitle>
+          <DialogContent sx={{ p: isMobile ? 1 : 2 }}>
+            <SquadAnalysisView teamId={id} teamName={team.teamName} />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setSquadAnalysisOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
       )}
 
       {/* PDF preview */}

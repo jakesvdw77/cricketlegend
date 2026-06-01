@@ -25,6 +25,7 @@ import { FundAllocation } from './pages/admin/FundAllocation';
 import { TournamentPools } from './pages/admin/TournamentPools';
 import { MatchResultCapture } from './pages/admin/MatchResultCapture';
 import { MatchAvailabilityManager } from './pages/admin/MatchAvailabilityManager';
+import { MatchDetailPage } from './pages/admin/MatchDetailPage';
 import { ManagerTeams } from './pages/admin/ManagerTeams';
 import { Managers } from './pages/admin/Managers';
 import { FinancialAdmins } from './pages/admin/FinancialAdmins';
@@ -134,6 +135,7 @@ function ThemedApp() {
             <Route path="admin/media" element={<ManagerRoute element={<MediaLibrary />} />} />
             <Route path="admin/send-notification" element={<ManagerRoute element={<SendNotification />} />} />
             <Route path="admin/events" element={<ManagerRoute element={<Events />} />} />
+            <Route path="admin/matches/:matchId/detail" element={<ManagerRoute element={<MatchDetailPage />} />} />
             <Route path="admin/matches/:matchId/teamsheet" element={<ManagerRoute element={<Teamsheet />} />} />
             <Route path="admin/matches/:matchId/result" element={<ManagerRoute element={<MatchResultCapture />} />} />
             <Route path="admin/matches/:matchId/availability" element={<ManagerRoute element={<MatchAvailabilityManager />} />} />

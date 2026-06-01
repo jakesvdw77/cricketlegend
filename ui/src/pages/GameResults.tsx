@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Chip, Avatar, Divider, Stack,
   Card, CardContent, useTheme, useMediaQuery,
@@ -117,9 +118,14 @@ const ScoreLine: React.FC<{ match: Match }> = ({ match: m }) => {
 const ResultRow: React.FC<{ match: Match }> = ({ match: m }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const navigate = useNavigate();
 
   return (
-    <Card variant="outlined" sx={{ mb: 1.5 }}>
+    <Card
+      variant="outlined"
+      onClick={() => m.matchId && navigate(`/matches/scorecards?matchId=${m.matchId}`)}
+      sx={{ mb: 1.5, cursor: m.matchId ? 'pointer' : 'default', '&:hover': m.matchId ? { borderColor: 'primary.main' } : {} }}
+    >
       <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
 
         {/* Header row: teams + result chip */}

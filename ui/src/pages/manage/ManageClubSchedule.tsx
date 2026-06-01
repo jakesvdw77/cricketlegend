@@ -3,16 +3,19 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Card, CardContent, CardActions, Button, Avatar,
   Chip, Divider, Skeleton, Stack, Paper, Dialog, DialogTitle, DialogContent,
-  DialogActions, CircularProgress,
+  DialogActions, CircularProgress, IconButton,
 } from '@mui/material';
 import {
   ArrowBack, CalendarMonth, AccessTime, LocationOn, EmojiEvents,
   SportsScore, Groups, HowToVote, CheckCircle, Cancel, Remove,
-  Assignment, WhatsApp,
+  WhatsApp, People, Campaign, AssignmentInd, Share,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
+import { pollApi } from '../../api/pollApi';
 import { Match, MatchResult } from '../../types';
 import WhatsAppTemplate from '../admin/templates/WhatsAppTemplate';
+import { ShareMatchDialog } from './ManageTeamResults';
+import { MatchSharePanel } from '../../components/match/MatchSharePanel';
 
 const STAGE_LABELS: Record<string, string> = {
   FRIENDLY: 'Friendly',
@@ -58,7 +61,7 @@ function resultLine(m: Match, teamId: number): { label: string; color: 'success'
   const won = desc.toLowerCase().includes('won') && desc.toLowerCase().includes(myTeamName.toLowerCase());
   return won
     ? { label: 'Won', color: 'success' }
-    : { label: desc || 'Completed', color: 'error' };
+    : { label: 'Lost', color: 'error' };
 }
 
 function ScoreBlock({ m: m }: { m: Match }) {
@@ -91,14 +94,45 @@ function NextMatchHero({ match, teamId, onNavigate }: { match: Match; teamId: nu
     : daysUntil > 1 ? `In ${daysUntil} days`
     : 'Result pending';
 
+  const detailUrl = `/admin/matches/${match.matchId}/detail`;
+  const detailState = { teamId, returnTo: `/manage-club/teams/${teamId}/schedule` };
+
+  const [confirmedCount, setConfirmedCount] = useState<number | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [pollOpen, setPollOpen] = useState<boolean | null>(null);
+  const [announced, setAnnounced] = useState<boolean | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  useEffect(() => {
+    if (!match.matchId) return;
+    pollApi.getPoll(match.matchId, teamId)
+      .then(poll => {
+        if (!poll) return;
+        setPollOpen(poll.open ?? false);
+        setConfirmedCount(poll.availability?.filter((a: any) => a.status === 'YES').length ?? 0);
+        setTotalCount(poll.availability?.length ?? 0);
+      })
+      .catch(() => {});
+    matchApi.getTeamSheet(match.matchId)
+      .then(sides => {
+        const side = sides.find(s => s.teamId === teamId);
+        setAnnounced(side?.teamAnnounced ?? false);
+      })
+      .catch(() => {});
+  }, [match.matchId, teamId]);
+
   return (
+    <>
     <Card
       variant="outlined"
+      onClick={() => onNavigate(detailUrl, { state: detailState })}
       sx={{
-        mb: 3,
+        mb: 3, cursor: 'pointer',
         background: 'linear-gradient(135deg, #0d2b1a 0%, #1a5c35 100%)',
         color: '#e4f4df',
         borderColor: '#2a7a4a',
+        transition: 'border-color 0.15s',
+        '&:hover': { borderColor: '#4caf50' },
       }}
     >
       <CardContent sx={{ pb: 1 }}>
@@ -106,13 +140,22 @@ function NextMatchHero({ match, teamId, onNavigate }: { match: Match; teamId: nu
           <Typography variant="overline" sx={{ opacity: 0.85, letterSpacing: 1.5 }}>
             Next Match
           </Typography>
-          {countdownLabel && (
-            <Chip
-              label={countdownLabel}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {countdownLabel && (
+              <Chip
+                label={countdownLabel}
+                size="small"
+                sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit', fontWeight: 'bold' }}
+              />
+            )}
+            <IconButton
               size="small"
-              sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit', fontWeight: 'bold' }}
-            />
-          )}
+              onClick={e => { e.stopPropagation(); setShareOpen(true); }}
+              sx={{ color: 'rgba(255,255,255,0.75)', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' } }}
+            >
+              <Share fontSize="small" />
+            </IconButton>
+          </Box>
         </Box>
 
         {/* Teams row */}
@@ -175,36 +218,60 @@ function NextMatchHero({ match, teamId, onNavigate }: { match: Match; teamId: nu
               </Typography>
             </Box>
           )}
+        {pollOpen !== null && (
+          <Box
+            onClick={e => { e.stopPropagation(); onNavigate(detailUrl, { state: { ...detailState, initialTab: 0 } }); }}
+            sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer',
+              bgcolor: 'rgba(255,255,255,0.08)', borderRadius: 1, px: 1.5, py: 0.75,
+              border: '1px solid rgba(255,255,255,0.2)',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.14)' },
+              transition: 'background-color 0.15s',
+            }}
+          >
+            <People sx={{ fontSize: 16, opacity: 0.8 }} />
+            <Typography variant="body2" sx={{ flex: 1 }}>Availability</Typography>
+            <Chip
+              label={pollOpen ? 'Poll Open' : 'Poll Closed'}
+              size="small"
+              color={pollOpen ? 'success' : 'default'}
+              variant="outlined"
+              sx={{ pointerEvents: 'none', mr: confirmedCount !== null ? 0.5 : 0 }}
+            />
+            {confirmedCount !== null && totalCount !== null && (
+              <Chip
+                label={`${confirmedCount} / ${totalCount}`}
+                size="small"
+                color={confirmedCount > 0 ? 'success' : 'default'}
+                sx={{ fontWeight: 'bold', pointerEvents: 'none' }}
+              />
+            )}
+          </Box>
+        )}
+        {announced !== null && (
+          <Box
+            onClick={e => { e.stopPropagation(); onNavigate(detailUrl, { state: { ...detailState, initialTab: 1 } }); }}
+            sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer',
+              bgcolor: 'rgba(255,255,255,0.08)', borderRadius: 1, px: 1.5, py: 0.75,
+              border: '1px solid rgba(255,255,255,0.2)',
+              '&:hover': { bgcolor: 'rgba(255,255,255,0.14)' },
+              transition: 'background-color 0.15s',
+            }}
+          >
+            <AssignmentInd sx={{ fontSize: 16, opacity: 0.8 }} />
+            <Typography variant="body2" sx={{ flex: 1 }}>Team Sheet</Typography>
+            <Chip
+              label={announced ? 'Announced' : 'Not Announced'}
+              size="small"
+              color={announced ? 'success' : 'default'}
+              sx={{ fontWeight: 'bold', pointerEvents: 'none' }}
+            />
+          </Box>
+        )}
         </Stack>
       </CardContent>
-
-      <CardActions sx={{ px: 2, pb: 1.5, gap: 1 }}>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<Groups />}
-          onClick={() => onNavigate(`/admin/matches/${match.matchId}/teamsheet`, { state: { teamId, returnTo: `/manage-club/teams/${teamId}/schedule` } })}
-        >
-          Team Sheet
-        </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<HowToVote />}
-          onClick={() => onNavigate(`/admin/matches/${match.matchId}/availability`, { state: { teamId, returnTo: `/manage-club/teams/${teamId}/schedule` } })}
-        >
-          Availability
-        </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<SportsScore />}
-          onClick={() => onNavigate(`/admin/matches/${match.matchId}/result`)}
-        >
-          Result
-        </Button>
-      </CardActions>
     </Card>
+    <MatchSharePanel open={shareOpen} match={match} teamId={teamId} onClose={() => setShareOpen(false)} />
+    </>
   );
 }
 
@@ -270,28 +337,51 @@ function ScorecardDialog({ match, onClose }: { match: Match | null; onClose: () 
 
 // ── Compact match row ──────────────────────────────────────────────────────────
 
-function MatchRow({ match, teamId, onNavigate, onScorecard }: {
+function MatchRow({ match, teamId, onNavigate, onShare }: {
   match: Match;
   teamId: number;
   onNavigate: ReturnType<typeof useNavigate>;
-  onScorecard: (m: Match) => void;
+  onShare: (m: Match) => void;
 }) {
+  const [upcomingShareOpen, setUpcomingShareOpen] = useState(false);
   const isHome = match.homeTeamId === teamId;
   const opponent = isHome ? match.oppositionTeamName : match.homeTeamName;
   const opponentLogo = isHome ? match.oppositionTeamLogoUrl : match.homeTeamLogoUrl;
   const result = match.matchCompleted ? resultLine(match, teamId) : null;
   const upcoming = !match.matchCompleted;
 
+  const detailState = { teamId, returnTo: `/manage-club/teams/${teamId}/schedule` };
+  const toDetail = (tab: number) =>
+    onNavigate(`/admin/matches/${match.matchId}/detail`, { state: { ...detailState, initialTab: tab } });
+
   return (
     <Paper
       variant="outlined"
       sx={{
-        p: 1.5,
-        ...(result && { cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }),
+        p: 1.5, cursor: 'pointer', position: 'relative',
+        transition: 'background-color 0.15s',
+        '&:hover': { bgcolor: 'action.hover' },
       }}
-      onClick={result ? () => onNavigate(`/admin/matches/${match.matchId}/result`) : undefined}
+      onClick={() => toDetail(result ? 2 : 0)}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      {result && (
+        <Chip
+          label={result.label}
+          color={result.color}
+          size="small"
+          icon={result.color === 'success' ? <CheckCircle /> : result.color === 'error' ? <Cancel /> : <Remove />}
+          sx={{ position: 'absolute', top: 8, left: 8, fontSize: '0.78rem', height: 26 }}
+        />
+      )}
+      {!upcoming && (
+        <Button size="small" startIcon={<Share />}
+          sx={{ position: 'absolute', top: 4, right: 4, minWidth: 0 }}
+          onClick={e => { e.stopPropagation(); onShare(match); }}>
+          Share
+        </Button>
+      )}
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: result ? 3.5 : 0 }}>
         <Avatar src={opponentLogo} sx={{ width: 36, height: 36, flexShrink: 0, fontSize: 14 }}>
           {opponent?.charAt(0)}
         </Avatar>
@@ -313,42 +403,31 @@ function MatchRow({ match, teamId, onNavigate, onScorecard }: {
           {match.matchOutcomeDescription && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{match.matchOutcomeDescription}</Typography>
           )}
+          {upcoming && (
+            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.75, justifyContent: 'flex-end' }}>
+              <Button size="small" startIcon={<HowToVote />}
+                onClick={e => { e.stopPropagation(); toDetail(0); }}>
+                Availability
+              </Button>
+              <Button size="small" startIcon={<AssignmentInd />}
+                onClick={e => { e.stopPropagation(); toDetail(1); }}>
+                Team Sheet
+              </Button>
+              <Button size="small" startIcon={<Share />}
+                onClick={e => { e.stopPropagation(); setUpcomingShareOpen(true); }}>
+                Share
+              </Button>
+            </Box>
+          )}
         </Box>
-
-        {result && (
-          <Chip
-            label={result.label}
-            color={result.color}
-            size="small"
-            icon={result.color === 'success' ? <CheckCircle /> : result.color === 'error' ? <Cancel /> : <Remove />}
-            sx={{ flexShrink: 0 }}
-          />
-        )}
       </Box>
-
-      {upcoming && (
-        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-          <Button size="small" variant="outlined" startIcon={<Groups />}
-            onClick={() => onNavigate(`/admin/matches/${match.matchId}/teamsheet`, { state: { teamId, returnTo: `/manage-club/teams/${teamId}/schedule` } })}>
-            Team Sheet
-          </Button>
-          <Button size="small" variant="outlined" startIcon={<HowToVote />}
-            onClick={() => onNavigate(`/admin/matches/${match.matchId}/availability`, { state: { teamId, returnTo: `/manage-club/teams/${teamId}/schedule` } })}>
-            Availability
-          </Button>
-        </Box>
-      )}
-      {!upcoming && (
-        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-          <Button size="small" variant="outlined" startIcon={<Assignment />}
-            onClick={e => { e.stopPropagation(); onNavigate(`/matches/${match.matchId}/teamsheet`, { state: { teamId, returnTo: `/manage-club/teams/${teamId}/schedule` } }); }}>
-            Team Sheet
-          </Button>
-          <Button size="small" variant="outlined" startIcon={<WhatsApp sx={{ color: '#25D366' }} />}
-            onClick={e => { e.stopPropagation(); onScorecard(match); }}>
-            Scorecard
-          </Button>
-        </Box>
+      {upcoming && upcomingShareOpen && (
+        <MatchSharePanel
+          open={upcomingShareOpen}
+          match={match}
+          teamId={teamId}
+          onClose={() => setUpcomingShareOpen(false)}
+        />
       )}
     </Paper>
   );
@@ -365,7 +444,7 @@ export const ManageClubSchedule: React.FC = () => {
   const id = Number(teamId);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const [scorecardMatch, setScorecardMatch] = useState<Match | null>(null);
+  const [shareMatch, setShareMatch] = useState<Match | null>(null);
 
   useEffect(() => {
     matchApi.findAll()
@@ -432,7 +511,7 @@ export const ManageClubSchedule: React.FC = () => {
               </Typography>
               <Stack spacing={1}>
                 {futureRest.map(m => (
-                  <MatchRow key={m.matchId} match={m} teamId={id} onNavigate={navigate} onScorecard={setScorecardMatch} />
+                  <MatchRow key={m.matchId} match={m} teamId={id} onNavigate={navigate} onShare={setShareMatch} />
                 ))}
               </Stack>
             </Box>
@@ -446,7 +525,7 @@ export const ManageClubSchedule: React.FC = () => {
               </Typography>
               <Stack spacing={1}>
                 {past.map(m => (
-                  <MatchRow key={m.matchId} match={m} teamId={id} onNavigate={navigate} onScorecard={setScorecardMatch} />
+                  <MatchRow key={m.matchId} match={m} teamId={id} onNavigate={navigate} onShare={setShareMatch} />
                 ))}
               </Stack>
             </Box>
@@ -454,7 +533,7 @@ export const ManageClubSchedule: React.FC = () => {
         </>
       )}
 
-      <ScorecardDialog match={scorecardMatch} onClose={() => setScorecardMatch(null)} />
+      <ShareMatchDialog match={shareMatch} teamId={id} teamName={teamName} onClose={() => setShareMatch(null)} />
     </Box>
   );
 };

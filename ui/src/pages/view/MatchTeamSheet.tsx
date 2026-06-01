@@ -161,53 +161,6 @@ export const MatchTeamSheet: React.FC = () => {
           ))}
         </ToggleButtonGroup>
         <Box sx={{ flex: 1 }} />
-        <Tooltip title={!eitherAnnounced ? 'No team has been announced yet' : ''}>
-          <span>
-            <Button
-              variant="outlined"
-              onClick={() => setTemplatesOpen(true)}
-              disabled={!eitherAnnounced}
-              startIcon={<Share sx={{ fontSize: 18 }} />}
-            >
-              Share / Templates
-            </Button>
-          </span>
-        </Tooltip>
-        {match.scoringUrl && (
-          <Button
-            variant="outlined"
-            startIcon={<ScoreboardOutlined />}
-            href={match.scoringUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            component="a"
-          >
-            Live Scoring
-          </Button>
-        )}
-        {match.youtubeUrl && (
-          <Button
-            variant="outlined"
-            startIcon={<YouTube />}
-            href={match.youtubeUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            component="a"
-            sx={{ color: '#FF0000', borderColor: '#FF0000', '&:hover': { borderColor: '#CC0000', bgcolor: 'rgba(255,0,0,0.04)' } }}
-          >
-            Watch Live
-          </Button>
-        )}
-        <Tooltip title={!side?.teamAnnounced ? 'Team has not been announced yet' : ''}>
-          <span>
-            <Button variant="contained" startIcon={<Print />} disabled={!side?.teamAnnounced} onClick={() => {
-              const teamSponsors = selectedTeamId === match!.homeTeamId ? homeTeamData?.sponsors : awayTeamData?.sponsors;
-              printTeamSheet(match!, side!, xi, captain, twelfth, teamName!, teamSponsors);
-            }}>
-              Print {teamName}
-            </Button>
-          </span>
-        </Tooltip>
       </Box>
 
       {/* Printable content */}
@@ -229,7 +182,7 @@ export const MatchTeamSheet: React.FC = () => {
           </Box>
         </Paper>
 
-        <Paper variant="outlined" sx={{ p: 2, maxWidth: 600, mx: 'auto' }}>
+        <Paper variant="outlined" sx={{ p: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Typography variant="h6" fontWeight="bold">{teamName}</Typography>
             <Chip label={`${xi.length}/11`} size="small" color={xi.length === 11 ? 'success' : 'warning'} />

@@ -14,4 +14,10 @@ public interface MatchSideRepository extends JpaRepository<MatchSide, Long> {
 
     @Query("SELECT ms FROM MatchSide ms JOIN ms.playingXi pid WHERE pid = :playerId")
     List<MatchSide> findByPlayingXiContaining(@Param("playerId") Long playerId);
+
+    @Query("SELECT ms FROM MatchSide ms WHERE ms.match.tournament.tournamentId = :tournamentId " +
+           "AND ms.team.teamId = :teamId " +
+           "AND ms.match.result IS NOT NULL AND ms.match.result.matchCompleted = true")
+    List<MatchSide> findCompletedByTournamentAndTeam(@Param("tournamentId") Long tournamentId,
+                                                     @Param("teamId") Long teamId);
 }

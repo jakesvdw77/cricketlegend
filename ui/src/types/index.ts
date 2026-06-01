@@ -416,6 +416,122 @@ export interface MatchResult {
   resultVisibility?: ResultVisibility;
 }
 
+export interface AiTeamPick {
+  selectionRationale: string;
+  bowlingRotation: string;
+  fairnessNote: string | null;
+  selectedXi: Array<{
+    name: string;
+    battingPosition: number | null;
+    role: 'BAT' | 'BOWL' | 'AR' | 'WK';
+    selectionReason: string;
+  }>;
+  twelfthMan: {
+    name: string;
+    battingPosition: null;
+    role: 'BAT' | 'BOWL' | 'AR' | 'WK';
+    selectionReason: string;
+  } | null;
+  resolvedXiPlayerIds: number[];
+  resolvedTwelfthManId: number | null;
+  chartData: {
+    availabilitySummary: Array<{ label: string; count: number }>;
+    tournamentAppearances: Array<{ player: string; matches: number; selected: boolean }>;
+  };
+}
+
+export interface XiAnalysis {
+  xiSummary: string;
+  battingOrderSuggestion: string;
+  bowlingPlanSuggestion: string;
+  strengths: string[];
+  concerns: string[];
+  recommendations: string[];
+  chartData: {
+    xiStrengthRadar: Array<{ skill: string; score: number | null }>;
+    battingPositionBreakdown: Array<{ label: string; count: number }>;
+    bowlingVariety: Array<{ label: string; count: number }>;
+    playerRoles: Array<{
+      name: string;
+      battingPosition: number | null;
+      role: 'BAT' | 'BOWL' | 'AR' | 'WK';
+      rating: number | null;
+      keyContribution: string;
+    }>;
+  };
+}
+
+export interface SquadAnalysis {
+  squadSummary: string;
+  balanceVerdict: string;
+  strengths: string[];
+  weaknesses: string[];
+  selectionRecommendations: string[];
+  keyPlayers: Array<{
+    name: string;
+    primaryRole: 'BAT' | 'BOWL' | 'WK' | 'AR';
+    keySkill: string;
+    rating: number | null;
+    isKeyPlayer: boolean;
+  }>;
+  chartData: {
+    squadStrengthRadar: Array<{ skill: string; score: number | null }>;
+    roleDistribution: Array<{ label: string; count: number }>;
+    bowlingVariety: Array<{ label: string; count: number }>;
+    battingDepth: Array<{ label: string; count: number }>;
+    playerProfiles: Array<{
+      name: string;
+      primaryRole: 'BAT' | 'BOWL' | 'WK' | 'AR';
+      rating: number | null;
+      keySkill: string;
+      isKeyPlayer: boolean;
+    }>;
+  };
+}
+
+export interface MatchAnalysis {
+  matchSummary: string;
+  teamPerformance: {
+    battingRating: number;
+    bowlingRating: number;
+    overallRating: number;
+    verdict: string;
+  };
+  keyInsights: string[];
+  playerHighlights: Array<{
+    name: string;
+    role: 'BAT' | 'BOWL';
+    achievement: string;
+    isStandout: boolean;
+  }>;
+  recommendations: string[];
+  chartData: {
+    battingContributions: Array<{
+      player: string;
+      runs: number;
+      balls: number;
+      strikeRate: number;
+      fours: number;
+      sixes: number;
+      isTopPerformer: boolean;
+    }>;
+    bowlingAnalysis: Array<{
+      player: string;
+      overs: number;
+      runs: number;
+      wickets: number;
+      economy: number;
+      maidens: number;
+      isTopPerformer: boolean;
+    }>;
+    dismissalBreakdown: Array<{ type: string; count: number }>;
+    teamComparison: {
+      myTeam: { name: string; runs: number; wickets: number; overs: string; runRate: number };
+      opposition: { name: string; runs: number; wickets: number; overs: string; runRate: number };
+    };
+  };
+}
+
 export interface PlayerResult {
   playerResultId?: number;
   playerId?: number;
@@ -447,6 +563,7 @@ export interface PlayerAvailabilityEntry {
   playerId: number;
   playerName: string;
   status?: AvailabilityStatus;
+  profilePictureUrl?: string;
 }
 
 export interface MatchPoll {

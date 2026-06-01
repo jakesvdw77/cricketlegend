@@ -18,4 +18,5 @@ public interface MatchPollService {
     void clearAllNotifications(String email);
     void sendManagerNotification(String subject, String message, String managerEmail, boolean isAdmin, Long teamId, Long clubId);
     void resendPollNotifications(Long matchId, Long teamId);
+    void closePollIfOpen(Long matchId, Long teamId);
 }

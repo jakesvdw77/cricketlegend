@@ -259,11 +259,6 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>;
   if (!match)  return <Alert severity="error">Match not found.</Alert>;
 
-  const xiPlayerIds = new Set(teamSheets.flatMap(s => s.playingXi ?? []));
-  const motmPlayers: Player[] = xiPlayerIds.size > 0
-    ? allPlayers.filter(p => xiPlayerIds.has(p.playerId!))
-    : allPlayers;
-
   const teams = [
     { id: match.homeTeamId,        name: match.homeTeamName },
     { id: match.oppositionTeamId,  name: match.oppositionTeamName },
@@ -294,10 +289,6 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
 
   const firstCard:  TeamScorecard = result.scoreCard?.teamA ?? {};
   const secondCard: TeamScorecard = result.scoreCard?.teamB ?? {};
-
-  const motmPlayer = motmPlayers.find(p => p.playerId === result.manOfTheMatchId);
-  const motmName   = result.manOfTheMatchName
-    ?? (motmPlayer ? `${motmPlayer.name} ${motmPlayer.surname}` : null);
 
   const scorecardNames = Array.from(new Set([
     ...(firstCard.batting  ?? []).map(b => b.playerName),
@@ -416,7 +407,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
         setResultOpen(false);
       }}
     >
-      Sync Scorecard
+      Scorecard
     </Button>
   );
 
@@ -428,7 +419,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
       disabled={!!result.forfeited || !!result.noResult}
       onClick={() => { handleAutoCalculate(); setTossOpen(false); setScoresOpen(false); setResultOpen(true); }}
     >
-      Calculate Result
+      Result
     </Button>
   );
 
@@ -440,12 +431,14 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <Button startIcon={<ArrowBack />} onClick={() => dirty ? setConfirmLeave(true) : onBack()}>Back to Results</Button>
-        <Typography variant="h5" sx={{ flex: 1 }}>Capture Result</Typography>
-        {saveButton}
-      </Box>
+      {/* Header — hidden when embedded (sticky=false) */}
+      {sticky && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Button startIcon={<ArrowBack />} onClick={() => dirty ? setConfirmLeave(true) : onBack()}>Back to Results</Button>
+          <Typography variant="h5" sx={{ flex: 1 }}>Capture Result</Typography>
+          {saveButton}
+        </Box>
+      )}
 
       <Dialog open={confirmLeave} onClose={() => setConfirmLeave(false)}>
         <DialogTitle>Unsaved Changes</DialogTitle>
@@ -515,30 +508,41 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
         </DialogActions>
       </Dialog>
 
-      {/* Sticky header: banner + tabs */}
-      <Box sx={{ ...(sticky ? { position: 'sticky', top: { xs: 56, sm: 64 }, zIndex: 10 } : {}), bgcolor: 'background.default', mb: 2 }}>
-        <Paper variant="outlined" sx={{ p: 2, mb: 0, bgcolor: 'background.paper' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
-            <Box>
-              <Typography variant="h6" fontWeight={700} gutterBottom>
-                {match.homeTeamName} <Typography component="span" color="text.secondary">vs</Typography> {match.oppositionTeamName}
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                {match.tournamentName      && <Chip icon={<EmojiEvents />}    label={match.tournamentName}            size="small" color="primary" variant="outlined" />}
-                {match.matchDate           && <Chip icon={<CalendarMonth />}  label={String(match.matchDate)}          size="small" variant="outlined" />}
-                {match.fieldName           && <Chip icon={<LocationOn />}     label={match.fieldName}                  size="small" variant="outlined" />}
-                {match.umpire              && <Chip icon={<SportsCricket />}  label={`Umpire: ${match.umpire}`}        size="small" variant="outlined" />}
-                {tournament?.cricketFormat && <Chip icon={<SportsCricket />}  label={tournament.cricketFormat}         size="small" variant="outlined" />}
+      {/* Sticky banner — full version when standalone, compact action bar when embedded */}
+      {sticky ? (
+        <Box sx={{ position: 'sticky', top: { xs: 56, sm: 64 }, zIndex: 10, bgcolor: 'background.default', mb: 2 }}>
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.paper' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
+              <Box>
+                <Typography variant="h6" fontWeight={700} gutterBottom>
+                  {match.homeTeamName} <Typography component="span" color="text.secondary">vs</Typography> {match.oppositionTeamName}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  {match.tournamentName      && <Chip icon={<EmojiEvents />}    label={match.tournamentName}            size="small" color="primary" variant="outlined" />}
+                  {match.matchDate           && <Chip icon={<CalendarMonth />}  label={String(match.matchDate)}          size="small" variant="outlined" />}
+                  {match.fieldName           && <Chip icon={<LocationOn />}     label={match.fieldName}                  size="small" variant="outlined" />}
+                  {match.umpire              && <Chip icon={<SportsCricket />}  label={`Umpire: ${match.umpire}`}        size="small" variant="outlined" />}
+                  {tournament?.cricketFormat && <Chip icon={<SportsCricket />}  label={tournament.cricketFormat}         size="small" variant="outlined" />}
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                {syncScorecardButton}
+                {autoCalculateButton}
+                {viewStandingsButton}
               </Box>
             </Box>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-              {syncScorecardButton}
-              {autoCalculateButton}
-              {viewStandingsButton}
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
+          </Paper>
+        </Box>
+      ) : (
+        /* Embedded: compact action row — no match info (already shown in parent header) */
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
+          {syncScorecardButton}
+          {autoCalculateButton}
+          {viewStandingsButton}
+          <Box sx={{ flex: 1 }} />
+          {saveButton}
+        </Box>
+      )}
 
       {error && <Alert severity="error"   sx={{ mb: 2 }}>{error}</Alert>}
       {saved  && <Alert severity="success" sx={{ mb: 2 }}>Result saved successfully.</Alert>}
@@ -604,12 +608,12 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
           </Section>
 
           <Section title="Toss" collapsible open={tossOpen} onToggle={() => setTossOpen(o => !o)}>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
               <TextField
                 select label="Toss Won By" value={match.tossWonBy ?? ''}
                 disabled={!!result.forfeited || !!result.noResult}
                 onChange={e => patchMatch({ tossWonBy: e.target.value as TossWinner || undefined })}
-                sx={{ minWidth: 220 }}
+                fullWidth
               >
                 <MenuItem value=""><em>— Unknown —</em></MenuItem>
                 <MenuItem value="HOME">{match.homeTeamName ?? 'Home Team'}</MenuItem>
@@ -619,7 +623,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
                 select label="Toss Decision" value={match.tossDecision ?? ''}
                 disabled={!!result.forfeited || !!result.noResult}
                 onChange={e => patchMatch({ tossDecision: e.target.value as TossDecision || undefined })}
-                sx={{ minWidth: 220 }}
+                fullWidth
               >
                 <MenuItem value=""><em>— Unknown —</em></MenuItem>
                 <MenuItem value="BAT">Decided to bat first</MenuItem>
@@ -640,19 +644,19 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               1st Innings{firstInningsTeam ? ` — ${firstInningsTeam.name}` : ''}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-              <TextField label="Score"   type="number" size="small" sx={{ width: 110 }} value={num(result.scoreBattingFirst)}          disabled={!result.matchCompleted || !!result.forfeited} onChange={e => set({ scoreBattingFirst:          e.target.value ? +e.target.value : undefined })} />
-              <TextField label="Wickets" type="number" size="small" sx={{ width: 100 }} value={num(result.wicketsLostBattingFirst)}     disabled={!result.matchCompleted || !!result.forfeited} inputProps={{ min: 0, max: 10 }} onChange={e => set({ wicketsLostBattingFirst:  e.target.value ? +e.target.value : undefined })} />
-              <TextField label="Overs"              size="small" sx={{ width: 100 }} value={result.oversBattingFirst ?? ''}          disabled={!result.matchCompleted || !!result.forfeited} placeholder="e.g. 20.0" onChange={e => set({ oversBattingFirst: e.target.value })} />
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 2 }}>
+              <TextField label="Score"   type="number" size="small" fullWidth value={num(result.scoreBattingFirst)}          disabled={!result.matchCompleted || !!result.forfeited} onChange={e => set({ scoreBattingFirst:          e.target.value ? +e.target.value : undefined })} />
+              <TextField label="Wickets" type="number" size="small" fullWidth value={num(result.wicketsLostBattingFirst)}     disabled={!result.matchCompleted || !!result.forfeited} inputProps={{ min: 0, max: 10 }} onChange={e => set({ wicketsLostBattingFirst:  e.target.value ? +e.target.value : undefined })} />
+              <TextField label="Overs"              size="small" fullWidth value={result.oversBattingFirst ?? ''}          disabled={!result.matchCompleted || !!result.forfeited} placeholder="e.g. 20.0" onChange={e => set({ oversBattingFirst: e.target.value })} />
             </Box>
 
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               2nd Innings{secondInningsTeam ? ` — ${secondInningsTeam.name}` : ''}
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <TextField label="Score"   type="number" size="small" sx={{ width: 110 }} value={num(result.scoreBattingSecond)}         disabled={!result.matchCompleted || !!result.forfeited} onChange={e => set({ scoreBattingSecond:         e.target.value ? +e.target.value : undefined })} />
-              <TextField label="Wickets" type="number" size="small" sx={{ width: 100 }} value={num(result.wicketsLostBattingSecond)}    disabled={!result.matchCompleted || !!result.forfeited} inputProps={{ min: 0, max: 10 }} onChange={e => set({ wicketsLostBattingSecond: e.target.value ? +e.target.value : undefined })} />
-              <TextField label="Overs"              size="small" sx={{ width: 100 }} value={result.oversBattingSecond ?? ''}         disabled={!result.matchCompleted || !!result.forfeited} placeholder="e.g. 18.3" onChange={e => set({ oversBattingSecond: e.target.value })} />
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+              <TextField label="Score"   type="number" size="small" fullWidth value={num(result.scoreBattingSecond)}         disabled={!result.matchCompleted || !!result.forfeited} onChange={e => set({ scoreBattingSecond:         e.target.value ? +e.target.value : undefined })} />
+              <TextField label="Wickets" type="number" size="small" fullWidth value={num(result.wicketsLostBattingSecond)}    disabled={!result.matchCompleted || !!result.forfeited} inputProps={{ min: 0, max: 10 }} onChange={e => set({ wicketsLostBattingSecond: e.target.value ? +e.target.value : undefined })} />
+              <TextField label="Overs"              size="small" fullWidth value={result.oversBattingSecond ?? ''}         disabled={!result.matchCompleted || !!result.forfeited} placeholder="e.g. 18.3" onChange={e => set({ oversBattingSecond: e.target.value })} />
             </Box>
           </Section>
 

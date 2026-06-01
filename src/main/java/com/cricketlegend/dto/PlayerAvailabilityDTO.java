@@ -8,4 +8,5 @@ public class PlayerAvailabilityDTO {
     private Long playerId;
     private String playerName;
     private AvailabilityStatus status;
+    private String profilePictureUrl;
 }

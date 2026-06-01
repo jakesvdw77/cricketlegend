@@ -169,8 +169,8 @@ export const Matches: React.FC = () => {
     return (
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <Typography variant="h5" sx={{ flex: 1 }}>{editing.matchId ? 'Edit' : 'New'} Match</Typography>
           <Button startIcon={<ArrowBack />} onClick={handleClose}>Back</Button>
-          <Typography variant="h6" sx={{ flex: 1 }}>{editing.matchId ? 'Edit' : 'New'} Match</Typography>
           <Button variant="contained" onClick={saveMatchDetails}>Save</Button>
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 700 }}>
