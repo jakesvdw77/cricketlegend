@@ -4,7 +4,7 @@ import {
   Table, TableHead, TableRow, TableCell, TableBody, Tooltip, CircularProgress,
 } from '@mui/material';
 import {
-  Print, ArrowBack, Star, SportsCricket, ScoreboardOutlined, Share, YouTube,
+  ArrowBack, Star, SportsCricket,
 } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
@@ -119,10 +119,6 @@ export const MatchTeamSheet: React.FC = () => {
 
   const homeSide = sides.find(s => s.teamId === match.homeTeamId);
   const awaySide = sides.find(s => s.teamId === match.oppositionTeamId);
-  const homeSideAnnounced  = homeSide?.teamAnnounced ?? false;
-  const awaySideAnnounced  = awaySide?.teamAnnounced ?? false;
-  const eitherAnnounced    = homeSideAnnounced || awaySideAnnounced;
-
   const handlePrint = (scope: 'both' | 'home' | 'away') => {
     if (scope === 'both') {
       if (homeSide) {

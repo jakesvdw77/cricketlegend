@@ -1,5 +1,6 @@
 package com.cricketlegend.service;
 
+import com.cricketlegend.domain.AiAnalysisCache;
 import com.cricketlegend.domain.MatchResult;
 import com.cricketlegend.domain.scorecard.BattingEntry;
 import com.cricketlegend.domain.scorecard.BowlingEntry;
@@ -7,25 +8,33 @@ import com.cricketlegend.domain.scorecard.ScorecardData;
 import com.cricketlegend.domain.scorecard.TeamScorecard;
 import com.cricketlegend.dto.MatchAnalysisDTO;
 import com.cricketlegend.exception.NotFoundException;
+import com.cricketlegend.repository.AiAnalysisCacheRepository;
 import com.cricketlegend.repository.MatchResultRepository;
 import com.cricketlegend.repository.TeamRepository;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.type.LogicalType;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MatchAnalysisService {
 
+    private static final String TYPE = "match_analysis";
     private static final ObjectMapper LENIENT_MAPPER = buildLenientMapper();
 
     private static ObjectMapper buildLenientMapper() {
@@ -36,14 +45,35 @@ public class MatchAnalysisService {
                 .setCoercion(CoercionInputShape.String, CoercionAction.AsNull);
         m.coercionConfigFor(LogicalType.Integer)
                 .setCoercion(CoercionInputShape.String, CoercionAction.AsNull);
+        m.registerModule(new JavaTimeModule());
+        m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return m;
     }
 
     private final MatchResultRepository matchResultRepository;
     private final TeamRepository teamRepository;
     private final AiService aiService;
+    private final AiAnalysisCacheRepository cacheRepository;
 
-    public MatchAnalysisDTO analyze(Long matchId, Long teamId) {
+    @Transactional
+    public MatchAnalysisDTO analyze(Long matchId, Long teamId, boolean regenerate) {
+        if (!regenerate) {
+            Optional<AiAnalysisCache> cached =
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(TYPE, matchId, teamId);
+            if (cached.isPresent()) {
+                try {
+                    MatchAnalysisDTO dto = LENIENT_MAPPER.readValue(cached.get().getResultJson(), MatchAnalysisDTO.class);
+                    dto.setGeneratedAt(cached.get().getGeneratedAt());
+                    return dto;
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize cached match analysis for match {} team {}, regenerating", matchId, teamId, e);
+                }
+            }
+        }
+        return generate(matchId, teamId);
+    }
+
+    private MatchAnalysisDTO generate(Long matchId, Long teamId) {
         MatchResult result = matchResultRepository.findByMatchMatchId(matchId)
                 .orElseThrow(() -> new NotFoundException("No result found for match " + matchId));
 
@@ -79,17 +109,44 @@ public class MatchAnalysisService {
         String systemPrompt = buildSystemPrompt(teamName);
         String userPrompt = buildUserPrompt(result, teamName, homeTeamName, oppTeamName, matchDate, myCard, oppCard);
 
-        String raw = aiService.call(null, null, "match_analysis", systemPrompt, userPrompt);
+        String raw = aiService.call(null, null, TYPE, systemPrompt, userPrompt);
 
         String json = raw.trim();
         if (json.startsWith("```")) {
             json = json.replaceFirst("(?s)```[a-z]*\\s*", "").replaceFirst("(?s)```\\s*$", "").trim();
         }
 
+        MatchAnalysisDTO dto;
         try {
-            return LENIENT_MAPPER.readValue(json, MatchAnalysisDTO.class);
+            dto = LENIENT_MAPPER.readValue(json, MatchAnalysisDTO.class);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to parse AI analysis: " + e.getMessage(), e);
+        }
+
+        dto.setGeneratedAt(LocalDateTime.now());
+        saveCache(matchId, teamId, dto);
+        return dto;
+    }
+
+    private void saveCache(Long matchId, Long teamId, MatchAnalysisDTO dto) {
+        try {
+            String resultJson = LENIENT_MAPPER.writeValueAsString(dto);
+            Optional<AiAnalysisCache> existing =
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(TYPE, matchId, teamId);
+            AiAnalysisCache entry = existing.map(c -> {
+                c.setResultJson(resultJson);
+                c.setGeneratedAt(dto.getGeneratedAt());
+                return c;
+            }).orElseGet(() -> AiAnalysisCache.builder()
+                    .analysisType(TYPE)
+                    .primaryId(matchId)
+                    .secondaryId(teamId)
+                    .generatedAt(dto.getGeneratedAt())
+                    .resultJson(resultJson)
+                    .build());
+            cacheRepository.save(entry);
+        } catch (Exception e) {
+            log.warn("Failed to cache match analysis for match {} team {}", matchId, teamId, e);
         }
     }
 

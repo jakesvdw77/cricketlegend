@@ -1,28 +1,37 @@
 package com.cricketlegend.service;
 
+import com.cricketlegend.domain.AiAnalysisCache;
 import com.cricketlegend.domain.Player;
 import com.cricketlegend.domain.Team;
 import com.cricketlegend.domain.enums.BowlingType;
 import com.cricketlegend.dto.SquadAnalysisDTO;
 import com.cricketlegend.exception.NotFoundException;
+import com.cricketlegend.repository.AiAnalysisCacheRepository;
 import com.cricketlegend.repository.PlayerRepository;
 import com.cricketlegend.repository.TeamRepository;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.type.LogicalType;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SquadAnalysisService {
 
+    private static final String TYPE = "squad_analysis";
     private static final ObjectMapper LENIENT_MAPPER = buildLenientMapper();
 
     private static ObjectMapper buildLenientMapper() {
@@ -32,14 +41,32 @@ public class SquadAnalysisService {
                 .setCoercion(CoercionInputShape.String, CoercionAction.AsNull);
         m.coercionConfigFor(LogicalType.Integer)
                 .setCoercion(CoercionInputShape.String, CoercionAction.AsNull);
+        m.registerModule(new JavaTimeModule());
+        m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return m;
     }
 
     private final TeamRepository teamRepository;
     private final PlayerRepository playerRepository;
     private final AiService aiService;
+    private final AiAnalysisCacheRepository cacheRepository;
 
-    public SquadAnalysisDTO analyze(Long teamId) {
+    @Transactional
+    public SquadAnalysisDTO analyze(Long teamId, boolean regenerate) {
+        if (!regenerate) {
+            Optional<AiAnalysisCache> cached =
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryIdIsNull(TYPE, teamId);
+            if (cached.isPresent()) {
+                try {
+                    SquadAnalysisDTO dto = LENIENT_MAPPER.readValue(cached.get().getResultJson(), SquadAnalysisDTO.class);
+                    dto.setGeneratedAt(cached.get().getGeneratedAt());
+                    return dto;
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize cached squad analysis for team {}, regenerating", teamId, e);
+                }
+            }
+        }
+
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> NotFoundException.of("Team", teamId));
 
@@ -52,17 +79,43 @@ public class SquadAnalysisService {
         String systemPrompt = buildSystemPrompt(team.getTeamName());
         String userPrompt   = buildUserPrompt(team, squad);
 
-        String raw = aiService.call(null, null, "squad_analysis", systemPrompt, userPrompt);
+        String raw = aiService.call(null, null, TYPE, systemPrompt, userPrompt);
 
         String json = raw.trim();
         if (json.startsWith("```")) {
             json = json.replaceFirst("(?s)```[a-z]*\\s*", "").replaceFirst("(?s)```\\s*$", "").trim();
         }
 
+        SquadAnalysisDTO dto;
         try {
-            return LENIENT_MAPPER.readValue(json, SquadAnalysisDTO.class);
+            dto = LENIENT_MAPPER.readValue(json, SquadAnalysisDTO.class);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to parse squad analysis: " + e.getMessage(), e);
+        }
+
+        dto.setGeneratedAt(LocalDateTime.now());
+        saveCache(teamId, dto);
+        return dto;
+    }
+
+    private void saveCache(Long teamId, SquadAnalysisDTO dto) {
+        try {
+            String resultJson = LENIENT_MAPPER.writeValueAsString(dto);
+            Optional<AiAnalysisCache> existing =
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryIdIsNull(TYPE, teamId);
+            AiAnalysisCache entry = existing.map(c -> {
+                c.setResultJson(resultJson);
+                c.setGeneratedAt(dto.getGeneratedAt());
+                return c;
+            }).orElseGet(() -> AiAnalysisCache.builder()
+                    .analysisType(TYPE)
+                    .primaryId(teamId)
+                    .generatedAt(dto.getGeneratedAt())
+                    .resultJson(resultJson)
+                    .build());
+            cacheRepository.save(entry);
+        } catch (Exception e) {
+            log.warn("Failed to cache squad analysis for team {}", teamId, e);
         }
     }
 

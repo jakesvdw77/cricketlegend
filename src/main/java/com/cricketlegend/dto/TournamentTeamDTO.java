@@ -9,4 +9,5 @@ public class TournamentTeamDTO {
     private Long teamId;
     private String teamName;
     private String abbreviation;
+    private String logoUrl;
 }

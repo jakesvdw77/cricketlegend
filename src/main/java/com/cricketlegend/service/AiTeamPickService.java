@@ -1,5 +1,6 @@
 package com.cricketlegend.service;
 
+import com.cricketlegend.domain.AiAnalysisCache;
 import com.cricketlegend.domain.Match;
 import com.cricketlegend.domain.MatchAvailabilityPoll;
 import com.cricketlegend.domain.MatchSide;
@@ -9,6 +10,7 @@ import com.cricketlegend.domain.enums.AvailabilityStatus;
 import com.cricketlegend.domain.enums.BowlingType;
 import com.cricketlegend.dto.AiTeamPickDTO;
 import com.cricketlegend.exception.NotFoundException;
+import com.cricketlegend.repository.AiAnalysisCacheRepository;
 import com.cricketlegend.repository.MatchAvailabilityPollRepository;
 import com.cricketlegend.repository.MatchRepository;
 import com.cricketlegend.repository.MatchSideRepository;
@@ -17,14 +19,17 @@ import com.cricketlegend.repository.PlayerRepository;
 import com.cricketlegend.repository.TeamRepository;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.type.LogicalType;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,6 +39,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AiTeamPickService {
 
+    private static final String TYPE = "ai_team_pick";
     private static final ObjectMapper MAPPER = buildMapper();
 
     private static ObjectMapper buildMapper() {
@@ -41,6 +47,8 @@ public class AiTeamPickService {
         m.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         m.coercionConfigFor(LogicalType.Float).setCoercion(CoercionInputShape.String, CoercionAction.AsNull);
         m.coercionConfigFor(LogicalType.Integer).setCoercion(CoercionInputShape.String, CoercionAction.AsNull);
+        m.registerModule(new JavaTimeModule());
+        m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return m;
     }
 
@@ -51,8 +59,27 @@ public class AiTeamPickService {
     private final MatchAvailabilityPollRepository pollRepository;
     private final PlayerAvailabilityRepository   availabilityRepository;
     private final AiService                      aiService;
+    private final AiAnalysisCacheRepository      cacheRepository;
 
-    public AiTeamPickDTO pick(Long matchId, Long teamId) {
+    @Transactional
+    public AiTeamPickDTO pick(Long matchId, Long teamId, boolean regenerate) {
+        if (!regenerate) {
+            Optional<AiAnalysisCache> cached =
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(TYPE, matchId, teamId);
+            if (cached.isPresent()) {
+                try {
+                    AiTeamPickDTO dto = MAPPER.readValue(cached.get().getResultJson(), AiTeamPickDTO.class);
+                    dto.setGeneratedAt(cached.get().getGeneratedAt());
+                    return dto;
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize cached team pick for match {} team {}, regenerating", matchId, teamId, e);
+                }
+            }
+        }
+        return generate(matchId, teamId);
+    }
+
+    private AiTeamPickDTO generate(Long matchId, Long teamId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> NotFoundException.of("Match", matchId));
 
@@ -151,7 +178,31 @@ public class AiTeamPickService {
                 )).collect(Collectors.toList());
 
         dto.setChartData(new AiTeamPickDTO.ChartData(availSummary, appearances));
+        dto.setGeneratedAt(LocalDateTime.now());
+        saveCache(matchId, teamId, dto);
         return dto;
+    }
+
+    private void saveCache(Long matchId, Long teamId, AiTeamPickDTO dto) {
+        try {
+            String resultJson = MAPPER.writeValueAsString(dto);
+            Optional<AiAnalysisCache> existing =
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(TYPE, matchId, teamId);
+            AiAnalysisCache entry = existing.map(c -> {
+                c.setResultJson(resultJson);
+                c.setGeneratedAt(dto.getGeneratedAt());
+                return c;
+            }).orElseGet(() -> AiAnalysisCache.builder()
+                    .analysisType(TYPE)
+                    .primaryId(matchId)
+                    .secondaryId(teamId)
+                    .generatedAt(dto.getGeneratedAt())
+                    .resultJson(resultJson)
+                    .build());
+            cacheRepository.save(entry);
+        } catch (Exception e) {
+            log.warn("Failed to cache team pick for match {} team {}", matchId, teamId, e);
+        }
     }
 
     private String buildSystemPrompt(String teamName, boolean inTournament) {

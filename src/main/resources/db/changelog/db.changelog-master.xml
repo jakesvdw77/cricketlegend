@@ -70,5 +70,7 @@
     <include file="db/changelog/v1/063-mail-settings.sql"/>
     <include file="db/changelog/v1/064-ai-settings.sql"/>
     <include file="db/changelog/v1/065-ai-usage-log.sql"/>
+    <include file="db/changelog/v1/066-ai-analysis-cache.sql"/>
+    <include file="db/changelog/v1/067-user-login-event-email.sql"/>
 
 </databaseChangeLog>

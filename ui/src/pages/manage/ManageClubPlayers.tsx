@@ -154,7 +154,7 @@ export const ManageClubPlayers: React.FC = () => {
       ) : (
         <Grid container spacing={2}>
           {players.map(player => (
-            <Grid item xs={12} sm={6} md={4} lg={3} key={player.playerId}>
+            <Grid item xs={12} sm={6} key={player.playerId}>
               <PlayerCard
                 player={player}
                 onEdit={setEditing}

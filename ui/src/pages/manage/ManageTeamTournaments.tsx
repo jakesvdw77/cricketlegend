@@ -3,17 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Grid, Card, CardContent, CardActions,
   Avatar, Button, Chip, Skeleton, ToggleButtonGroup, ToggleButton,
-  Divider, Stack,
+  Divider, Stack, Dialog, DialogTitle, DialogContent, DialogActions,
+  List, ListItem, ListItemAvatar, ListItemText, CircularProgress,
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, Assignment, SportsScore, Leaderboard,
-  Image as ImageIcon,
+  Image as ImageIcon, Groups, SportsCricket,
 } from '@mui/icons-material';
 import { tournamentApi } from '../../api/tournamentApi';
 import { matchApi } from '../../api/matchApi';
-import { Tournament } from '../../types';
+import { teamApi } from '../../api/teamApi';
+import { Tournament, Player } from '../../types';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
 import { SchedulePickerDialog } from '../../components/SchedulePickerDialog';
+import { playerDescription } from '../../utils/playerDescription';
 
 const fmtDate = (d?: string) => {
   if (!d) return null;
@@ -41,6 +44,9 @@ export const ManageTeamTournaments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'active' | 'past'>('active');
   const [schedulePicker, setSchedulePicker] = useState<Tournament | null>(null);
+  const [squadPick, setSquadPick] = useState<{ teamId: number; teamName: string; tournamentName: string } | null>(null);
+  // maps tournamentId -> first matching manager teamId
+  const [tournamentTeamMap, setTournamentTeamMap] = useState<Map<number, number>>(new Map());
 
   useEffect(() => {
     if (!loaded) return;
@@ -51,24 +57,35 @@ export const ManageTeamTournaments: React.FC = () => {
       matchApi.findAll(),
     ]).then(([allTournaments, allMatches]) => {
       let relevant: Tournament[];
+      const tMap = new Map<number, number>();
 
       if (restrictByTeam && teamIds.size > 0) {
-        // Collect tournament IDs from matches involving manager's teams
         const tournamentIdSet = new Set<number>();
         for (const m of allMatches) {
-          if (
-            m.tournamentId != null &&
-            (teamIds.has(m.homeTeamId!) || teamIds.has(m.oppositionTeamId!))
-          ) {
-            tournamentIdSet.add(m.tournamentId);
+          if (m.tournamentId != null) {
+            if (teamIds.has(m.homeTeamId!)) {
+              tournamentIdSet.add(m.tournamentId);
+              if (!tMap.has(m.tournamentId)) tMap.set(m.tournamentId, m.homeTeamId!);
+            }
+            if (teamIds.has(m.oppositionTeamId!)) {
+              tournamentIdSet.add(m.tournamentId);
+              if (!tMap.has(m.tournamentId)) tMap.set(m.tournamentId, m.oppositionTeamId!);
+            }
           }
         }
         relevant = allTournaments.filter(t => t.tournamentId != null && tournamentIdSet.has(t.tournamentId));
       } else {
         relevant = allTournaments;
+        // For admins, pick any team from teamIds (or none)
+        for (const m of allMatches) {
+          if (m.tournamentId != null && !tMap.has(m.tournamentId) && m.homeTeamId != null) {
+            tMap.set(m.tournamentId, m.homeTeamId);
+          }
+        }
       }
 
       setTournaments(relevant);
+      setTournamentTeamMap(tMap);
     }).finally(() => setLoading(false));
   }, [loaded, restrictByTeam, teamIds]);
 
@@ -131,6 +148,8 @@ export const ManageTeamTournaments: React.FC = () => {
                 tournament={t}
                 onNavigate={navigate}
                 onFullSchedule={t => setSchedulePicker(t)}
+                onViewSquad={teamId => setSquadPick({ teamId, teamName: '', tournamentName: t.name })}
+                squadTeamId={t.tournamentId != null ? tournamentTeamMap.get(t.tournamentId) : undefined}
               />
             </Grid>
           ))}
@@ -141,6 +160,14 @@ export const ManageTeamTournaments: React.FC = () => {
         tournament={schedulePicker}
         onClose={() => setSchedulePicker(null)}
       />
+
+      {squadPick && (
+        <TournamentSquadDialog
+          teamId={squadPick.teamId}
+          tournamentName={squadPick.tournamentName}
+          onClose={() => setSquadPick(null)}
+        />
+      )}
     </Box>
   );
 };
@@ -149,6 +176,8 @@ interface TournamentCardProps {
   tournament: Tournament;
   onNavigate: ReturnType<typeof useNavigate>;
   onFullSchedule: (t: Tournament) => void;
+  onViewSquad: (teamId: number) => void;
+  squadTeamId?: number;
 }
 
 const statusMeta: Record<'live' | 'upcoming' | 'past', { label: string; color: 'success' | 'primary' | 'default' }> = {
@@ -157,7 +186,7 @@ const statusMeta: Record<'live' | 'upcoming' | 'past', { label: string; color: '
   past:     { label: 'Past',     color: 'default' },
 };
 
-const TournamentCard: React.FC<TournamentCardProps> = ({ tournament: t, onNavigate, onFullSchedule }) => {
+const TournamentCard: React.FC<TournamentCardProps> = ({ tournament: t, onNavigate, onFullSchedule, onViewSquad, squadTeamId }) => {
   const status = tournamentStatus(t);
   const { label, color } = statusMeta[status];
 
@@ -259,7 +288,124 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament: t, onNaviga
             Standings
           </Button>
         )}
+        {squadTeamId && (
+          <Button
+            size="small"
+            startIcon={<Groups />}
+            onClick={() => onViewSquad(squadTeamId)}
+          >
+            Squad
+          </Button>
+        )}
       </CardActions>
     </Card>
+  );
+};
+
+// ── Tournament Squad Dialog ────────────────────────────────────────────────────
+
+interface TournamentSquadDialogProps {
+  teamId: number;
+  tournamentName: string;
+  onClose: () => void;
+}
+
+const TournamentSquadDialog: React.FC<TournamentSquadDialogProps> = ({ teamId, tournamentName, onClose }) => {
+  const [squad, setSquad] = useState<Player[]>([]);
+  const [teamName, setTeamName] = useState('');
+  const [captainId, setCaptainId] = useState<number | undefined>();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      teamApi.findById(teamId),
+      teamApi.getSquad(teamId),
+    ]).then(([team, players]) => {
+      setTeamName(team.teamName ?? '');
+      setCaptainId(team.captainId);
+      setSquad([...players].sort((a, b) => `${a.name} ${a.surname}`.localeCompare(`${b.name} ${b.surname}`)));
+    }).finally(() => setLoading(false));
+  }, [teamId]);
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Groups fontSize="small" color="primary" />
+        <Box>
+          <Typography variant="subtitle1" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
+            {teamName || 'Squad'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">{tournamentName}</Typography>
+        </Box>
+      </DialogTitle>
+
+      <DialogContent dividers sx={{ p: 0 }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress />
+          </Box>
+        ) : squad.length === 0 ? (
+          <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
+            <Groups sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} />
+            <Typography variant="body2">No squad members found.</Typography>
+          </Box>
+        ) : (
+          <>
+            <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+              <Chip
+                size="small"
+                icon={<Groups sx={{ fontSize: '14px !important' }} />}
+                label={`${squad.length} player${squad.length !== 1 ? 's' : ''}`}
+                variant="outlined"
+              />
+            </Box>
+            <List dense disablePadding>
+              {squad.map((p, idx) => {
+                const isCaptain = p.playerId === captainId;
+                const desc = playerDescription(p);
+                return (
+                  <React.Fragment key={p.playerId}>
+                    {idx > 0 && <Divider component="li" />}
+                    <ListItem sx={{ px: 2, py: 1 }}>
+                      <ListItemAvatar sx={{ minWidth: 46 }}>
+                        <Avatar src={p.profilePictureUrl} sx={{ width: 36, height: 36, fontSize: 14 }}>
+                          {p.name.charAt(0)}
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                            <Typography variant="body2" fontWeight={isCaptain ? 600 : 400}>
+                              {p.name} {p.surname}
+                              {p.shirtNumber != null && (
+                                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                                  #{p.shirtNumber}
+                                </Typography>
+                              )}
+                            </Typography>
+                            {isCaptain && <Chip label="C" size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem' }} />}
+                            {p.wicketKeeper && <Typography component="span" sx={{ fontSize: 14, lineHeight: 1 }}>🧤</Typography>}
+                            {p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler && (
+                              <SportsCricket sx={{ fontSize: 14, color: 'text.secondary' }} />
+                            )}
+                          </Box>
+                        }
+                        secondary={desc || undefined}
+                        secondaryTypographyProps={{ variant: 'caption' }}
+                      />
+                    </ListItem>
+                  </React.Fragment>
+                );
+              })}
+            </List>
+          </>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
   );
 };

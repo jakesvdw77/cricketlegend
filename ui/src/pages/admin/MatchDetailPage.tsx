@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Button, Tab, Tabs, Avatar,
   CircularProgress, Stack, Divider,
-  Tooltip, IconButton, Alert, Chip,
+  Tooltip, IconButton, Chip,
 } from '@mui/material';
 import {
   ArrowBack, CalendarMonth, AccessTime, LocationOn,

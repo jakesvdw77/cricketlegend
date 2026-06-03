@@ -6,7 +6,7 @@ import {
   CircularProgress, InputAdornment, Tabs, Tab, useTheme, useMediaQuery,
 } from '@mui/material';
 import {
-  Campaign, Cancel, CheckCircle, DragIndicator, Edit,
+  Cancel, CheckCircle, DragIndicator,
   HelpOutline, PersonAdd, PersonRemove, Search, SportsCricket, Warning,
   ArrowUpward, ArrowDownward,
 } from '@mui/icons-material';
@@ -45,7 +45,6 @@ export const TeamSidePanel: React.FC<Props> = ({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editConfirmOpen, setEditConfirmOpen] = useState(false);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
-  const [twelfthHover, setTwelfthHover] = useState(false);
   const [availabilityMap, setAvailabilityMap] = useState<Record<number, AvailabilityStatus>>({});
   const [overridePlayer, setOverridePlayer] = useState<Player | null>(null);
   const [subOpen, setSubOpen] = useState(false);
@@ -182,25 +181,6 @@ export const TeamSidePanel: React.FC<Props> = ({
     } else if (src.type === 'xi') {
       persist(latestSide.current);
     }
-  };
-
-  const handleTwelfthDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (dragSource.current?.type === 'squad') setTwelfthHover(true);
-  };
-
-  const handleTwelfthDragLeave = (e: React.DragEvent) => {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) setTwelfthHover(false);
-  };
-
-  const handleTwelfthDrop = (e: React.DragEvent) => {
-    e.stopPropagation();
-    setTwelfthHover(false);
-    const src = dragSource.current;
-    dragSource.current = null;
-    setDropIndex(null);
-    if (src?.type === 'squad' && !announced) persist({ ...side, twelfthManPlayerId: src.playerId });
   };
 
   const announced = !!side.teamAnnounced || matchCompleted;
@@ -430,20 +410,6 @@ export const TeamSidePanel: React.FC<Props> = ({
         blurOnSelect
       />
     </Box>
-  );
-
-  const announceButton = side.teamAnnounced ? (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Chip icon={<CheckCircle />} label="Team Announced" color="success" variant="outlined" />
-      <Button size="small" variant="outlined" color="warning" startIcon={<Edit />} onClick={() => setEditConfirmOpen(true)}>
-        Edit
-      </Button>
-    </Box>
-  ) : (
-    <Button size="small" variant="outlined" startIcon={<Campaign />}
-      onClick={() => setConfirmOpen(true)} disabled={xi.length < 11} sx={{ whiteSpace: 'nowrap' }}>
-      Announce
-    </Button>
   );
 
   // ── MOBILE layout ────────────────────────────────────────────────────────

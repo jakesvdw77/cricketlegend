@@ -1,34 +1,43 @@
 package com.cricketlegend.service;
 
+import com.cricketlegend.domain.AiAnalysisCache;
 import com.cricketlegend.domain.Match;
 import com.cricketlegend.domain.MatchSide;
 import com.cricketlegend.domain.Player;
 import com.cricketlegend.domain.enums.BowlingType;
 import com.cricketlegend.dto.XiAnalysisDTO;
 import com.cricketlegend.exception.NotFoundException;
+import com.cricketlegend.repository.AiAnalysisCacheRepository;
 import com.cricketlegend.repository.MatchRepository;
 import com.cricketlegend.repository.MatchSideRepository;
 import com.cricketlegend.repository.PlayerRepository;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.type.LogicalType;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class XiAnalysisService {
 
+    private static final String TYPE = "xi_analysis";
     private static final ObjectMapper LENIENT_MAPPER = buildMapper();
 
     private static ObjectMapper buildMapper() {
@@ -36,6 +45,8 @@ public class XiAnalysisService {
         m.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         m.coercionConfigFor(LogicalType.Float).setCoercion(CoercionInputShape.String, CoercionAction.AsNull);
         m.coercionConfigFor(LogicalType.Integer).setCoercion(CoercionInputShape.String, CoercionAction.AsNull);
+        m.registerModule(new JavaTimeModule());
+        m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return m;
     }
 
@@ -43,8 +54,27 @@ public class XiAnalysisService {
     private final MatchSideRepository matchSideRepository;
     private final PlayerRepository playerRepository;
     private final AiService aiService;
+    private final AiAnalysisCacheRepository cacheRepository;
 
-    public XiAnalysisDTO analyze(Long matchId, Long teamId) {
+    @Transactional
+    public XiAnalysisDTO analyze(Long matchId, Long teamId, boolean regenerate) {
+        if (!regenerate) {
+            Optional<AiAnalysisCache> cached =
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(TYPE, matchId, teamId);
+            if (cached.isPresent()) {
+                try {
+                    XiAnalysisDTO dto = LENIENT_MAPPER.readValue(cached.get().getResultJson(), XiAnalysisDTO.class);
+                    dto.setGeneratedAt(cached.get().getGeneratedAt());
+                    return dto;
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize cached XI analysis for match {} team {}, regenerating", matchId, teamId, e);
+                }
+            }
+        }
+        return generate(matchId, teamId);
+    }
+
+    private XiAnalysisDTO generate(Long matchId, Long teamId) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> NotFoundException.of("Match", matchId));
 
@@ -70,16 +100,43 @@ public class XiAnalysisService {
         String systemPrompt = buildSystemPrompt(teamName);
         String userPrompt   = buildUserPrompt(teamName, oppName, matchDate, stage, side, xiIds, playerMap);
 
-        String raw = aiService.call(null, null, "xi_analysis", systemPrompt, userPrompt);
+        String raw = aiService.call(null, null, TYPE, systemPrompt, userPrompt);
         String json = raw.trim();
         if (json.startsWith("```")) {
             json = json.replaceFirst("(?s)```[a-z]*\\s*", "").replaceFirst("(?s)```\\s*$", "").trim();
         }
 
+        XiAnalysisDTO dto;
         try {
-            return LENIENT_MAPPER.readValue(json, XiAnalysisDTO.class);
+            dto = LENIENT_MAPPER.readValue(json, XiAnalysisDTO.class);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to parse XI analysis: " + e.getMessage(), e);
+        }
+
+        dto.setGeneratedAt(LocalDateTime.now());
+        saveCache(matchId, teamId, dto);
+        return dto;
+    }
+
+    private void saveCache(Long matchId, Long teamId, XiAnalysisDTO dto) {
+        try {
+            String resultJson = LENIENT_MAPPER.writeValueAsString(dto);
+            Optional<AiAnalysisCache> existing =
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(TYPE, matchId, teamId);
+            AiAnalysisCache entry = existing.map(c -> {
+                c.setResultJson(resultJson);
+                c.setGeneratedAt(dto.getGeneratedAt());
+                return c;
+            }).orElseGet(() -> AiAnalysisCache.builder()
+                    .analysisType(TYPE)
+                    .primaryId(matchId)
+                    .secondaryId(teamId)
+                    .generatedAt(dto.getGeneratedAt())
+                    .resultJson(resultJson)
+                    .build());
+            cacheRepository.save(entry);
+        } catch (Exception e) {
+            log.warn("Failed to cache XI analysis for match {} team {}", matchId, teamId, e);
         }
     }
 

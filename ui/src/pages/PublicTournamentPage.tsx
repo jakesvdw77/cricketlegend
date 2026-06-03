@@ -624,7 +624,7 @@ export const PublicTournamentPage: React.FC = () => {
                         p: 1.25, borderRadius: 2, border: '1px solid',
                         borderColor: 'divider', bgcolor: 'background.paper',
                       }}>
-                        <Avatar variant="rounded" sx={{ width: 36, height: 36, fontSize: 14, bgcolor: 'primary.light' }}>
+                        <Avatar src={team.logoUrl} variant="rounded" sx={{ width: 36, height: 36, fontSize: 14, bgcolor: 'primary.light' }}>
                           {team.teamName?.charAt(0)}
                         </Avatar>
                         <Typography variant="body2" fontWeight={600}>{team.teamName}</Typography>

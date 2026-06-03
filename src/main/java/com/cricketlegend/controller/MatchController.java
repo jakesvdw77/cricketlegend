@@ -123,24 +123,27 @@ public class MatchController {
     @Operation(summary = "Generate AI-powered match analysis for a specific team")
     public ResponseEntity<MatchAnalysisDTO> getAnalysis(
             @PathVariable Long id,
-            @RequestParam Long teamId) {
-        return ResponseEntity.ok(matchAnalysisService.analyze(id, teamId));
+            @RequestParam Long teamId,
+            @RequestParam(defaultValue = "false") boolean regenerate) {
+        return ResponseEntity.ok(matchAnalysisService.analyze(id, teamId, regenerate));
     }
 
     @GetMapping("/{id}/teamsheet/pick")
     @Operation(summary = "Generate AI-recommended playing XI with batting order")
     public ResponseEntity<AiTeamPickDTO> getAiTeamPick(
             @PathVariable Long id,
-            @RequestParam Long teamId) {
-        return ResponseEntity.ok(aiTeamPickService.pick(id, teamId));
+            @RequestParam Long teamId,
+            @RequestParam(defaultValue = "false") boolean regenerate) {
+        return ResponseEntity.ok(aiTeamPickService.pick(id, teamId, regenerate));
     }
 
     @GetMapping("/{id}/teamsheet/analysis")
     @Operation(summary = "Generate AI-powered playing XI selection analysis")
     public ResponseEntity<XiAnalysisDTO> getXiAnalysis(
             @PathVariable Long id,
-            @RequestParam Long teamId) {
-        return ResponseEntity.ok(xiAnalysisService.analyze(id, teamId));
+            @RequestParam Long teamId,
+            @RequestParam(defaultValue = "false") boolean regenerate) {
+        return ResponseEntity.ok(xiAnalysisService.analyze(id, teamId, regenerate));
     }
 
     @PostMapping("/{id}/result")

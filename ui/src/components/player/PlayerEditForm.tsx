@@ -21,11 +21,12 @@ interface Props {
   clubs: Club[];
   readOnlyEmail?: boolean;
   readOnlyConsent?: boolean;
+  initialTab?: number;
 }
 
-export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, readOnlyEmail, readOnlyConsent }) => {
+export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, readOnlyEmail, readOnlyConsent, initialTab = 0 }) => {
   const [uploading, setUploading] = useState(false);
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(initialTab);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   const set = (patch: Partial<Player>) => onChange(patch);

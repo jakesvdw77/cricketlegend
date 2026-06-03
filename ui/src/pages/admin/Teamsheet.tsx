@@ -107,7 +107,6 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
     </Box>
   ) : (
     <Button variant="outlined" startIcon={<Campaign />}
-      disabled={!hasFullXi || teamIds.length === 0}
       disabled={!hasFullXi || teamIds.length === 0 || !!match?.matchCompleted}
       onClick={() => setAnnounceTeamId(activeTeamId)}>
       Announce Team

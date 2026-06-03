@@ -11,6 +11,7 @@ public interface TournamentTeamMapper {
     @Mapping(source = "team.teamId", target = "teamId")
     @Mapping(source = "team.teamName", target = "teamName")
     @Mapping(source = "team.abbreviation", target = "abbreviation")
+    @Mapping(source = "team.logoUrl", target = "logoUrl")
     TournamentTeamDTO toDto(TournamentTeam entity);
 
     @Mapping(target = "pool", ignore = true)

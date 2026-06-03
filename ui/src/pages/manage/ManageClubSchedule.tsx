@@ -1,19 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Box, Typography, Card, CardContent, CardActions, Button, Avatar,
-  Chip, Divider, Skeleton, Stack, Paper, Dialog, DialogTitle, DialogContent,
-  DialogActions, CircularProgress, IconButton,
+  Box, Typography, Card, CardContent, Button, Avatar,
+  Chip, Divider, Skeleton, Stack, Paper, IconButton,
 } from '@mui/material';
 import {
   ArrowBack, CalendarMonth, AccessTime, LocationOn, EmojiEvents,
-  SportsScore, Groups, HowToVote, CheckCircle, Cancel, Remove,
-  WhatsApp, People, Campaign, AssignmentInd, Share,
+  HowToVote, CheckCircle, Cancel, Remove,
+  People, AssignmentInd, Share,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { pollApi } from '../../api/pollApi';
-import { Match, MatchResult } from '../../types';
-import WhatsAppTemplate from '../admin/templates/WhatsAppTemplate';
+import { Match } from '../../types';
 import { ShareMatchDialog } from './ManageTeamResults';
 import { MatchSharePanel } from '../../components/match/MatchSharePanel';
 
@@ -272,66 +270,6 @@ function NextMatchHero({ match, teamId, onNavigate }: { match: Match; teamId: nu
     </Card>
     <MatchSharePanel open={shareOpen} match={match} teamId={teamId} onClose={() => setShareOpen(false)} />
     </>
-  );
-}
-
-// ── Scorecard dialog ──────────────────────────────────────────────────────────
-
-function ScorecardDialog({ match, onClose }: { match: Match | null; onClose: () => void }) {
-  const [result, setResult] = useState<MatchResult | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!match?.matchId) return;
-    setResult(null);
-    setLoading(true);
-    matchApi.getResult(match.matchId)
-      .then(setResult)
-      .catch(() => setResult(null))
-      .finally(() => setLoading(false));
-  }, [match?.matchId]);
-
-  const open = !!match;
-
-  const firstTeamName  = result?.sideBattingFirstName ?? match?.homeTeamName ?? '1st Innings';
-  const secondTeamName = (result?.sideBattingFirstId === match?.homeTeamId
-    ? match?.oppositionTeamName
-    : match?.homeTeamName) ?? '2nd Innings';
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <WhatsApp sx={{ color: '#25D366' }} />
-        Scorecard — {match?.homeTeamName} vs {match?.oppositionTeamName}
-      </DialogTitle>
-      <DialogContent dividers>
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress />
-          </Box>
-        )}
-        {!loading && !result && (
-          <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-            No result data available for this match.
-          </Typography>
-        )}
-        {!loading && result && match && (
-          <WhatsAppTemplate
-            match={match}
-            result={result}
-            tournament={null}
-            firstTeamName={firstTeamName}
-            secondTeamName={secondTeamName}
-            firstCard={result.scoreCard?.teamA ?? {}}
-            secondCard={result.scoreCard?.teamB ?? {}}
-            motmName={result.manOfTheMatchName ?? null}
-          />
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-      </DialogActions>
-    </Dialog>
   );
 }
 

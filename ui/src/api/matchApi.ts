@@ -17,12 +17,12 @@ export const matchApi = {
   update: (id: number, dto: Match) => api.put<Match>(`/matches/${id}`, dto).then(r => r.data),
   delete: (id: number) => api.delete(`/matches/${id}`),
   getResult: (id: number) => api.get<MatchResult>(`/matches/${id}/result`).then(r => r.data),
-  getAnalysis: (id: number, teamId: number) =>
-    api.get<MatchAnalysis>(`/matches/${id}/analysis?teamId=${teamId}`).then(r => r.data),
-  getXiAnalysis: (id: number, teamId: number) =>
-    api.get<XiAnalysis>(`/matches/${id}/teamsheet/analysis?teamId=${teamId}`).then(r => r.data),
-  getAiTeamPick: (id: number, teamId: number) =>
-    api.get<AiTeamPick>(`/matches/${id}/teamsheet/pick?teamId=${teamId}`).then(r => r.data),
+  getAnalysis: (id: number, teamId: number, regenerate = false) =>
+    api.get<MatchAnalysis>(`/matches/${id}/analysis?teamId=${teamId}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
+  getXiAnalysis: (id: number, teamId: number, regenerate = false) =>
+    api.get<XiAnalysis>(`/matches/${id}/teamsheet/analysis?teamId=${teamId}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
+  getAiTeamPick: (id: number, teamId: number, regenerate = false) =>
+    api.get<AiTeamPick>(`/matches/${id}/teamsheet/pick?teamId=${teamId}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
   saveResult: (id: number, dto: MatchResult) =>
     api.post<MatchResult>(`/matches/${id}/result`, dto).then(r => r.data),
   getTeamSheet: (id: number) => api.get<MatchSide[]>(`/matches/${id}/teamsheet`).then(r => r.data),

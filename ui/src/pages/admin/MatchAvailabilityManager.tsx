@@ -122,9 +122,6 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
     !showOnlyConfirmed || a.status === 'YES'
   ) ?? [];
 
-  const confirmedCount = poll?.availability?.filter(a => a.status === 'YES').length ?? 0;
-  const totalCount = poll?.availability?.length ?? 0;
-
   return (
     <Box>
       {!embedded && (
@@ -311,7 +308,7 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
             onClose={() => setOverrideAnchor(null)}
           >
             {(['YES', 'NO', 'UNSURE'] as AvailabilityStatus[]).map(s => (
-              <MenuItem key={s} onClick={() => handleOverride(s)} selected={overrideAnchor && displayedPlayers.find(p => p.playerId === overrideAnchor.playerId)?.status === s}>
+              <MenuItem key={s} onClick={() => handleOverride(s)} selected={!!overrideAnchor && displayedPlayers.find(p => p.playerId === overrideAnchor.playerId)?.status === s}>
                 <Chip label={STATUS_LABELS[s]} color={STATUS_COLOR[s]} size="small" sx={{ pointerEvents: 'none' }} />
               </MenuItem>
             ))}

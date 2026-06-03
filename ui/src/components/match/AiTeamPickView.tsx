@@ -18,6 +18,7 @@ import {
 import { matchApi } from '../../api/matchApi';
 import { AiTeamPick } from '../../types';
 import { generateTeamPickPdf, printAnalysisAsScreen } from '../../utils/matchPdf';
+import { AnalysisCacheBanner } from '../AnalysisCacheBanner';
 
 interface Props {
   matchId: number;
@@ -37,6 +38,7 @@ const AVAIL_COLORS: Record<string, string> = {
 export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, matchTitle, onApply }) => {
   const [pick, setPick] = useState<AiTeamPick | null>(null);
   const [loading, setLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -44,13 +46,13 @@ export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, mat
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
+  const load = useCallback((regen = false) => {
+    if (regen) setRegenerating(true); else setLoading(true);
     setError(null);
-    matchApi.getAiTeamPick(matchId, teamId)
+    matchApi.getAiTeamPick(matchId, teamId, regen)
       .then(setPick)
       .catch(e => setError(e?.response?.data?.message ?? e?.message ?? 'Failed to generate team pick'))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setRegenerating(false); });
   }, [matchId, teamId]);
 
   useEffect(() => { load(); }, [load]);
@@ -104,7 +106,7 @@ export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, mat
   if (error) return (
     <Box sx={{ py: 3 }}>
       <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-      <Button startIcon={<Refresh />} variant="outlined" onClick={load}>Try Again</Button>
+      <Button startIcon={<Refresh />} variant="outlined" onClick={() => load()}>Try Again</Button>
     </Box>
   );
 
@@ -117,6 +119,13 @@ export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, mat
 
   return (
     <Box sx={{ pb: 2 }} ref={contentRef}>
+      {pick.generatedAt && (
+        <AnalysisCacheBanner
+          generatedAt={pick.generatedAt}
+          regenerating={regenerating}
+          onRegenerate={() => load(true)}
+        />
+      )}
       {/* Toolbar */}
       <Stack direction="row" alignItems="center" justifyContent="flex-end" sx={{ mb: 2 }}>
         <Stack direction="row" spacing={1} alignItems="center">
@@ -132,7 +141,7 @@ export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, mat
             </IconButton>
           </Tooltip>
           <Tooltip title="Regenerate">
-            <IconButton size="small" onClick={load}><Refresh fontSize="small" /></IconButton>
+            <IconButton size="small" onClick={() => load(true)}><Refresh fontSize="small" /></IconButton>
           </Tooltip>
         </Stack>
       </Stack>

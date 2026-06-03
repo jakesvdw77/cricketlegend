@@ -17,6 +17,7 @@ import {
 import { teamApi } from '../../api/teamApi';
 import { SquadAnalysis } from '../../types';
 import { generateSquadAnalysisPdf, printAnalysisAsScreen } from '../../utils/matchPdf';
+import { AnalysisCacheBanner } from '../AnalysisCacheBanner';
 
 interface Props {
   teamId: number;
@@ -48,19 +49,20 @@ const RatingBar: React.FC<{ label: string; value: number | null }> = ({ label, v
 export const SquadAnalysisView: React.FC<Props> = ({ teamId, teamName }) => {
   const [analysis, setAnalysis] = useState<SquadAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
+  const load = useCallback((regen = false) => {
+    if (regen) setRegenerating(true); else setLoading(true);
     setError(null);
-    teamApi.getSquadAnalysis(teamId)
+    teamApi.getSquadAnalysis(teamId, regen)
       .then(setAnalysis)
       .catch(e => setError(e?.response?.data?.message ?? e?.message ?? 'Failed to generate analysis'))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setRegenerating(false); });
   }, [teamId]);
 
   useEffect(() => { load(); }, [load]);
@@ -108,7 +110,7 @@ export const SquadAnalysisView: React.FC<Props> = ({ teamId, teamName }) => {
   if (error) return (
     <Box sx={{ py: 3 }}>
       <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-      <Button startIcon={<Refresh />} variant="outlined" onClick={load}>Try Again</Button>
+      <Button startIcon={<Refresh />} variant="outlined" onClick={() => load()}>Try Again</Button>
     </Box>
   );
 
@@ -118,6 +120,13 @@ export const SquadAnalysisView: React.FC<Props> = ({ teamId, teamName }) => {
 
   return (
     <Box sx={{ pb: 2 }} ref={contentRef}>
+      {analysis.generatedAt && (
+        <AnalysisCacheBanner
+          generatedAt={analysis.generatedAt}
+          regenerating={regenerating}
+          onRegenerate={() => load(true)}
+        />
+      )}
       {/* Toolbar */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1}>
@@ -137,7 +146,7 @@ export const SquadAnalysisView: React.FC<Props> = ({ teamId, teamName }) => {
             </IconButton>
           </Tooltip>
           <Tooltip title="Regenerate">
-            <IconButton size="small" onClick={load}><Refresh fontSize="small" /></IconButton>
+            <IconButton size="small" onClick={() => load(true)}><Refresh fontSize="small" /></IconButton>
           </Tooltip>
         </Stack>
       </Stack>

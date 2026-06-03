@@ -1,6 +1,7 @@
 package com.cricketlegend.service.impl;
 
 import com.cricketlegend.domain.UserLoginEvent;
+import com.cricketlegend.dto.LoginEventResponseDTO;
 import com.cricketlegend.dto.PagedLoginEventResponse;
 import com.cricketlegend.dto.UserLoginEventDTO;
 import com.cricketlegend.repository.UserLoginEventRepository;
@@ -28,20 +29,26 @@ public class UserLoginEventServiceImpl implements UserLoginEventService {
 
     @Override
     @Transactional
-    public void record(Jwt jwt) {
+    public LoginEventResponseDTO record(Jwt jwt) {
         String firstName = jwt.getClaimAsString("given_name");
         String lastName = jwt.getClaimAsString("family_name");
         if (firstName == null) firstName = jwt.getClaimAsString("preferred_username");
         if (lastName == null) lastName = "";
 
+        String email = jwt.getClaimAsString("email");
         String role = extractPrimaryRole(jwt);
+
+        boolean firstLogin = email != null && loginEventRepository.countByEmail(email) == 0;
 
         loginEventRepository.save(UserLoginEvent.builder()
                 .firstName(firstName)
                 .lastName(lastName)
                 .role(role)
+                .email(email)
                 .loginTime(LocalDateTime.now())
                 .build());
+
+        return LoginEventResponseDTO.builder().firstLogin(firstLogin).build();
     }
 
     @Override

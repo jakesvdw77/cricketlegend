@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Box, Button, TextField, ToggleButton, ToggleButtonGroup, Typography,
+  Box, Button, IconButton, TextField, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
+  useMediaQuery, useTheme,
 } from '@mui/material';
 import { ContentCopy, Facebook, Print, Refresh, WhatsApp } from '@mui/icons-material';
 import { Match, MatchSide, Player } from '../../types';
@@ -129,6 +130,8 @@ interface Props {
 }
 
 const TeamsheetTemplatesDialog: React.FC<Props> = ({ open, onClose, match, sides, players, onPrint }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [templateType,  setTemplateType]  = useState<'whatsapp' | 'facebook'>('whatsapp');
   const [templateScope, setTemplateScope] = useState<'both' | 'home' | 'away'>('both');
   const [templateText,  setTemplateText]  = useState('');
@@ -212,19 +215,38 @@ const TeamsheetTemplatesDialog: React.FC<Props> = ({ open, onClose, match, sides
       </DialogContent>
 
       <DialogActions>
-        <Button startIcon={<Refresh />} size="small" onClick={() => setTemplateText(generate(templateType, templateScope))}>
-          Regenerate
-        </Button>
+        {isMobile ? (
+          <Tooltip title="Regenerate">
+            <IconButton size="small" onClick={() => setTemplateText(generate(templateType, templateScope))}>
+              <Refresh />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Button startIcon={<Refresh />} size="small" onClick={() => setTemplateText(generate(templateType, templateScope))}>
+            Regenerate
+          </Button>
+        )}
         <Box sx={{ flex: 1 }} />
         <Button onClick={onClose}>Close</Button>
-        <Button
-          variant="contained"
-          color={copied ? 'success' : 'primary'}
-          startIcon={<ContentCopy />}
-          onClick={handleCopy}
-        >
-          {copied ? 'Copied!' : 'Copy to Clipboard'}
-        </Button>
+        {isMobile ? (
+          <Tooltip title={copied ? 'Copied!' : 'Copy'}>
+            <IconButton
+              color={copied ? 'success' : 'primary'}
+              onClick={handleCopy}
+            >
+              <ContentCopy />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Button
+            variant="contained"
+            color={copied ? 'success' : 'primary'}
+            startIcon={<ContentCopy />}
+            onClick={handleCopy}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

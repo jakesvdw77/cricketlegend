@@ -1,5 +1,6 @@
 package com.cricketlegend.controller;
 
+import com.cricketlegend.dto.LoginEventResponseDTO;
 import com.cricketlegend.dto.PagedLoginEventResponse;
 import com.cricketlegend.service.UserLoginEventService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,9 +22,8 @@ public class UserLoginEventController {
 
     @PostMapping("/login-event")
     @Operation(summary = "Record a login event for the authenticated user")
-    public ResponseEntity<Void> record(@AuthenticationPrincipal Jwt jwt) {
-        loginEventService.record(jwt);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<LoginEventResponseDTO> record(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(loginEventService.record(jwt));
     }
 
     @GetMapping("/login-events")

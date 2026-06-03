@@ -92,8 +92,10 @@ public class TeamController {
 
     @GetMapping("/{id}/squad/analysis")
     @Operation(summary = "Generate AI-powered squad analysis")
-    public ResponseEntity<SquadAnalysisDTO> getSquadAnalysis(@PathVariable Long id) {
-        return ResponseEntity.ok(squadAnalysisService.analyze(id));
+    public ResponseEntity<SquadAnalysisDTO> getSquadAnalysis(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean regenerate) {
+        return ResponseEntity.ok(squadAnalysisService.analyze(id, regenerate));
     }
 
     @PostMapping("/{id}/squad/{playerId}")

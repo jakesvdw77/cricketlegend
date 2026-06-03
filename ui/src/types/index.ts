@@ -211,6 +211,7 @@ export interface TournamentTeam {
   teamId?: number;
   teamName?: string;
   abbreviation?: string;
+  logoUrl?: string;
 }
 
 export interface TournamentPool {
@@ -417,6 +418,7 @@ export interface MatchResult {
 }
 
 export interface AiTeamPick {
+  generatedAt?: string;
   selectionRationale: string;
   bowlingRotation: string;
   fairnessNote: string | null;
@@ -441,6 +443,7 @@ export interface AiTeamPick {
 }
 
 export interface XiAnalysis {
+  generatedAt?: string;
   xiSummary: string;
   battingOrderSuggestion: string;
   bowlingPlanSuggestion: string;
@@ -462,6 +465,7 @@ export interface XiAnalysis {
 }
 
 export interface SquadAnalysis {
+  generatedAt?: string;
   squadSummary: string;
   balanceVerdict: string;
   strengths: string[];
@@ -490,6 +494,7 @@ export interface SquadAnalysis {
 }
 
 export interface MatchAnalysis {
+  generatedAt?: string;
   matchSummary: string;
   teamPerformance: {
     battingRating: number;

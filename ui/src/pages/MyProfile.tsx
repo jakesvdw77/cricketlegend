@@ -8,9 +8,12 @@ import { clubApi } from '../api/clubApi';
 import { Player, Club } from '../types';
 import { PlayerEditForm } from '../components/player/PlayerEditForm';
 import { useAuth } from '../hooks/useAuth';
+import { useLocation } from 'react-router-dom';
 
 export const MyProfile: React.FC = () => {
   const { email } = useAuth();
+  const location = useLocation();
+  const openNotificationsTab = !!(location.state as any)?.openNotificationsTab;
   const [player, setPlayer] = useState<Player | null>(null);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +70,7 @@ export const MyProfile: React.FC = () => {
   if (!player) return null;
 
   return (
-    <Box sx={{ maxWidth: 680, mx: 'auto' }}>
+    <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" sx={{ flexGrow: 1 }}>My Profile</Typography>
         <Button
@@ -92,6 +95,7 @@ export const MyProfile: React.FC = () => {
           onChange={patch => setPlayer(p => ({ ...p!, ...patch }))}
           clubs={clubs}
           readOnlyEmail
+          initialTab={openNotificationsTab ? 2 : 0}
         />
       </Paper>
     </Box>

@@ -8,7 +8,7 @@ export interface LoginEventFilters {
 }
 
 export const loginEventApi = {
-  record: () => api.post('/auth/login-event'),
+  record: () => api.post<{ firstLogin: boolean }>('/auth/login-event').then(r => r.data),
 
   findAll: (filters: LoginEventFilters = {}) => {
     const params: Record<string, string | number> = {};

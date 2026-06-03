@@ -23,6 +23,9 @@ public class UserLoginEvent {
     @Column(nullable = false)
     private String role;
 
+    @Column
+    private String email;
+
     @Column(nullable = false)
     private LocalDateTime loginTime;
 }

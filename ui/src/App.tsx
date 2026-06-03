@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { ColorModeProvider, useColorMode } from './context/ColorModeContext';
 import { lightTheme, darkTheme } from './theme';
@@ -96,12 +96,24 @@ const FinancialAdminRoute: React.FC<{ element: React.ReactElement }> = ({ elemen
   return (isAdmin || isFinancialAdmin) ? element : <Navigate to="/matches/upcoming" replace />;
 };
 
+const FirstLoginRedirector: React.FC = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (sessionStorage.getItem('firstLogin')) {
+      sessionStorage.removeItem('firstLogin');
+      navigate('/profile', { replace: true, state: { openNotificationsTab: true } });
+    }
+  }, [navigate]);
+  return null;
+};
+
 function ThemedApp() {
   const { mode } = useColorMode();
   return (
     <ThemeProvider theme={mode === 'dark' ? darkTheme : lightTheme}>
       <CssBaseline />
       <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <FirstLoginRedirector />
         <Routes>
           <Route path="/" element={<LandingRoute />} />
           <Route path="tournament/:id" element={<PublicTournamentPage />} />

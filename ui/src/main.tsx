@@ -9,7 +9,9 @@ keycloak
   .then((authenticated) => {
     if (authenticated && !sessionStorage.getItem('loginRecorded')) {
       sessionStorage.setItem('loginRecorded', 'true');
-      loginEventApi.record().catch(() => {});
+      loginEventApi.record()
+        .then(res => { if (res?.firstLogin) sessionStorage.setItem('firstLogin', 'true'); })
+        .catch(() => {});
     }
     ReactDOM.createRoot(document.getElementById('root')!).render(
       <React.StrictMode>

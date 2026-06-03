@@ -18,6 +18,7 @@ import {
 import { matchApi } from '../../api/matchApi';
 import { XiAnalysis } from '../../types';
 import { generateXiAnalysisPdf, printAnalysisAsScreen } from '../../utils/matchPdf';
+import { AnalysisCacheBanner } from '../AnalysisCacheBanner';
 
 interface Props {
   matchId: number;
@@ -51,19 +52,20 @@ const RatingBar: React.FC<{ label: string; value: number | null }> = ({ label, v
 export const XiAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, matchTitle }) => {
   const [analysis, setAnalysis] = useState<XiAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
+  const load = useCallback((regen = false) => {
+    if (regen) setRegenerating(true); else setLoading(true);
     setError(null);
-    matchApi.getXiAnalysis(matchId, teamId)
+    matchApi.getXiAnalysis(matchId, teamId, regen)
       .then(setAnalysis)
       .catch(e => setError(e?.response?.data?.message ?? e?.message ?? 'Failed to generate analysis'))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); setRegenerating(false); });
   }, [matchId, teamId]);
 
   useEffect(() => { load(); }, [load]);
@@ -111,7 +113,7 @@ export const XiAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, mat
   if (error) return (
     <Box sx={{ py: 3 }}>
       <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-      <Button startIcon={<Refresh />} variant="outlined" onClick={load}>Try Again</Button>
+      <Button startIcon={<Refresh />} variant="outlined" onClick={() => load()}>Try Again</Button>
     </Box>
   );
 
@@ -122,6 +124,13 @@ export const XiAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, mat
 
   return (
     <Box sx={{ pb: 2 }} ref={contentRef}>
+      {analysis.generatedAt && (
+        <AnalysisCacheBanner
+          generatedAt={analysis.generatedAt}
+          regenerating={regenerating}
+          onRegenerate={() => load(true)}
+        />
+      )}
       {/* Toolbar */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1}>
@@ -143,7 +152,7 @@ export const XiAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, mat
             </IconButton>
           </Tooltip>
           <Tooltip title="Regenerate">
-            <IconButton size="small" onClick={load}><Refresh fontSize="small" /></IconButton>
+            <IconButton size="small" onClick={() => load(true)}><Refresh fontSize="small" /></IconButton>
           </Tooltip>
         </Stack>
       </Stack>

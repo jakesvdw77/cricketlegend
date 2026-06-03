@@ -11,4 +11,6 @@ public interface UserLoginEventRepository extends JpaRepository<UserLoginEvent, 
 
     @Query("SELECT e FROM UserLoginEvent e WHERE LOWER(e.firstName) LIKE LOWER(CONCAT('%', :name, '%')) OR LOWER(e.lastName) LIKE LOWER(CONCAT('%', :name, '%'))")
     Page<UserLoginEvent> findByNameFilter(@Param("name") String name, Pageable pageable);
+
+    long countByEmail(String email);
 }

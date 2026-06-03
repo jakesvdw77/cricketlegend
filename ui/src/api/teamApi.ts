@@ -14,5 +14,6 @@ export const teamApi = {
   getSquad: (teamId: number) => api.get<Player[]>(`/teams/${teamId}/squad`).then(r => r.data),
   addToSquad: (teamId: number, playerId: number) => api.post(`/teams/${teamId}/squad/${playerId}`),
   removeFromSquad: (teamId: number, playerId: number) => api.delete(`/teams/${teamId}/squad/${playerId}`),
-  getSquadAnalysis: (teamId: number) => api.get<SquadAnalysis>(`/teams/${teamId}/squad/analysis`).then(r => r.data),
+  getSquadAnalysis: (teamId: number, regenerate = false) =>
+    api.get<SquadAnalysis>(`/teams/${teamId}/squad/analysis${regenerate ? '?regenerate=true' : ''}`).then(r => r.data),
 };
