@@ -58,8 +58,7 @@ const MONTHS = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ];
-
-const CAL_VIEWS: View[] = ['month', 'week', 'day'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 interface CalEvent {
   id: string;
@@ -72,11 +71,12 @@ interface CalEvent {
 interface CalToolbarProps {
   date: Date;
   view: View;
+  isMobile: boolean;
   onDateChange: (d: Date) => void;
   onViewChange: (v: View) => void;
 }
 
-const CalToolbar: React.FC<CalToolbarProps> = ({ date, view, onDateChange, onViewChange }) => {
+const CalToolbar: React.FC<CalToolbarProps> = ({ date, view, isMobile, onDateChange, onViewChange }) => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const currentYear = new Date().getFullYear();
@@ -84,33 +84,40 @@ const CalToolbar: React.FC<CalToolbarProps> = ({ date, view, onDateChange, onVie
 
   const shift = (dir: -1 | 1) => {
     const next = new Date(date);
-    if (view === 'month') next.setMonth(next.getMonth() + dir);
+    if (view === 'month' || view === 'agenda') next.setMonth(next.getMonth() + dir);
     else if (view === 'week') next.setDate(next.getDate() + dir * 7);
     else next.setDate(next.getDate() + dir);
     onDateChange(next);
   };
 
+  const desktopViews: View[] = ['month', 'week', 'day'];
+  const mobileViews: View[]  = ['agenda', 'week', 'day'];
+  const views = isMobile ? mobileViews : desktopViews;
+  const viewLabel: Record<string, string> = { month: 'Month', week: 'Week', day: 'Day', agenda: 'List' };
+
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-      <IconButton size="small" onClick={() => shift(-1)} sx={{ color: '#e4f4df' }}>
-        <ChevronLeft />
-      </IconButton>
-      <Button size="small" onClick={() => onDateChange(new Date())}
-        sx={{ color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', border: '1px solid', minWidth: 0, px: 1, py: 0.25, fontSize: 12 }}>
-        Today
-      </Button>
-      <IconButton size="small" onClick={() => shift(1)} sx={{ color: '#e4f4df' }}>
-        <ChevronRight />
-      </IconButton>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <IconButton size="small" onClick={() => shift(-1)} sx={{ color: '#e4f4df' }}>
+          <ChevronLeft />
+        </IconButton>
+        <Button size="small" onClick={() => onDateChange(new Date())}
+          sx={{ color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', border: '1px solid', minWidth: 0, px: 1, py: 0.25, fontSize: 12 }}>
+          Today
+        </Button>
+        <IconButton size="small" onClick={() => shift(1)} sx={{ color: '#e4f4df' }}>
+          <ChevronRight />
+        </IconButton>
+      </Box>
 
       <Select
         value={month}
         onChange={e => { const next = new Date(date); next.setMonth(e.target.value as number); onDateChange(next); }}
         size="small"
         variant="outlined"
-        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: 130 }}
+        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: isMobile ? 80 : 130 }}
       >
-        {MONTHS.map((m, i) => <MenuItem key={i} value={i}>{m}</MenuItem>)}
+        {(isMobile ? MONTHS_SHORT : MONTHS).map((m, i) => <MenuItem key={i} value={i}>{m}</MenuItem>)}
       </Select>
 
       <Select
@@ -118,20 +125,20 @@ const CalToolbar: React.FC<CalToolbarProps> = ({ date, view, onDateChange, onVie
         onChange={e => { const next = new Date(date); next.setFullYear(e.target.value as number); onDateChange(next); }}
         size="small"
         variant="outlined"
-        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: 90 }}
+        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: 80 }}
       >
         {years.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
       </Select>
 
       <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
-        {CAL_VIEWS.map(v => (
+        {views.map(v => (
           <Button key={v} size="small"
             variant={v === view ? 'contained' : 'outlined'}
             onClick={() => onViewChange(v)}
             sx={v === view
-              ? { bgcolor: '#28b463', color: '#0e1f0e', fontWeight: 'bold', minWidth: 60 }
-              : { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', minWidth: 60 }}>
-            {v.charAt(0).toUpperCase() + v.slice(1)}
+              ? { bgcolor: '#28b463', color: '#0e1f0e', fontWeight: 'bold', minWidth: isMobile ? 44 : 60, px: isMobile ? 0.75 : 1.5, fontSize: isMobile ? 11 : 13 }
+              : { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', minWidth: isMobile ? 44 : 60, px: isMobile ? 0.75 : 1.5, fontSize: isMobile ? 11 : 13 }}>
+            {viewLabel[v]}
           </Button>
         ))}
       </Box>
@@ -188,8 +195,8 @@ export const Events: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(new Set(isMobile ? MOBILE_VISIBLE : DEFAULT_VISIBLE));
   const [colAnchor, setColAnchor] = useState<HTMLButtonElement | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
-  const [calView, setCalView] = useState<View>('month');
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [calView, setCalView] = useState<View>(isMobile ? 'agenda' : 'month');
   const [calDate, setCalDate] = useState(new Date());
 
   useEffect(() => {
@@ -341,9 +348,19 @@ export const Events: React.FC = () => {
   if (open && editing) {
     return (
       <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
           <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)}>Back</Button>
           <Typography variant="h6" sx={{ flex: 1 }}>{editing.eventId ? 'Edit Event' : 'New Event'}</Typography>
+          {editing.eventId && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<Delete fontSize="small" />}
+              onClick={() => { setDeleteTarget(editing); setDeleteNotify(false); }}
+            >
+              Delete
+            </Button>
+          )}
           <Button variant="contained" onClick={save}
             disabled={!editing.clubId || !editing.category || !editing.eventDate}>Save</Button>
         </Box>
@@ -413,6 +430,33 @@ export const Events: React.FC = () => {
           <TextField label="Notes" value={editing.notes ?? ''} multiline rows={3}
             onChange={e => set({ notes: e.target.value })} />
         </Box>
+
+        {/* Delete confirmation — reused from main view */}
+        <Dialog open={!!deleteTarget} onClose={() => { setDeleteTarget(null); setDeleteNotify(false); }} maxWidth="xs" fullWidth>
+          <DialogTitle>Delete Event</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Delete <strong>{deleteTarget?.title || (deleteTarget ? CATEGORY_LABELS[deleteTarget.category] : '')}</strong> on {deleteTarget?.eventDate}?
+            </Typography>
+            {deleteTarget?.seriesId && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                This event is part of a recurring series.
+              </Typography>
+            )}
+            <FormControlLabel
+              sx={{ mt: 2, display: 'flex' }}
+              control={<Checkbox checked={deleteNotify} onChange={e => setDeleteNotify(e.target.checked)} color="warning" />}
+              label="Send cancellation notification to members"
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setDeleteTarget(null); setDeleteNotify(false); }}>Cancel</Button>
+            {deleteTarget?.seriesId && (
+              <Button color="warning" onClick={() => { deleteSeries(deleteTarget.seriesId!); setOpen(false); }}>Delete Series</Button>
+            )}
+            <Button variant="contained" color="error" onClick={() => { confirmDelete(); setOpen(false); }}>Delete This</Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   }
@@ -428,9 +472,9 @@ export const Events: React.FC = () => {
         <Typography variant="h5" sx={{ mr: 'auto' }}>Events</Typography>
 
         <ToggleButtonGroup value={viewMode} exclusive size="small" onChange={(_, v) => v && setViewMode(v)}>
+          <ToggleButton value="calendar"><Tooltip title="Calendar view"><CalendarViewMonth fontSize="small" /></Tooltip></ToggleButton>
           <ToggleButton value="card"><Tooltip title="Card view"><GridView fontSize="small" /></Tooltip></ToggleButton>
           <ToggleButton value="list"><Tooltip title="List view"><TableRows fontSize="small" /></Tooltip></ToggleButton>
-          <ToggleButton value="calendar"><Tooltip title="Calendar view"><CalendarViewMonth fontSize="small" /></Tooltip></ToggleButton>
         </ToggleButtonGroup>
 
         {!isMobile && viewMode === 'list' && (
@@ -511,26 +555,31 @@ export const Events: React.FC = () => {
         <Box sx={{
           bgcolor: '#0e1f0e',
           borderRadius: 2,
-          p: 2,
+          p: { xs: 1, sm: 2 },
           color: '#e4f4df',
           '& .rbc-toolbar': { display: 'none' },
           '& .rbc-month-view, & .rbc-time-view, & .rbc-agenda-view': { borderColor: 'rgba(100,180,90,0.2)', borderRadius: 1 },
-          '& .rbc-header': { fontWeight: 'bold', fontSize: 13, color: '#e4f4df', borderColor: 'rgba(100,180,90,0.2)', bgcolor: '#1e3a1e' },
+          '& .rbc-header': { fontWeight: 'bold', fontSize: isMobile ? 10 : 13, color: '#e4f4df', borderColor: 'rgba(100,180,90,0.2)', bgcolor: '#1e3a1e', padding: isMobile ? '2px' : undefined },
           '& .rbc-month-row': { borderColor: 'rgba(100,180,90,0.15)' },
           '& .rbc-day-bg': { borderColor: 'rgba(100,180,90,0.15)' },
           '& .rbc-off-range-bg': { bgcolor: '#0a160a' },
           '& .rbc-today': { bgcolor: 'rgba(40,180,99,0.12)' },
-          '& .rbc-date-cell': { color: '#e4f4df' },
+          '& .rbc-date-cell': { color: '#e4f4df', fontSize: isMobile ? 10 : 13 },
           '& .rbc-date-cell.rbc-off-range': { color: 'rgba(228,244,223,0.35)' },
           '& .rbc-label': { color: '#e4f4df' },
           '& .rbc-time-content': { borderColor: 'rgba(100,180,90,0.2)' },
           '& .rbc-timeslot-group': { borderColor: 'rgba(100,180,90,0.15)' },
           '& .rbc-time-slot': { color: 'rgba(228,244,223,0.6)' },
           '& .rbc-current-time-indicator': { bgcolor: '#28b463' },
-          '& .rbc-agenda-table': { color: '#e4f4df' },
-          '& .rbc-agenda-date-cell, & .rbc-agenda-time-cell': { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.2)' },
+          '& .rbc-agenda-view': { color: '#e4f4df' },
+          '& .rbc-agenda-table': { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.2)', width: '100%' },
+          '& .rbc-agenda-table thead tr th': { color: '#e4f4df', bgcolor: '#1e3a1e', borderColor: 'rgba(100,180,90,0.2)', fontSize: isMobile ? 11 : 13, padding: '6px 8px' },
+          '& .rbc-agenda-table tbody tr td': { borderColor: 'rgba(100,180,90,0.15)', padding: '6px 8px', fontSize: isMobile ? 12 : 13 },
+          '& .rbc-agenda-date-cell, & .rbc-agenda-time-cell': { color: 'rgba(228,244,223,0.7)', whiteSpace: 'nowrap' },
+          '& .rbc-agenda-event-cell': { color: '#e4f4df' },
+          '& .rbc-agenda-empty': { color: 'rgba(228,244,223,0.5)', padding: '24px', textAlign: 'center', display: 'block' },
         }}>
-          <CalToolbar date={calDate} view={calView} onDateChange={setCalDate} onViewChange={setCalView} />
+          <CalToolbar date={calDate} view={calView} isMobile={isMobile} onDateChange={setCalDate} onViewChange={setCalView} />
           {filtered.length === 0 ? (
             <Typography variant="body2" color="#e4f4df" sx={{ textAlign: 'center', py: 6, opacity: 0.6 }}>
               {emptyMessage}
@@ -548,10 +597,11 @@ export const Events: React.FC = () => {
               onSelectEvent={(ev: CalEvent) => openEdit(ev.resource)}
               eventPropGetter={calEventStyle}
               tooltipAccessor={(ev: CalEvent) => ev.title}
-              views={['month', 'week', 'day']}
+              views={['month', 'week', 'day', 'agenda']}
               toolbar={false}
-              style={{ height: 600 }}
+              style={{ height: isMobile ? 500 : 600 }}
               popup
+              length={31}
             />
           )}
         </Box>

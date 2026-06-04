@@ -4,6 +4,7 @@ import {
   Menu, MenuItem, Tooltip, Chip, Dialog, DialogTitle, DialogContent,
   Accordion, AccordionSummary, AccordionDetails,
   Badge, Popover, List, ListItem, ListItemText, Divider,
+  useTheme, useMediaQuery,
 } from '@mui/material';
 import { Menu as MenuIcon, Person, HelpOutline, ExpandMore, Notifications, LightMode, DarkMode, DoneAll, DeleteSweep, Home } from '@mui/icons-material';
 import { useColorMode } from '../../context/ColorModeContext';
@@ -64,6 +65,8 @@ interface Props {
 export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
   const { username, firstName, lastName, email, isAdmin, logout } = useAuth();
   const { mode, toggleMode } = useColorMode();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [notifAnchor, setNotifAnchor] = useState<null | HTMLElement>(null);
@@ -127,13 +130,15 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
         </IconButton>
         <Box sx={{ flexGrow: 1 }} />
         {isAdmin && (
-          <Chip label="Admin" color="warning" size="small" sx={{ mr: 2, color: 'white' }} />
+          <Chip label="Admin" color="warning" size="small" sx={{ mr: 1, color: 'white', display: { xs: 'none', sm: 'flex' } }} />
         )}
-        <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-          <IconButton color="inherit" onClick={toggleMode} sx={{ mr: 0.5 }}>
-            {mode === 'dark' ? <LightMode /> : <DarkMode />}
-          </IconButton>
-        </Tooltip>
+        {!isMobile && (
+          <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            <IconButton color="inherit" onClick={toggleMode} sx={{ mr: 0.5 }}>
+              {mode === 'dark' ? <LightMode /> : <DarkMode />}
+            </IconButton>
+          </Tooltip>
+        )}
         <Tooltip title={onCapturePage ? 'Notifications disabled while capturing a match' : 'Notifications'}>
           <span>
             <IconButton color="inherit" onClick={openNotifications} sx={{ mr: 0.5 }} disabled={onCapturePage}>
@@ -143,20 +148,22 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="Help">
-          <IconButton color="inherit" onClick={() => setHelpOpen(true)} sx={{ mr: 0.5 }}>
-            <HelpOutline />
-          </IconButton>
-        </Tooltip>
+        {!isMobile && (
+          <Tooltip title="Help">
+            <IconButton color="inherit" onClick={() => setHelpOpen(true)} sx={{ mr: 0.5 }}>
+              <HelpOutline />
+            </IconButton>
+          </Tooltip>
+        )}
         <Tooltip title="Account">
           <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} color="inherit">
-            <Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32, fontSize: 14 }}>
+            <Avatar sx={{ bgcolor: isAdmin ? 'warning.main' : 'secondary.main', width: 32, height: 32, fontSize: 14 }}>
               {initials}
             </Avatar>
           </IconButton>
         </Tooltip>
         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          <Box sx={{ px: 2, py: 1, minWidth: 180 }}>
+          <Box sx={{ px: 2, py: 1, minWidth: 200 }}>
             <Typography fontWeight="bold">{`${firstName} ${lastName}`.trim() || username}</Typography>
             <Typography variant="body2" color="text.secondary">{email}</Typography>
             <Typography variant="caption" color="text.secondary">Role: {isAdmin ? 'Admin' : 'Player'}</Typography>
@@ -165,6 +172,17 @@ export const Header: React.FC<Props> = ({ onToggleSidebar }) => {
           <MenuItem disabled={onCapturePage} onClick={() => { setAnchorEl(null); navigate('/profile'); }}>
             <Person fontSize="small" sx={{ mr: 1 }} /> My Profile
           </MenuItem>
+          {isMobile && (
+            <MenuItem onClick={() => { setAnchorEl(null); toggleMode(); }}>
+              {mode === 'dark' ? <LightMode fontSize="small" sx={{ mr: 1 }} /> : <DarkMode fontSize="small" sx={{ mr: 1 }} />}
+              {mode === 'dark' ? 'Light mode' : 'Dark mode'}
+            </MenuItem>
+          )}
+          {isMobile && (
+            <MenuItem onClick={() => { setAnchorEl(null); setHelpOpen(true); }}>
+              <HelpOutline fontSize="small" sx={{ mr: 1 }} /> Help
+            </MenuItem>
+          )}
           <MenuItem onClick={logout}>Logout</MenuItem>
         </Menu>
       </Toolbar>

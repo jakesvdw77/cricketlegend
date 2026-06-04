@@ -6,6 +6,7 @@ import com.cricketlegend.domain.MatchAvailabilityPoll;
 import com.cricketlegend.domain.MatchSide;
 import com.cricketlegend.domain.Player;
 import com.cricketlegend.domain.PlayerAvailability;
+import com.cricketlegend.domain.PlayerResult;
 import com.cricketlegend.domain.enums.AvailabilityStatus;
 import com.cricketlegend.domain.enums.BowlingType;
 import com.cricketlegend.dto.AiTeamPickDTO;
@@ -16,6 +17,7 @@ import com.cricketlegend.repository.MatchRepository;
 import com.cricketlegend.repository.MatchSideRepository;
 import com.cricketlegend.repository.PlayerAvailabilityRepository;
 import com.cricketlegend.repository.PlayerRepository;
+import com.cricketlegend.repository.PlayerResultRepository;
 import com.cricketlegend.repository.TeamRepository;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +41,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AiTeamPickService {
 
-    private static final String TYPE = "ai_team_pick";
+    private static final String TYPE_STRONGEST = "ai_team_pick";
+    private static final String TYPE_ROTATION  = "ai_team_pick_rotation";
     private static final ObjectMapper MAPPER = buildMapper();
 
     private static ObjectMapper buildMapper() {
@@ -58,28 +61,30 @@ public class AiTeamPickService {
     private final MatchSideRepository            matchSideRepository;
     private final MatchAvailabilityPollRepository pollRepository;
     private final PlayerAvailabilityRepository   availabilityRepository;
+    private final PlayerResultRepository         playerResultRepository;
     private final AiService                      aiService;
     private final AiAnalysisCacheRepository      cacheRepository;
 
     @Transactional
-    public AiTeamPickDTO pick(Long matchId, Long teamId, boolean regenerate) {
+    public AiTeamPickDTO pick(Long matchId, Long teamId, boolean regenerate, String strategy) {
+        String cacheType = "ROTATION".equalsIgnoreCase(strategy) ? TYPE_ROTATION : TYPE_STRONGEST;
         if (!regenerate) {
             Optional<AiAnalysisCache> cached =
-                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(TYPE, matchId, teamId);
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(cacheType, matchId, teamId);
             if (cached.isPresent()) {
                 try {
                     AiTeamPickDTO dto = MAPPER.readValue(cached.get().getResultJson(), AiTeamPickDTO.class);
                     dto.setGeneratedAt(cached.get().getGeneratedAt());
                     return dto;
                 } catch (Exception e) {
-                    log.warn("Failed to deserialize cached team pick for match {} team {}, regenerating", matchId, teamId, e);
+                    log.warn("Failed to deserialize cached team pick ({}) for match {} team {}, regenerating", cacheType, matchId, teamId, e);
                 }
             }
         }
-        return generate(matchId, teamId);
+        return generate(matchId, teamId, strategy);
     }
 
-    private AiTeamPickDTO generate(Long matchId, Long teamId) {
+    private AiTeamPickDTO generate(Long matchId, Long teamId, String strategy) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> NotFoundException.of("Match", matchId));
 
@@ -111,9 +116,21 @@ public class AiTeamPickService {
                 ? (match.getOppositionTeam() != null ? match.getOppositionTeam().getTeamName() : "Opposition")
                 : (match.getHomeTeam()       != null ? match.getHomeTeam().getTeamName()       : "Home Team");
         boolean inTournament = match.getTournament() != null;
+        boolean useRotation  = "ROTATION".equalsIgnoreCase(strategy);
 
-        String systemPrompt = buildSystemPrompt(teamName, inTournament);
-        String userPrompt   = buildUserPrompt(teamName, oppName, match, squad, availMap, appearanceMap, inTournament);
+        Map<Long, PlayerResult[]> tournamentStatsMap = new HashMap<>();
+        if (inTournament) {
+            List<PlayerResult> results = playerResultRepository.findByTournamentAndTeam(
+                    match.getTournament().getTournamentId(), teamId);
+            Set<Long> squadIdSet = squad.stream().map(Player::getPlayerId).collect(Collectors.toSet());
+            results.stream()
+                    .filter(r -> squadIdSet.contains(r.getPlayer().getPlayerId()))
+                    .collect(Collectors.groupingBy(r -> r.getPlayer().getPlayerId()))
+                    .forEach((pid, list) -> tournamentStatsMap.put(pid, list.toArray(new PlayerResult[0])));
+        }
+
+        String systemPrompt = buildSystemPrompt(teamName, inTournament, useRotation);
+        String userPrompt   = buildUserPrompt(teamName, oppName, match, squad, availMap, appearanceMap, tournamentStatsMap, inTournament, useRotation);
 
         String raw = aiService.call(null, null, "team_pick", systemPrompt, userPrompt);
         String json = raw.trim();
@@ -179,21 +196,21 @@ public class AiTeamPickService {
 
         dto.setChartData(new AiTeamPickDTO.ChartData(availSummary, appearances));
         dto.setGeneratedAt(LocalDateTime.now());
-        saveCache(matchId, teamId, dto);
+        saveCache(matchId, teamId, dto, "ROTATION".equalsIgnoreCase(strategy) ? TYPE_ROTATION : TYPE_STRONGEST);
         return dto;
     }
 
-    private void saveCache(Long matchId, Long teamId, AiTeamPickDTO dto) {
+    private void saveCache(Long matchId, Long teamId, AiTeamPickDTO dto, String cacheType) {
         try {
             String resultJson = MAPPER.writeValueAsString(dto);
             Optional<AiAnalysisCache> existing =
-                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(TYPE, matchId, teamId);
+                    cacheRepository.findByAnalysisTypeAndPrimaryIdAndSecondaryId(cacheType, matchId, teamId);
             AiAnalysisCache entry = existing.map(c -> {
                 c.setResultJson(resultJson);
                 c.setGeneratedAt(dto.getGeneratedAt());
                 return c;
             }).orElseGet(() -> AiAnalysisCache.builder()
-                    .analysisType(TYPE)
+                    .analysisType(cacheType)
                     .primaryId(matchId)
                     .secondaryId(teamId)
                     .generatedAt(dto.getGeneratedAt())
@@ -205,36 +222,68 @@ public class AiTeamPickService {
         }
     }
 
-    private String buildSystemPrompt(String teamName, boolean inTournament) {
-        String fairnessClause = inTournament
-                ? "Consider the tournament appearances column — give players with fewer appearances a fair opportunity, all else being equal."
-                : "";
+    private String buildSystemPrompt(String teamName, boolean inTournament, boolean useRotation) {
+        String strategyClause;
+        if (useRotation && inTournament) {
+            strategyClause = """
+                    SELECTION STRATEGY: PLAYER ROTATION
+                    - Prioritise players who have had FEWER tournament appearances — give everyone a fair opportunity.
+                    - The Apps column shows how many matches each player has already played this tournament.
+                    - Strongly prefer lower-Apps players over higher-Apps players of similar ability.
+                    - Only choose a high-Apps player over a low-Apps player when the skill difference is significant AND squad balance demands it.
+                    - MUST still maintain squad balance: include a wicket-keeper, genuine bowling options, and adequate batting depth.
+                    """;
+        } else {
+            strategyClause = """
+                    SELECTION STRATEGY: STRONGEST XI
+                    - Select the single best available playing XI based purely on player skill, form, and role.
+                    - Ignore the Apps (appearances) column entirely — do NOT factor in rotation.
+                    - Focus entirely on fielding the most competitive side possible.
+                    - MUST still maintain squad balance: include a wicket-keeper, genuine bowling options, and adequate batting depth.
+                    """;
+        }
+
         return """
                 You are an expert cricket team selector for amateur and club-level cricket.
-                Select the best possible playing XI for %s for the upcoming match.
+                Select the playing XI for %s for the upcoming match.
 
-                Selection rules (STRICT):
+                STRICT AVAILABILITY RULES:
                 - NEVER select a player marked UNAVAILABLE (NO).
-                - Players marked AVAILABLE (YES) are preferred.
+                - Players marked AVAILABLE (YES) are the primary pool.
                 - Players with NO RESPONSE are still eligible — treat them as potentially available.
-                - Players marked UNSURE may be selected if they are the best option.
-                - %s
-                - Always include exactly one wicket-keeper in the XI.
-                - Ensure the XI has adequate batting depth AND bowling options.
+                - Players marked UNSURE may be selected if necessary.
+
+                SQUAD BALANCE REQUIREMENTS (apply regardless of strategy):
+                - MUST include exactly one wicket-keeper (marked WK in the squad).
+                - MUST include at least 4 genuine bowling options (non-part-time bowlers).
+                - MUST have at least 5 specialist or capable batters.
+                - Aim for at least one all-rounder to provide depth in both disciplines.
+                - Consider bowling variety (pace, medium, spin) where available.
+
+                TOURNAMENT STATS (when provided):
+                - Use the "TOURNAMENT STATS" table to assess current form and contribution in this tournament.
+                - Inn = batting innings played, Runs = total runs, Avg = batting average, SR = strike rate.
+                - Wkts = total wickets taken, Overs = total overs bowled.
+                - Players not appearing in the stats table have not yet had a result recorded — use profile info.
+                - Prioritise players showing strong current form where selection is otherwise equal.
+
+                %s
+
+                OUTPUT FORMAT:
                 - Return ONLY valid JSON — no markdown, no code fences, no explanations.
-                - For any unavailable numeric field, use JSON null, NEVER a string.
+                - For any unavailable numeric field, use JSON null — NEVER a string.
 
                 Return exactly this JSON schema:
                 {
-                  "selectionRationale": "string (2-3 sentences on overall selection strategy)",
-                  "bowlingRotation": "string (who opens the bowling, who bowls death overs, part-timers)",
-                  "fairnessNote": "string (comment on opportunity/rotation if relevant, else null)",
+                  "selectionRationale": "string (2-3 sentences on overall selection strategy and balance)",
+                  "bowlingRotation": "string (who opens the bowling, who bowls at death, part-timers)",
+                  "fairnessNote": "string (comment on rotation considerations or null if strongest XI)",
                   "selectedXi": [
                     {
                       "name": "string (exact name as given in squad list)",
                       "battingPosition": number (1-11),
                       "role": "BAT|BOWL|AR|WK",
-                      "selectionReason": "string (one sentence)"
+                      "selectionReason": "string (one sentence — include why this player fits the strategy)"
                     }
                   ],
                   "twelfthMan": {
@@ -245,13 +294,14 @@ public class AiTeamPickService {
                   }
                 }
 
-                selectedXi must contain EXACTLY 11 players sorted by battingPosition 1-11.
-                """.formatted(teamName, fairnessClause);
+                selectedXi must contain EXACTLY 11 players sorted by battingPosition ascending (1 = opener, 11 = last).
+                """.formatted(teamName, strategyClause);
     }
 
     private String buildUserPrompt(String teamName, String oppName, Match match,
                                    List<Player> squad, Map<Long, AvailabilityStatus> availMap,
-                                   Map<Long, Integer> appearanceMap, boolean inTournament) {
+                                   Map<Long, Integer> appearanceMap, Map<Long, PlayerResult[]> tournamentStatsMap,
+                                   boolean inTournament, boolean useRotation) {
         StringBuilder sb = new StringBuilder();
         sb.append("MATCH: ").append(teamName).append(" vs ").append(oppName);
         if (match.getMatchDate() != null) sb.append(" | ").append(match.getMatchDate());
@@ -283,9 +333,62 @@ public class AiTeamPickService {
                          availStr, apps, batPos, bowlStr));
              });
 
-        sb.append("\nApps = matches played in this tournament in the playing XI.\n");
-        sb.append("Select the best XI for ").append(teamName)
-          .append(" and return the JSON selection.");
+        sb.append("\nApps = number of times this player appeared in the playing XI in this tournament.\n");
+
+        if (inTournament && !tournamentStatsMap.isEmpty()) {
+            sb.append("\n=== TOURNAMENT STATS (this tournament) ===\n");
+            sb.append(String.format("%-26s  %3s %4s %5s %5s  |  %4s %6s\n",
+                    "Player", "Inn", "Runs", "Avg", "SR", "Wkts", "Overs"));
+            sb.append("-".repeat(70)).append("\n");
+
+            squad.stream()
+                 .sorted(Comparator.comparing(p -> p.getName() + " " + p.getSurname()))
+                 .forEach(p -> {
+                     PlayerResult[] prs = tournamentStatsMap.get(p.getPlayerId());
+                     if (prs == null || prs.length == 0) return;
+
+                     int innings = 0, totalRuns = 0, dismissed = 0, totalBalls = 0;
+                     int totalWkts = 0;
+                     double totalOvers = 0;
+
+                     for (PlayerResult pr : prs) {
+                         if (pr.getScore() != null) {
+                             innings++;
+                             totalRuns += pr.getScore();
+                             if (Boolean.TRUE.equals(pr.getDismissed())) dismissed++;
+                             if (pr.getBallsFaced() != null) totalBalls += pr.getBallsFaced();
+                         }
+                         if (pr.getWickets() != null) totalWkts += pr.getWickets();
+                         if (pr.getOversBowled() != null && !pr.getOversBowled().isBlank()) {
+                             try {
+                                 String[] parts = pr.getOversBowled().split("\\.");
+                                 int ov = Integer.parseInt(parts[0]);
+                                 int balls = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+                                 totalOvers += ov + balls / 6.0;
+                             } catch (NumberFormatException ignored) {}
+                         }
+                     }
+
+                     String batAvg = dismissed > 0
+                             ? String.format("%.1f", (double) totalRuns / dismissed)
+                             : (innings > 0 ? "N/O" : "-");
+                     String batSR  = totalBalls > 0
+                             ? String.format("%.1f", totalRuns * 100.0 / totalBalls)
+                             : "-";
+                     String overs  = totalOvers > 0 ? String.format("%.1f", totalOvers) : "-";
+
+                     sb.append(String.format("%-26s  %3d %4d %5s %5s  |  %4d %6s\n",
+                             p.getName() + " " + p.getSurname(),
+                             innings, totalRuns, batAvg, batSR, totalWkts, overs));
+                 });
+        }
+
+        if (useRotation && inTournament) {
+            sb.append("\nSTRATEGY: ROTATION — favour lower-Apps players to ensure fair opportunity across the squad.\n");
+        } else {
+            sb.append("\nSTRATEGY: STRONGEST XI — ignore Apps; select purely on merit and availability.\n");
+        }
+        sb.append("\nSelect the XI for ").append(teamName).append(" and return the JSON selection.");
         return sb.toString();
     }
 

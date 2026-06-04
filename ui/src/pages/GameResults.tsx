@@ -224,10 +224,10 @@ export const GameResults: React.FC = () => {
   const groups = groupByTournament(matches);
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', pb: 4 }}>
+    <Box sx={{ pb: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <SportsScore color="primary" />
-        <Typography variant="h5">Game Results</Typography>
+        <Typography variant="h5">My Results</Typography>
         <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ ml: 1 }} />
       </Box>
 

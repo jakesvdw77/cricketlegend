@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Login, Event, Settings, Email, Psychology,
+    PermMedia, Campaign, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Login, Event, Settings, Email, Psychology, QueryStats,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -25,7 +25,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const {isAdmin, isManager, isFinancialAdmin} = useAuth();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    type Section = 'capture' | 'financials' | 'access' | 'view' | 'matchCentre' | 'administration' | 'manageClub' | 'financeManager';
+    type Section = 'capture' | 'financials' | 'access' | 'view' | 'matchCentre' | 'administration' | 'manageClub' | 'financeManager' | 'teamManager';
     const [openSection, setOpenSection] = useState<Section>('view');
     const toggle = (s: Section) => setOpenSection(prev => prev === s ? 'view' : s);
 
@@ -37,6 +37,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const administrationOpen = openSection === 'administration';
     const manageClubOpen     = openSection === 'manageClub';
     const financeManagerOpen = openSection === 'financeManager';
+    const teamManagerOpen    = openSection === 'teamManager';
 
     const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
 
@@ -90,15 +91,23 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/game-schedule')}>
                         <ListItemIcon><Assignment/></ListItemIcon>
-                        <ListItemText primary="Game Schedule"/>
+                        <ListItemText primary="My Games"/>
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/game-results')}>
                         <ListItemIcon><SportsScore/></ListItemIcon>
-                        <ListItemText primary="Game Results"/>
+                        <ListItemText primary="My Results"/>
                     </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/my-wallet')}>
                         <ListItemIcon><AccountBalanceWallet/></ListItemIcon>
                         <ListItemText primary="My Wallet"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/field-directory')}>
+                        <ListItemIcon><Grass/></ListItemIcon>
+                        <ListItemText primary="Field Directory"/>
+                    </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-media')}>
+                        <ListItemIcon><PermMedia/></ListItemIcon>
+                        <ListItemText primary="Media Library"/>
                     </ListItemButton>
                 </List>
             </Collapse>
@@ -127,29 +136,54 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemIcon><Person/></ListItemIcon>
                                 <ListItemText primary="Manage Players"/>
                             </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/events')}>
+                                <ListItemIcon><Event/></ListItemIcon>
+                                <ListItemText primary="Event Manager"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/send-notification')}>
+                                <ListItemIcon><Campaign/></ListItemIcon>
+                                <ListItemText primary="Notifications"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/media')}>
+                                <ListItemIcon><PermMedia/></ListItemIcon>
+                                <ListItemText primary="Media Library"/>
+                            </ListItemButton>
+                        </List>
+                    </Collapse>
+                    <Divider/>
+
+                    <List disablePadding>
+                        <ListItemButton onClick={() => toggle('teamManager')}>
+                            <ListItemIcon><Groups/></ListItemIcon>
+                            <ListItemText primary="Team Manager" primaryTypographyProps={{fontWeight: 'bold'}}/>
+                            {teamManagerOpen ? <ExpandLess/> : <ExpandMore/>}
+                        </ListItemButton>
+                    </List>
+                    <Collapse in={teamManagerOpen} timeout="auto" unmountOnExit>
+                        <List disablePadding>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-tournaments')}>
+                                <ListItemIcon><EmojiEvents/></ListItemIcon>
+                                <ListItemText primary="Team Tournaments"/>
+                            </ListItemButton>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-schedule')}>
                                 <ListItemIcon><Assignment/></ListItemIcon>
                                 <ListItemText primary="Team Schedule"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-availability')}>
+                                <ListItemIcon><HowToVote/></ListItemIcon>
+                                <ListItemText primary="Team Availability"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-selection')}>
+                                <ListItemIcon><Groups/></ListItemIcon>
+                                <ListItemText primary="Team Selection"/>
                             </ListItemButton>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-results')}>
                                 <ListItemIcon><SportsScore/></ListItemIcon>
                                 <ListItemText primary="Team Results"/>
                             </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-tournaments')}>
-                                <ListItemIcon><EmojiEvents/></ListItemIcon>
-                                <ListItemText primary="Team Tournaments"/>
-                            </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/events')}>
-                                <ListItemIcon><Event/></ListItemIcon>
-                                <ListItemText primary="Team Events"/>
-                            </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/send-notification')}>
-                                <ListItemIcon><Campaign/></ListItemIcon>
-                                <ListItemText primary="Team Notifications"/>
-                            </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/admin/media')}>
-                                <ListItemIcon><PermMedia/></ListItemIcon>
-                                <ListItemText primary="Media Library"/>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-rotation')}>
+                                <ListItemIcon><QueryStats/></ListItemIcon>
+                                <ListItemText primary="Team Stats"/>
                             </ListItemButton>
                         </List>
                     </Collapse>

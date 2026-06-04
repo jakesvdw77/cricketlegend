@@ -13,4 +13,7 @@ public interface PlayerResultRepository extends JpaRepository<PlayerResult, Long
 
     @Query("SELECT pr FROM PlayerResult pr WHERE pr.player.playerId = :playerId ORDER BY pr.match.matchDate DESC")
     List<PlayerResult> findPlayerStats(@Param("playerId") Long playerId);
+
+    @Query("SELECT pr FROM PlayerResult pr WHERE pr.match.tournament.tournamentId = :tournamentId AND pr.team.teamId = :teamId")
+    List<PlayerResult> findByTournamentAndTeam(@Param("tournamentId") Long tournamentId, @Param("teamId") Long teamId);
 }

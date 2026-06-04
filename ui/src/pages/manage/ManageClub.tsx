@@ -95,8 +95,8 @@ export const ManageClub: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ mr: 'auto' }}>Manage Club</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto', fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>Manage Club</Typography>
         <Chip label={`${clubs.length} club${clubs.length !== 1 ? 's' : ''}`} size="small" />
       </Box>
 

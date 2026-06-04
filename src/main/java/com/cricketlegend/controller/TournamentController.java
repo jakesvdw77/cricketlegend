@@ -3,7 +3,10 @@ package com.cricketlegend.controller;
 import com.cricketlegend.dto.PoolStandingsDTO;
 import com.cricketlegend.dto.TournamentDTO;
 import com.cricketlegend.dto.TournamentPoolDTO;
+import com.cricketlegend.dto.TournamentStatsRequestDTO;
+import com.cricketlegend.dto.TournamentStatsReportDTO;
 import com.cricketlegend.service.TournamentService;
+import com.cricketlegend.service.TournamentStatsAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +24,7 @@ import java.util.List;
 public class TournamentController {
 
     private final TournamentService tournamentService;
+    private final TournamentStatsAnalysisService tournamentStatsAnalysisService;
 
     @GetMapping
     @Operation(summary = "Get all tournaments")
@@ -107,5 +111,15 @@ public class TournamentController {
     public ResponseEntity<Void> removeTeamFromPool(@PathVariable Long poolId, @PathVariable Long teamId) {
         tournamentService.removeTeamFromPool(poolId, teamId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/stats/analysis")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    @Operation(summary = "Generate or retrieve AI-powered tournament stats report")
+    public ResponseEntity<TournamentStatsReportDTO> getTournamentStatsAnalysis(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean regenerate,
+            @RequestBody TournamentStatsRequestDTO stats) {
+        return ResponseEntity.ok(tournamentStatsAnalysisService.analyze(id, stats, regenerate));
     }
 }

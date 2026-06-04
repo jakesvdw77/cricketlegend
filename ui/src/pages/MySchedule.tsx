@@ -15,31 +15,22 @@ import {
   FileDownload, Cake, ChevronLeft, ChevronRight,
 } from '@mui/icons-material';
 
-const CalendarEventComponent: React.FC<{ event: CalendarEvent }> = ({ event }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  let label = event.title;
-  if (isMobile && event.type === 'birthday' && event.player) {
-    label = `🎂 ${event.player.name}`;
-  }
-  return <span style={{ fontSize: 11 }}>{label}</span>;
-};
-
 const MONTHS = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ];
 
-const VIEWS: View[] = ['month', 'week', 'day'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 interface CalendarToolbarProps {
   date: Date;
   view: View;
+  isMobile: boolean;
   onDateChange: (date: Date) => void;
   onViewChange: (view: View) => void;
 }
 
-const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ date, view, onDateChange, onViewChange }) => {
+const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ date, view, isMobile, onDateChange, onViewChange }) => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const currentYear = new Date().getFullYear();
@@ -49,31 +40,41 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ date, view, onDateCha
     const next = new Date(date);
     if (view === 'month') next.setMonth(next.getMonth() + dir);
     else if (view === 'week') next.setDate(next.getDate() + dir * 7);
+    else if (view === 'agenda') next.setMonth(next.getMonth() + dir);
     else next.setDate(next.getDate() + dir);
     onDateChange(next);
   };
 
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-      <MuiIconButton size="small" onClick={() => shift(-1)} sx={{ color: '#e4f4df' }}>
-        <ChevronLeft />
-      </MuiIconButton>
-      <Button size="small" onClick={() => onDateChange(new Date())}
-        sx={{ color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', border: '1px solid', minWidth: 0, px: 1, py: 0.25, fontSize: 12 }}>
-        Today
-      </Button>
-      <MuiIconButton size="small" onClick={() => shift(1)} sx={{ color: '#e4f4df' }}>
-        <ChevronRight />
-      </MuiIconButton>
+  const desktopViews: View[] = ['month', 'week', 'day'];
+  const mobileViews: View[] = ['agenda', 'week', 'day'];
+  const views = isMobile ? mobileViews : desktopViews;
+  const viewLabel: Record<string, string> = { month: 'Month', week: 'Week', day: 'Day', agenda: 'List' };
 
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, flexWrap: 'wrap' }}>
+      {/* Nav arrows + Today */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <MuiIconButton size="small" onClick={() => shift(-1)} sx={{ color: '#e4f4df' }}>
+          <ChevronLeft />
+        </MuiIconButton>
+        <Button size="small" onClick={() => onDateChange(new Date())}
+          sx={{ color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', border: '1px solid', minWidth: 0, px: 1, py: 0.25, fontSize: 12 }}>
+          Today
+        </Button>
+        <MuiIconButton size="small" onClick={() => shift(1)} sx={{ color: '#e4f4df' }}>
+          <ChevronRight />
+        </MuiIconButton>
+      </Box>
+
+      {/* Month + Year selects */}
       <Select
         value={month}
         onChange={e => { const next = new Date(date); next.setMonth(e.target.value as number); onDateChange(next); }}
         size="small"
         variant="outlined"
-        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: 130 }}
+        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: isMobile ? 80 : 130 }}
       >
-        {MONTHS.map((m, i) => <MenuItem key={i} value={i}>{m}</MenuItem>)}
+        {(isMobile ? MONTHS_SHORT : MONTHS).map((m, i) => <MenuItem key={i} value={i}>{m}</MenuItem>)}
       </Select>
 
       <Select
@@ -81,28 +82,39 @@ const CalendarToolbar: React.FC<CalendarToolbarProps> = ({ date, view, onDateCha
         onChange={e => { const next = new Date(date); next.setFullYear(e.target.value as number); onDateChange(next); }}
         size="small"
         variant="outlined"
-        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: 90 }}
+        sx={{ color: '#e4f4df', '.MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100,180,90,0.35)' }, '.MuiSvgIcon-root': { color: '#e4f4df' }, minWidth: 80 }}
       >
         {years.map(y => <MenuItem key={y} value={y}>{y}</MenuItem>)}
       </Select>
 
+      {/* View switcher */}
       <Box sx={{ ml: 'auto', display: 'flex', gap: 0.5 }}>
-        {VIEWS.map(v => (
+        {views.map(v => (
           <Button
             key={v}
             size="small"
             variant={v === view ? 'contained' : 'outlined'}
             onClick={() => onViewChange(v)}
             sx={v === view
-              ? { bgcolor: '#28b463', color: '#0e1f0e', fontWeight: 'bold', minWidth: 60 }
-              : { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', minWidth: 60 }}
+              ? { bgcolor: '#28b463', color: '#0e1f0e', fontWeight: 'bold', minWidth: isMobile ? 44 : 60, px: isMobile ? 0.75 : 1.5, fontSize: isMobile ? 11 : 13 }
+              : { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.35)', minWidth: isMobile ? 44 : 60, px: isMobile ? 0.75 : 1.5, fontSize: isMobile ? 11 : 13 }}
           >
-            {v.charAt(0).toUpperCase() + v.slice(1)}
+            {viewLabel[v]}
           </Button>
         ))}
       </Box>
     </Box>
   );
+};
+
+const CalendarEventComponent: React.FC<{ event: CalendarEvent }> = ({ event }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  let label = event.title;
+  if (isMobile && event.type === 'birthday' && event.player) {
+    label = `🎂 ${event.player.name}`;
+  }
+  return <span style={{ fontSize: 11 }}>{label}</span>;
 };
 import { matchApi } from '../api/matchApi';
 import { pollApi } from '../api/pollApi';
@@ -157,10 +169,12 @@ const toEndDate = (match: Match): Date => {
 
 export const MySchedule: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Match | null>(null);
-  const [view, setView] = useState<View>('month');
+  const [view, setView] = useState<View>(isMobile ? 'agenda' : 'month');
   const [date, setDate] = useState(new Date());
 
   // Detail state
@@ -455,10 +469,10 @@ export const MySchedule: React.FC = () => {
       ) : (
         <Box sx={{
           flex: 1,
-          minHeight: 560,
+          minHeight: isMobile ? 400 : 560,
           bgcolor: '#0e1f0e',
           borderRadius: 2,
-          p: 2,
+          p: { xs: 1, sm: 2 },
           color: '#e4f4df',
 
           '& .rbc-toolbar': { display: 'none' },
@@ -470,10 +484,11 @@ export const MySchedule: React.FC = () => {
           },
           '& .rbc-header': {
             fontWeight: 'bold',
-            fontSize: 13,
+            fontSize: isMobile ? 10 : 13,
             color: '#e4f4df',
             borderColor: 'rgba(100,180,90,0.2)',
             bgcolor: '#1e3a1e',
+            padding: isMobile ? '2px' : undefined,
           },
           '& .rbc-month-row': { borderColor: 'rgba(100,180,90,0.15)' },
           '& .rbc-day-bg': { borderColor: 'rgba(100,180,90,0.15)' },
@@ -481,7 +496,7 @@ export const MySchedule: React.FC = () => {
           '& .rbc-today': { bgcolor: 'rgba(40,180,99,0.12)' },
 
           // date numbers & labels
-          '& .rbc-date-cell': { color: '#e4f4df' },
+          '& .rbc-date-cell': { color: '#e4f4df', fontSize: isMobile ? 10 : 13 },
           '& .rbc-date-cell.rbc-off-range': { color: 'rgba(228,244,223,0.35)' },
           '& .rbc-label': { color: '#e4f4df' },
 
@@ -491,13 +506,19 @@ export const MySchedule: React.FC = () => {
           '& .rbc-time-slot': { color: 'rgba(228,244,223,0.6)' },
           '& .rbc-current-time-indicator': { bgcolor: '#28b463' },
 
-          // agenda
-          '& .rbc-agenda-table': { color: '#e4f4df' },
-          '& .rbc-agenda-date-cell, & .rbc-agenda-time-cell': { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.2)' },
+          // agenda view — dark theme
+          '& .rbc-agenda-view': { color: '#e4f4df' },
+          '& .rbc-agenda-table': { color: '#e4f4df', borderColor: 'rgba(100,180,90,0.2)', width: '100%' },
+          '& .rbc-agenda-table thead tr th': { color: '#e4f4df', bgcolor: '#1e3a1e', borderColor: 'rgba(100,180,90,0.2)', fontSize: isMobile ? 11 : 13, padding: '6px 8px' },
+          '& .rbc-agenda-table tbody tr td': { borderColor: 'rgba(100,180,90,0.15)', padding: '6px 8px', fontSize: isMobile ? 12 : 13 },
+          '& .rbc-agenda-date-cell, & .rbc-agenda-time-cell': { color: 'rgba(228,244,223,0.7)', whiteSpace: 'nowrap' },
+          '& .rbc-agenda-event-cell': { color: '#e4f4df' },
+          '& .rbc-agenda-empty': { color: 'rgba(228,244,223,0.5)', padding: '24px', textAlign: 'center', display: 'block' },
         }}>
           <CalendarToolbar
             date={date}
             view={view}
+            isMobile={isMobile}
             onDateChange={onNavigate}
             onViewChange={onView}
           />
@@ -518,10 +539,11 @@ export const MySchedule: React.FC = () => {
                 ? `${e.resource.homeTeamName ?? '—'} vs ${e.resource.oppositionTeamName ?? '—'}`
                 : e.title
             }
-            views={['month', 'week', 'day']}
+            views={['month', 'week', 'day', 'agenda']}
             toolbar={false}
-            style={{ height: 600 }}
+            style={{ height: isMobile ? 500 : 600 }}
             popup
+            length={31}
           />
         </Box>
       )}
@@ -688,7 +710,7 @@ export const MySchedule: React.FC = () => {
                   startIcon={<AssignmentInd />}
                   onClick={() => { setSelected(null); navigate(`/matches/${selected.matchId}/teamsheet`); }}
                 >
-                  Team Sheet
+                  Team
                 </Button>
               )}
             </DialogActions>

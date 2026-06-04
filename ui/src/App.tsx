@@ -45,6 +45,9 @@ import { ManageClubPlayers } from './pages/manage/ManageClubPlayers';
 import { ManageTeamSchedule } from './pages/manage/ManageTeamSchedule';
 import { ManageTeamResults } from './pages/manage/ManageTeamResults';
 import { ManageTeamTournaments } from './pages/manage/ManageTeamTournaments';
+import { TeamAvailabilityOverview } from './pages/manage/TeamAvailabilityOverview';
+import { TeamRotationOverview } from './pages/manage/TeamRotationOverview';
+import { TeamSelectionOverview } from './pages/manage/TeamSelectionOverview';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
@@ -68,6 +71,8 @@ import { MatchAvailabilityPoll } from './pages/view/MatchAvailabilityPoll';
 import { MyAvailability } from './pages/view/MyAvailability';
 import { TeamsView } from './pages/view/TeamsView';
 import { MyClubView } from './pages/view/MyClubView';
+import { FieldDirectory } from './pages/view/FieldDirectory';
+import { PlayerMediaLibrary } from './pages/view/PlayerMediaLibrary';
 
 const LandingRoute: React.FC = () => {
   if (keycloak.authenticated) return <Navigate to="/home" replace />;
@@ -136,6 +141,9 @@ function ThemedApp() {
             <Route path="manage-club/team-schedule" element={<ManagerRoute element={<ManageTeamSchedule />} />} />
             <Route path="manage-club/team-results" element={<ManagerRoute element={<ManageTeamResults />} />} />
             <Route path="manage-club/team-tournaments" element={<ManagerRoute element={<ManageTeamTournaments />} />} />
+            <Route path="manage-club/team-availability" element={<ManagerRoute element={<TeamAvailabilityOverview />} />} />
+            <Route path="manage-club/team-selection" element={<ManagerRoute element={<TeamSelectionOverview />} />} />
+            <Route path="manage-club/team-rotation" element={<ManagerRoute element={<TeamRotationOverview />} />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />
@@ -173,6 +181,8 @@ function ThemedApp() {
             <Route path="matches/:matchId/teamsheet" element={<MatchTeamSheet />} />
             <Route path="poll/:matchId/:teamId" element={<MatchAvailabilityPoll />} />
             <Route path="my-availability" element={<MyAvailability />} />
+            <Route path="field-directory" element={<FieldDirectory />} />
+            <Route path="my-media" element={<PlayerMediaLibrary />} />
             <Route path="teams" element={<TeamsView />} />
             <Route path="my-club" element={<MyClubView />} />
             <Route path="finance/payments" element={<FinancialAdminRoute element={<FinancePayments />} />} />

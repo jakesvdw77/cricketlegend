@@ -987,20 +987,22 @@ export const ManageTeamSchedule: React.FC = () => {
     : 'Share';
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', pb: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+    <Box sx={{ pb: 4 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
         {returnTo && (
-          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ mr: 0.5 }}>
+          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ flexShrink: 0 }}>
             Back
           </Button>
         )}
-        <Assignment color="primary" />
-        <Typography variant="h5">
-          {filterTournamentName ?? 'Team Schedule'}
-        </Typography>
-        {selectedTeamId && !matchesLoading && (
-          <Chip label={`${total} match${total !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ ml: 1 }} />
-        )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+          <Assignment color="primary" sx={{ flexShrink: 0 }} />
+          <Typography variant="h5" sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' }, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {filterTournamentName ?? 'Team Schedule'}
+          </Typography>
+          {selectedTeamId && !matchesLoading && (
+            <Chip label={`${total} match${total !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ flexShrink: 0 }} />
+          )}
+        </Box>
       </Box>
 
       <TextField

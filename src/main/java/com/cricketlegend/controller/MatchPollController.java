@@ -60,6 +60,13 @@ public class MatchPollController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/my/polls")
+    @Operation(summary = "Get all open polls where the current player is in the squad")
+    public ResponseEntity<List<MatchPollDTO>> getMyOpenPolls(@AuthenticationPrincipal Jwt jwt) {
+        String email = jwt.getClaimAsString("email");
+        return ResponseEntity.ok(pollService.getMyOpenPolls(email));
+    }
+
     @GetMapping("/matches/{matchId}/poll/{teamId}")
     @Operation(summary = "Get poll details with squad availability")
     public ResponseEntity<MatchPollDTO> getPoll(

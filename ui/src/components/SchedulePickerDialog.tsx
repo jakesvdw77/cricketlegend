@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Avatar, Card, CardContent, Dialog, DialogTitle,
   DialogContent, DialogActions, Button, CircularProgress, Stack, Tooltip,
+  useTheme, useMediaQuery,
 } from '@mui/material';
-import { Groups, ChevronRight, Image as ImageIcon, Download, ArrowBack, Fullscreen, FullscreenExit, ZoomIn, ZoomOut, ZoomOutMap, ViewStream, ViewColumn } from '@mui/icons-material';
+import { Groups, ChevronRight, Download, ArrowBack, Fullscreen, FullscreenExit, ZoomIn, ZoomOut, ZoomOutMap, ViewStream, ViewColumn } from '@mui/icons-material';
 import IconButton from '@mui/material/IconButton';
 import { matchApi } from '../api/matchApi';
 import { Match, Tournament } from '../types';
@@ -32,6 +33,9 @@ export const SchedulePickerDialog: React.FC<SchedulePickerDialogProps> = ({ tour
   const [twoColumns, setTwoColumns] = useState(false);
   const [lastTeamId, setLastTeamId] = useState<number | null | undefined>(undefined);
   const [lastTeamName, setLastTeamName] = useState<string | undefined>(undefined);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     if (!tournament?.tournamentId) return;
@@ -92,56 +96,60 @@ export const SchedulePickerDialog: React.FC<SchedulePickerDialogProps> = ({ tour
 
   // ── Image preview ────────────────────────────────────────────────────────────
   if (imageUrl) {
+    const isFs = fullscreen || isMobile;
+    const closePreview = () => { setImageUrl(null); setFullscreen(false); setZoom(100); };
     return (
-      <Dialog open fullScreen={fullscreen} maxWidth="lg" fullWidth PaperProps={{ sx: { bgcolor: '#0d3b1e' } }}>
-        <DialogTitle sx={{ color: '#fff', display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ImageIcon fontSize="small" />
-          <Box sx={{ flex: 1 }}>{tournament?.name} — {imageLabel}</Box>
-          <Tooltip title={twoColumns ? 'Switch to single column' : 'Switch to 2-column layout'}>
+      <Dialog open fullScreen={isFs} maxWidth="lg" fullWidth PaperProps={{ sx: { bgcolor: '#0d3b1e' } }}>
+        <DialogTitle sx={{ color: '#fff', display: 'flex', alignItems: 'center', gap: 0.5, px: 1.5, py: 1, minHeight: 0 }}>
+          <IconButton size="small" onClick={closePreview} sx={{ color: 'rgba(255,255,255,0.7)', mr: 0.5 }}>
+            <ArrowBack fontSize="small" />
+          </IconButton>
+          <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1, color: 'white', fontSize: { xs: '0.8rem', sm: '0.95rem' } }}>
+            {tournament?.name} — {imageLabel}
+          </Typography>
+          {/* Controls */}
+          <Tooltip title={twoColumns ? 'Single column' : '2-column layout'}>
             <span>
               <IconButton size="small" onClick={handleToggleColumns} disabled={generating}
                 sx={{ color: twoColumns ? '#86efac' : 'rgba(255,255,255,0.7)' }}>
-                {twoColumns ? <ViewColumn /> : <ViewStream />}
+                {twoColumns ? <ViewColumn fontSize="small" /> : <ViewStream fontSize="small" />}
               </IconButton>
             </span>
           </Tooltip>
-          <IconButton size="small" onClick={() => setZoom(z => Math.max(25, z - 25))} sx={{ color: 'rgba(255,255,255,0.7)' }} title="Zoom out">
-            <ZoomOut />
-          </IconButton>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', minWidth: 36, textAlign: 'center' }}>
-            {zoom}%
-          </Typography>
-          <IconButton size="small" onClick={() => setZoom(z => Math.min(300, z + 25))} sx={{ color: 'rgba(255,255,255,0.7)' }} title="Zoom in">
-            <ZoomIn />
-          </IconButton>
-          <IconButton size="small" onClick={() => setZoom(100)} sx={{ color: 'rgba(255,255,255,0.7)' }} title="Reset zoom">
-            <ZoomOutMap />
-          </IconButton>
-          <IconButton size="small" onClick={() => setFullscreen(f => !f)} sx={{ color: 'rgba(255,255,255,0.7)' }}>
-            {fullscreen ? <FullscreenExit /> : <Fullscreen />}
+          {!isMobile && (
+            <>
+              <IconButton size="small" onClick={() => setZoom(z => Math.max(25, z - 25))} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                <ZoomOut fontSize="small" />
+              </IconButton>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', minWidth: 30, textAlign: 'center' }}>
+                {zoom}%
+              </Typography>
+              <IconButton size="small" onClick={() => setZoom(z => Math.min(300, z + 25))} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                <ZoomIn fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={() => setZoom(100)} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                <ZoomOutMap fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={() => setFullscreen(f => !f)} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                {fullscreen ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
+              </IconButton>
+            </>
+          )}
+          <IconButton size="small" onClick={handleDownload} sx={{ color: 'rgba(255,255,255,0.7)' }}>
+            <Download fontSize="small" />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: 1, overflow: 'auto' }}>
+        <DialogContent sx={{ p: 0.5, overflow: 'auto' }}>
           <Box component="img" src={imageUrl} alt="Schedule"
-            sx={{ width: `${zoom}%`, height: 'auto', borderRadius: 2, display: 'block', minWidth: `${zoom}%` }} />
+            sx={{ width: isMobile ? '100%' : `${zoom}%`, height: 'auto', borderRadius: 1, display: 'block', minWidth: isMobile ? '100%' : `${zoom}%` }} />
         </DialogContent>
-        <DialogActions>
-          <Button startIcon={<ArrowBack />} onClick={() => { setImageUrl(null); setFullscreen(false); setZoom(100); }}
-            sx={{ color: 'rgba(255,255,255,0.6)', mr: 'auto' }}>
-            Back
-          </Button>
-          <Button onClick={() => { setImageUrl(null); setFullscreen(false); setZoom(100); onClose(); }} sx={{ color: 'rgba(255,255,255,0.6)' }}>Close</Button>
-          <Button variant="contained" startIcon={<Download />} onClick={handleDownload}>
-            Download PNG
-          </Button>
-        </DialogActions>
       </Dialog>
     );
   }
 
   // ── Team picker ──────────────────────────────────────────────────────────────
   return (
-    <Dialog open={!!tournament} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog open={!!tournament} onClose={onClose} maxWidth="xs" fullWidth fullScreen={isMobile}>
       <DialogTitle>Full Schedule — {tournament?.name}</DialogTitle>
       <DialogContent sx={{ px: 2, pb: 2 }}>
         {loading ? (

@@ -8,9 +8,11 @@ import {
   PictureAsPdf, WhatsApp, Print, Image as ImageIcon,
   Fullscreen, FullscreenExit, Download,
 } from '@mui/icons-material';
-import { Match, MatchSide, Player } from '../../types';
+import { Match, MatchSide, MatchPoll, Player } from '../../types';
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
+import { pollApi } from '../../api/pollApi';
+import PollWhatsAppDialog from '../../pages/admin/PollWhatsAppDialog';
 import { generateMatchPdf, generateTeamsheetPdf } from '../../utils/matchPdf';
 import { generatePlayingXiImage, generatePlayingXiBattingOrderImage, generateMatchCountdownImage } from '../../utils/teamsheetImage';
 import { PdfPreviewDialog } from '../PdfPreviewDialog';
@@ -75,12 +77,13 @@ interface Props {
   open: boolean;
   match: Match;
   teamId?: number;
+  poll?: MatchPoll;
   onClose: () => void;
 }
 
 type SidesAndPlayers = { sides: MatchSide[]; players: Player[] };
 
-export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, onClose }) => {
+export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, poll: preloadedPoll, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -89,6 +92,7 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, onClose 
   const [xiTemplateOpen, setXiTemplateOpen] = useState(false);
   const [xiTemplateData, setXiTemplateData] = useState<SidesAndPlayers & { match: Match } | null>(null);
   const [snackbar, setSnackbar] = useState('');
+  const [pollWhatsApp, setPollWhatsApp] = useState<{ match: Match; poll: MatchPoll } | null>(null);
 
   const effectiveTeamId = teamId ?? match.homeTeamId;
 
@@ -130,6 +134,32 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, onClose 
     try { const url = await generateMatchCountdownImage(match); onClose(); setImageTitle('Match Countdown'); setImageUrl(url); }
     catch { setSnackbar('Could not generate countdown image.'); }
     finally { setLoading(false); }
+  };
+
+  const handlePollWhatsApp = async () => {
+    // Use preloaded poll if available (e.g. from availability card)
+    if (preloadedPoll) {
+      onClose();
+      setPollWhatsApp({ match, poll: preloadedPoll });
+      return;
+    }
+    setLoading(true);
+    try {
+      // Try effectiveTeamId first, then fall back to the other team
+      const teamIds = [...new Set([effectiveTeamId, match.homeTeamId, match.oppositionTeamId].filter(Boolean) as number[])];
+      let found: MatchPoll | null = null;
+      for (const tid of teamIds) {
+        const p = await pollApi.getPoll(match.matchId!, tid).catch(() => null);
+        if (p?.open) { found = p; break; }
+      }
+      if (!found) { setSnackbar('No open poll found for this match.'); return; }
+      onClose();
+      setPollWhatsApp({ match, poll: found });
+    } catch {
+      setSnackbar('Could not load poll data.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleXiPhotoGrid = async () => {
@@ -179,6 +209,10 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, onClose 
               <ListItemIcon>{loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}</ListItemIcon>
               <ListItemText primary="Match Countdown Image" secondary="Countdown graphic with both team logos" />
             </ListItemButton>
+            <ListItemButton onClick={handlePollWhatsApp} disabled={loading}>
+              <ListItemIcon><WhatsApp sx={{ color: '#25D366' }} /></ListItemIcon>
+              <ListItemText primary="WhatsApp Availability Poll" secondary="Share poll link with match details" />
+            </ListItemButton>
           </List>
         </DialogContent>
         <DialogActions><Button onClick={onClose}>Cancel</Button></DialogActions>
@@ -200,6 +234,15 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, onClose 
       <PdfPreviewDialog pdfUrl={pdfUrl} onClose={() => setPdfUrl(null)} />
 
       <ImagePreviewDialog imageUrl={imageUrl} title={imageTitle} filename={imageFilename} onClose={() => setImageUrl(null)} />
+
+      {pollWhatsApp && (
+        <PollWhatsAppDialog
+          open={!!pollWhatsApp}
+          onClose={() => setPollWhatsApp(null)}
+          match={pollWhatsApp.match}
+          poll={pollWhatsApp.poll}
+        />
+      )}
 
       <Snackbar open={!!snackbar} autoHideDuration={3000} onClose={() => setSnackbar('')}
         message={snackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} />

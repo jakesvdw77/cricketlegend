@@ -8,6 +8,7 @@ import {
 import html2canvas from 'html2canvas';
 import RichEditor from './RichEditor';
 import { plainTextToHtml } from './types';
+import { EmojiPickerButton } from '../../../components/EmojiPickerButton';
 
 export type ViewMode = 'text' | 'editor' | 'card';
 
@@ -35,6 +36,19 @@ const TemplateShell: React.FC<Props> = ({
   const [copied, setCopied]       = useState(false);
   const [downloading, setDownloading] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertEmoji = (emoji: string) => {
+    const el = textInputRef.current;
+    if (!el) { onTextChange(text + emoji); return; }
+    const start = el.selectionStart ?? text.length;
+    const end = el.selectionEnd ?? text.length;
+    onTextChange(text.slice(0, start) + emoji + text.slice(end));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  };
 
   const copy = () =>
     navigator.clipboard.writeText(text).then(() => {
@@ -86,7 +100,7 @@ const TemplateShell: React.FC<Props> = ({
             disabled={!text}
             sx={{ minWidth: 160 }}
           >
-            {copied ? 'Copied!' : 'Copy to Clipboard'}
+            {copied ? 'Copied!' : 'Copy'}
           </Button>
         )}
         {viewMode === 'editor' && (
@@ -104,6 +118,7 @@ const TemplateShell: React.FC<Props> = ({
             {downloading ? 'Exporting…' : 'Download as Image'}
           </Button>
         )}
+        {viewMode === 'text' && <EmojiPickerButton onSelect={insertEmoji} />}
         {viewMode !== 'card' && (
           <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
             Edit below before copying
@@ -118,6 +133,7 @@ const TemplateShell: React.FC<Props> = ({
           value={text}
           onChange={e => onTextChange(e.target.value)}
           placeholder="Click Regenerate to build the template…"
+          inputRef={textInputRef}
           inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.82rem', lineHeight: 1.6 } }}
           sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'grey.50', alignItems: 'flex-start' } }}
         />

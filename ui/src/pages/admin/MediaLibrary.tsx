@@ -34,11 +34,20 @@ const emptyUpload = (): Partial<MediaContent> => ({
   clubId: undefined,
 });
 
-interface MediaLibraryProps {
-  tournamentId?: number;
+export interface MediaPlayerContext {
+  player: Player;
+  players: Player[];
+  teams: Team[];
+  matches: Match[];
+  tournaments: Tournament[];
 }
 
-export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedTournamentId }) => {
+interface MediaLibraryProps {
+  tournamentId?: number;
+  playerContext?: MediaPlayerContext;
+}
+
+export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedTournamentId, playerContext }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   // Reference data
@@ -51,7 +60,10 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
 
   // Gallery state
   const [items, setItems] = useState<MediaContent[]>([]);
-  const [filters, setFilters] = useState<MediaSearchParams>({});
+  const defaultFilters: MediaSearchParams = playerContext
+    ? { playerId: playerContext.player.playerId }
+    : fixedTournamentId ? { tournamentId: fixedTournamentId } : {};
+  const [filters, setFilters] = useState<MediaSearchParams>(defaultFilters);
   const [filtersOpen, setFiltersOpen] = useState(!isMobile);
   const [loadingGallery, setLoadingGallery] = useState(false);
   const [galleryError, setGalleryError] = useState<string | null>(null);
@@ -61,7 +73,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [uploadMeta, setUploadMeta] = useState<Partial<MediaContent>>({ ...emptyUpload(), tournamentId: fixedTournamentId });
+  const [uploadMeta, setUploadMeta] = useState<Partial<MediaContent>>({
+    ...emptyUpload(),
+    tournamentId: fixedTournamentId,
+    playerId: playerContext?.player.playerId,
+  });
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -73,6 +89,16 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
   const [deleteTarget, setDeleteTarget] = useState<MediaContent | null>(null);
 
   useEffect(() => {
+    if (playerContext) {
+      // Player-scoped: use pre-fetched restricted data
+      setPlayers(playerContext.players);
+      setTeams(playerContext.teams);
+      setMatches(playerContext.matches);
+      setTournaments(playerContext.tournaments);
+      fieldApi.findAll().then(setFields).catch(() => {});
+      loadGallery(defaultFilters);
+      return;
+    }
     const matchLoad = fixedTournamentId
       ? matchApi.findByTournament(fixedTournamentId)
       : matchApi.findAll();
@@ -92,7 +118,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
       if (c) setClubs(c);
     });
     loadGallery(fixedTournamentId ? { tournamentId: fixedTournamentId } : {});
-  }, [fixedTournamentId]);
+  }, [fixedTournamentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadGallery = (params: MediaSearchParams) => {
     setLoadingGallery(true);
@@ -106,9 +132,8 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
   const applyFilters = () => loadGallery(filters);
 
   const clearFilters = () => {
-    const base = fixedTournamentId ? { tournamentId: fixedTournamentId } : {};
-    setFilters(base);
-    loadGallery(base);
+    setFilters(defaultFilters);
+    loadGallery(defaultFilters);
   };
 
   const hasFilters = Object.values(filters).some(v => v != null && v !== '');
@@ -172,7 +197,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
   const resetUploadDialog = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
-    setUploadMeta({ ...emptyUpload(), tournamentId: fixedTournamentId });
+    setUploadMeta({
+      ...emptyUpload(),
+      tournamentId: fixedTournamentId,
+      playerId: playerContext?.player.playerId,
+    });
     setUploadError(null);
     setUploading(false);
   };
@@ -253,7 +282,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
         onChange={(_, f) => onChange({ fieldId: f?.fieldId ?? undefined })}
         renderInput={params => <TextField {...params} label="Ground / Field" />}
       />
-      {!fixedTournamentId && (
+      {!fixedTournamentId && !playerContext && (
         <Autocomplete
           size="small"
           options={clubs}
@@ -294,7 +323,8 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
 
         {filtersOpen && (
           <>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+            {/* Row 1: Type · Player · Team · Apply */}
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
               <TextField select size="small" label="Type" sx={{ flex: '1 1 100px', minWidth: 90 }} value={filters.mediaType ?? ''}
                 onChange={e => setFilter({ mediaType: e.target.value as MediaFileType || undefined })}>
                 <MenuItem value="">All</MenuItem>
@@ -317,14 +347,13 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
                 onChange={(_, t) => setFilter({ teamId: t?.teamId ?? undefined })}
                 renderInput={params => <TextField {...params} label="Team" />}
               />
-              <Autocomplete
-                size="small" sx={{ flex: '3 1 200px' }}
-                options={matches}
-                getOptionLabel={matchLabel}
-                value={matches.find(m => m.matchId === filters.matchId) ?? null}
-                onChange={(_, m) => setFilter({ matchId: m?.matchId ?? undefined })}
-                renderInput={params => <TextField {...params} label="Match" />}
-              />
+              <Button variant="contained" size="small" onClick={applyFilters} sx={{ flexShrink: 0 }}>
+                Apply
+              </Button>
+            </Box>
+
+            {/* Row 2: Tournament · Match · Ground (· Club for admins) */}
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 0 }}>
               {!fixedTournamentId && (
                 <Autocomplete
                   size="small" sx={{ flex: '2 1 160px' }}
@@ -336,6 +365,14 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
                 />
               )}
               <Autocomplete
+                size="small" sx={{ flex: '3 1 200px' }}
+                options={matches}
+                getOptionLabel={matchLabel}
+                value={matches.find(m => m.matchId === filters.matchId) ?? null}
+                onChange={(_, m) => setFilter({ matchId: m?.matchId ?? undefined })}
+                renderInput={params => <TextField {...params} label="Match" />}
+              />
+              <Autocomplete
                 size="small" sx={{ flex: '2 1 140px' }}
                 options={fields}
                 getOptionLabel={f => f.name}
@@ -343,7 +380,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
                 onChange={(_, f) => setFilter({ fieldId: f?.fieldId ?? undefined })}
                 renderInput={params => <TextField {...params} label="Ground" />}
               />
-              {!fixedTournamentId && (
+              {!fixedTournamentId && !playerContext && (
                 <Autocomplete
                   size="small" sx={{ flex: '2 1 140px' }}
                   options={clubs}
@@ -354,7 +391,6 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
                 />
               )}
             </Box>
-            <Button variant="contained" size="small" onClick={applyFilters}>Apply Filters</Button>
           </>
         )}
       </Paper>
@@ -401,19 +437,21 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
               )}
 
               {/* Action overlay */}
-              <Box className="media-actions" sx={{
-                position: 'absolute', inset: 0,
-                bgcolor: 'rgba(0,0,0,0.4)',
-                display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
-                p: 0.5, opacity: 0, transition: 'opacity 0.15s',
-              }}>
-                <Tooltip title="Delete">
-                  <IconButton size="small" sx={{ color: 'white', bgcolor: 'rgba(0,0,0,0.4)' }}
-                    onClick={e => { e.stopPropagation(); setDeleteTarget(item); }}>
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
+              {!playerContext && (
+                <Box className="media-actions" sx={{
+                  position: 'absolute', inset: 0,
+                  bgcolor: 'rgba(0,0,0,0.4)',
+                  display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end',
+                  p: 0.5, opacity: 0, transition: 'opacity 0.15s',
+                }}>
+                  <Tooltip title="Delete">
+                    <IconButton size="small" sx={{ color: 'white', bgcolor: 'rgba(0,0,0,0.4)' }}
+                      onClick={e => { e.stopPropagation(); setDeleteTarget(item); }}>
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
             </Box>
 
             {/* Card body */}
@@ -432,15 +470,17 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
                     {new Date(item.uploadedAt).toLocaleDateString()}
                   </Typography>
                 )}
-                <Tooltip title="Delete" sx={{ ml: 'auto' }}>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={e => { e.stopPropagation(); setDeleteTarget(item); }}
-                  >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                {!playerContext && (
+                  <Tooltip title="Delete" sx={{ ml: 'auto' }}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={e => { e.stopPropagation(); setDeleteTarget(item); }}
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
             </Box>
           </Paper>
@@ -448,7 +488,7 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
       </Box>
 
       {/* ── Upload dialog ── */}
-      <Dialog open={uploadOpen} onClose={() => { setUploadOpen(false); resetUploadDialog(); }} maxWidth="md" fullWidth>
+      <Dialog open={uploadOpen} onClose={() => { setUploadOpen(false); resetUploadDialog(); }} maxWidth="lg" fullWidth fullScreen={isMobile}>
         <DialogTitle>Upload Media</DialogTitle>
         <DialogContent sx={{ pt: 2 }}>
           {uploadError && <Alert severity="error" sx={{ mb: 2 }}>{uploadError}</Alert>}
@@ -456,11 +496,18 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
           <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
             {/* Left: drop zone + preview */}
             <Box sx={{ flex: 1 }}>
-              {/* Drop zone */}
+              {/* Drop zone / browse area */}
+              <input
+                ref={fileInput}
+                type="file"
+                hidden
+                accept="image/*,video/*"
+                onChange={onFileInput}
+              />
               <Box
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragOver={e => { e.preventDefault(); if (!isMobile) setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
-                onDrop={onDrop}
+                onDrop={!isMobile ? onDrop : undefined}
                 onClick={() => !selectedFile && fileInput.current?.click()}
                 sx={{
                   border: '2px dashed',
@@ -472,31 +519,41 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
                   bgcolor: dragOver ? 'action.hover' : 'background.default',
                   transition: 'all 0.15s',
                   mb: 2,
-                  minHeight: 140,
+                  minHeight: { xs: 180, md: 320 },
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 1,
+                  gap: 1.5,
                 }}
               >
-                <input
-                  ref={fileInput}
-                  type="file"
-                  hidden
-                  accept="image/*,video/*"
-                  onChange={onFileInput}
-                />
                 {!selectedFile ? (
-                  <>
-                    <CloudUpload sx={{ fontSize: 40, color: 'text.secondary' }} />
-                    <Typography color="text.secondary">
-                      Drag & drop a file here, or <Typography component="span" color="primary" fontWeight={600}>browse</Typography>
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Supported: JPG, PNG, GIF, WebP, MP4, MOV, WebM, AVI
-                    </Typography>
-                  </>
+                  isMobile ? (
+                    <>
+                      <CloudUpload sx={{ fontSize: 52, color: 'text.secondary' }} />
+                      <Typography variant="subtitle1" fontWeight={600} color="text.secondary">
+                        Tap to select a photo or video
+                      </Typography>
+                      <Button variant="contained" size="large" startIcon={<CloudUpload />}
+                        onClick={e => { e.stopPropagation(); fileInput.current?.click(); }}>
+                        Browse Gallery
+                      </Button>
+                      <Typography variant="caption" color="text.secondary">
+                        JPG, PNG, GIF, WebP, MP4, MOV, WebM, AVI
+                      </Typography>
+                    </>
+                  ) : (
+                    <>
+                      <CloudUpload sx={{ fontSize: 52, color: 'text.secondary' }} />
+                      <Typography color="text.secondary">
+                        Drag & drop a file here, or{' '}
+                        <Typography component="span" color="primary" fontWeight={600}>browse</Typography>
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Supported: JPG, PNG, GIF, WebP, MP4, MOV, WebM, AVI
+                      </Typography>
+                    </>
+                  )
                 ) : (
                   <Box sx={{ width: '100%' }}>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
@@ -506,11 +563,11 @@ export const MediaLibrary: React.FC<MediaLibraryProps> = ({ tournamentId: fixedT
                     </Box>
                     {previewUrl ? (
                       <Box component="img" src={previewUrl} alt="preview"
-                        sx={{ maxWidth: '100%', maxHeight: 200, objectFit: 'contain', display: 'block', mx: 'auto', borderRadius: 1 }} />
+                        sx={{ maxWidth: '100%', maxHeight: { xs: 240, md: 400 }, objectFit: 'contain', display: 'block', mx: 'auto', borderRadius: 1 }} />
                     ) : (
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                        <PlayCircle sx={{ fontSize: 48, color: 'primary.main' }} />
-                        <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 240 }}>
+                        <PlayCircle sx={{ fontSize: 56, color: 'primary.main' }} />
+                        <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 280 }}>
                           {selectedFile.name}
                         </Typography>
                       </Box>

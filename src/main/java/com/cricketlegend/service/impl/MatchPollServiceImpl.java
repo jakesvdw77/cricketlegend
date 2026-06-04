@@ -42,6 +42,25 @@ public class MatchPollServiceImpl implements MatchPollService {
     private String frontendUrl;
 
     @Override
+    @Transactional(readOnly = true)
+    public List<MatchPollDTO> getMyOpenPolls(String email) {
+        Player player = playerRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new NotFoundException("Player not found for email: " + email));
+
+        return pollRepository.findOpenPollsForPlayer(player.getPlayerId())
+                .stream()
+                .sorted((a, b) -> {
+                    String ka = (a.getMatch().getMatchDate() != null ? a.getMatch().getMatchDate().toString() : "9999-12-31")
+                            + "T" + (a.getMatch().getScheduledStartTime() != null ? a.getMatch().getScheduledStartTime().toString() : "99:99:99");
+                    String kb = (b.getMatch().getMatchDate() != null ? b.getMatch().getMatchDate().toString() : "9999-12-31")
+                            + "T" + (b.getMatch().getScheduledStartTime() != null ? b.getMatch().getScheduledStartTime().toString() : "99:99:99");
+                    return ka.compareTo(kb);
+                })
+                .map(this::buildPollDTO)
+                .toList();
+    }
+
+    @Override
     public MatchPollDTO togglePoll(Long matchId, Long teamId, boolean open) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> NotFoundException.of("Match", matchId));
@@ -315,8 +334,19 @@ public class MatchPollServiceImpl implements MatchPollService {
                 .pollId(poll.getPollId())
                 .matchId(match.getMatchId())
                 .matchDate(match.getMatchDate() != null ? match.getMatchDate().toString() : null)
+                .scheduledStartTime(match.getScheduledStartTime() != null ? match.getScheduledStartTime().toString() : null)
+                .arrivalTime(match.getArrivalTime() != null ? match.getArrivalTime().toString() : null)
                 .homeTeamName(match.getHomeTeam() != null ? match.getHomeTeam().getTeamName() : null)
                 .oppositionTeamName(match.getOppositionTeam() != null ? match.getOppositionTeam().getTeamName() : null)
+                .homeTeamLogoUrl(match.getHomeTeam() != null ? match.getHomeTeam().getLogoUrl() : null)
+                .oppositionTeamLogoUrl(match.getOppositionTeam() != null ? match.getOppositionTeam().getLogoUrl() : null)
+                .fieldName(match.getField() != null ? match.getField().getName() : null)
+                .fieldAddress(match.getField() != null ? match.getField().getAddress() : null)
+                .fieldGoogleMapsUrl(match.getField() != null ? match.getField().getGoogleMapsUrl() : null)
+                .fieldIconUrl(match.getField() != null ? match.getField().getIconUrl() : null)
+                .tournamentName(match.getTournament() != null ? match.getTournament().getName() : null)
+                .matchStage(match.getMatchStage() != null ? match.getMatchStage().name() : null)
+                .umpire(match.getUmpire())
                 .teamId(team.getTeamId())
                 .teamName(team.getTeamName())
                 .open(poll.isOpen())

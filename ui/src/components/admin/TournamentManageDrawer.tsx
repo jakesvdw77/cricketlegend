@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Drawer, Box, Typography, IconButton, Tabs, Tab,
-  useTheme, useMediaQuery, Avatar, Chip, Button, CircularProgress,
-  Grid, Tooltip, Autocomplete, TextField,
+  Avatar, Chip, Button, CircularProgress,
+  Grid, Tooltip, Autocomplete, TextField, Toolbar,
 } from '@mui/material';
 import {
-  Close, Settings, Groups, CalendarMonth, SportsCricket,
-  PermMedia, Share, FiberManualRecord, Save, TableRows, GridView, EmojiEvents, Handshake,
+  Settings, Groups, CalendarMonth, SportsCricket,
+  PermMedia, Share, FiberManualRecord, Save, TableRows, GridView, EmojiEvents, Handshake, ArrowBack,
 } from '@mui/icons-material';
 import { Tournament, TournamentPool, Team, Match, MatchResultSummary, Field, Sponsor } from '../../types';
 import { tournamentApi } from '../../api/tournamentApi';
@@ -85,8 +85,6 @@ export const TournamentManageDrawer: React.FC<TournamentManageDrawerProps> = ({
   const [savingWinner, setSavingWinner] = useState(false);
   const [allSponsors, setAllSponsors] = useState<Sponsor[]>([]);
 
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     teamApi.findAll().then(setAllTeams).catch(() => {});
@@ -214,36 +212,41 @@ export const TournamentManageDrawer: React.FC<TournamentManageDrawerProps> = ({
     >
       {tournament && (
         <>
+          {/* Push content below the fixed AppBar */}
+          <Toolbar variant="dense" sx={{ flexShrink: 0, minHeight: { xs: 56, sm: 64 } }} />
+
           {/* ── Header ── */}
           <Box sx={{
             display: 'flex', alignItems: 'center', gap: 1.5,
-            px: 2.5, py: 1.75, bgcolor: 'background.paper',
+            px: { xs: 1.5, sm: 2.5 }, py: { xs: 1.25, sm: 1.75 },
+            bgcolor: 'background.paper',
             borderBottom: '1px solid', borderColor: 'divider', flexShrink: 0,
           }}>
-            <Avatar src={editing.logoUrl} variant="rounded" sx={{ width: 40, height: 40, flexShrink: 0 }}>
+            <IconButton onClick={onClose} size="small" sx={{ flexShrink: 0 }}>
+              <ArrowBack fontSize="small" />
+            </IconButton>
+
+            <Avatar src={editing.logoUrl} variant="rounded" sx={{ width: 36, height: 36, flexShrink: 0 }}>
               {editing.name.charAt(0)}
             </Avatar>
 
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="subtitle1" fontWeight={700}
-                  sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="subtitle1" fontWeight={700} noWrap>
                   {editing.name || 'Tournament'}
                 </Typography>
                 {isLive && (
                   <Chip
                     icon={<FiberManualRecord sx={{ fontSize: '8px !important' }} />}
                     label="LIVE" size="small"
-                    sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, height: 20, '& .MuiChip-icon': { color: 'white' } }}
+                    sx={{ bgcolor: '#e53935', color: 'white', fontWeight: 700, height: 20, flexShrink: 0, '& .MuiChip-icon': { color: 'white' } }}
                   />
                 )}
               </Box>
-              <Typography variant="caption" color="text.secondary">Tournament Management</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                Tournament Management
+              </Typography>
             </Box>
-
-            <IconButton onClick={onClose} size="small" sx={{ flexShrink: 0 }}>
-              <Close fontSize="small" />
-            </IconButton>
           </Box>
 
           {/* ── Tabs ── */}
@@ -251,21 +254,29 @@ export const TournamentManageDrawer: React.FC<TournamentManageDrawerProps> = ({
             <Tabs
               value={activeTab}
               onChange={(_, v) => setActiveTab(v)}
-              variant={isMobile ? 'scrollable' : 'standard'}
-              scrollButtons={isMobile ? 'auto' : false}
+              variant="scrollable"
+              scrollButtons="auto"
               allowScrollButtonsMobile
               sx={{
-                px: 1,
-                '& .MuiTab-root': { minHeight: 52, textTransform: 'none', fontWeight: 500, fontSize: '0.85rem', gap: 0.75 },
+                px: 0.5,
+                '& .MuiTab-root': {
+                  minHeight: { xs: 44, sm: 52 },
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: { xs: '0.72rem', sm: '0.85rem' },
+                  gap: { xs: 0.25, sm: 0.75 },
+                  minWidth: { xs: 'unset', sm: 90 },
+                  px: { xs: 1, sm: 2 },
+                },
               }}
             >
-              <Tab label="Setup"    icon={<Settings fontSize="small" />}    iconPosition="start" />
-              <Tab label="Teams"    icon={<Groups fontSize="small" />}       iconPosition="start" />
-              <Tab label="Schedule" icon={<CalendarMonth fontSize="small" />} iconPosition="start" />
-              <Tab label="Results"  icon={<SportsCricket fontSize="small" />} iconPosition="start" />
-              <Tab label="Media"    icon={<PermMedia fontSize="small" />}    iconPosition="start" />
-              <Tab label="Social"   icon={<Share fontSize="small" />}        iconPosition="start" />
-              <Tab label="Sponsors" icon={<Handshake fontSize="small" />}   iconPosition="start" />
+              <Tab label="Setup"    icon={<Settings sx={{ fontSize: { xs: 16, sm: 18 } }} />}    iconPosition="start" />
+              <Tab label="Teams"    icon={<Groups sx={{ fontSize: { xs: 16, sm: 18 } }} />}       iconPosition="start" />
+              <Tab label="Schedule" icon={<CalendarMonth sx={{ fontSize: { xs: 16, sm: 18 } }} />} iconPosition="start" />
+              <Tab label="Results"  icon={<SportsCricket sx={{ fontSize: { xs: 16, sm: 18 } }} />} iconPosition="start" />
+              <Tab label="Media"    icon={<PermMedia sx={{ fontSize: { xs: 16, sm: 18 } }} />}    iconPosition="start" />
+              <Tab label="Social"   icon={<Share sx={{ fontSize: { xs: 16, sm: 18 } }} />}        iconPosition="start" />
+              <Tab label="Sponsors" icon={<Handshake sx={{ fontSize: { xs: 16, sm: 18 } }} />}   iconPosition="start" />
             </Tabs>
           </Box>
 

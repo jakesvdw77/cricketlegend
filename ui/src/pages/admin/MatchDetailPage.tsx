@@ -76,7 +76,7 @@ export const MatchDetailPage: React.FC = () => {
         <Box
           onClick={() => navigate(`/matches/${id}/teamsheet`)}
           sx={{
-            mb: 2, p: 2, borderRadius: 2, position: 'relative',
+            mb: 2, p: '10px 14px', borderRadius: 2, position: 'relative',
             background: 'linear-gradient(135deg, #0d2b1a 0%, #1a5c35 100%)',
             color: '#e4f4df',
             cursor: 'pointer',
@@ -89,7 +89,7 @@ export const MatchDetailPage: React.FC = () => {
               size="small"
               onClick={e => { e.stopPropagation(); setShareOpen(true); }}
               sx={{
-                position: 'absolute', top: 8, right: 8,
+                position: 'absolute', top: 6, right: 6,
                 color: 'rgba(255,255,255,0.75)',
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', opacity: 1 },
               }}
@@ -98,56 +98,61 @@ export const MatchDetailPage: React.FC = () => {
             </IconButton>
           </Tooltip>
 
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+          {/* Teams row — compact inline layout */}
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
             {/* Home team */}
-            <Box sx={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
               <Avatar
                 src={match.homeTeamLogoUrl}
-                sx={{ width: 48, height: 48, mx: 'auto', mb: 0.5, bgcolor: 'rgba(255,255,255,0.15)', fontSize: 18 }}
+                sx={{ width: 34, height: 34, flexShrink: 0, bgcolor: 'rgba(255,255,255,0.15)', fontSize: 14 }}
               >
                 {match.homeTeamAbbreviation ?? match.homeTeamName?.charAt(0)}
               </Avatar>
-              <Typography variant="body2" fontWeight="bold" noWrap>{match.homeTeamName}</Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>Home</Typography>
-            </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" fontWeight="bold" noWrap sx={{ lineHeight: 1.2 }}>{match.homeTeamName}</Typography>
+                <Typography variant="caption" sx={{ opacity: 0.6, fontSize: '0.65rem' }}>Home</Typography>
+              </Box>
+            </Stack>
 
-            <Typography variant="h6" fontWeight="bold" sx={{ opacity: 0.85, flexShrink: 0 }}>vs</Typography>
+            <Typography variant="body2" fontWeight="bold" sx={{ opacity: 0.75, flexShrink: 0, px: 0.5 }}>vs</Typography>
 
-            {/* Away team */}
-            <Box sx={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
+            {/* Away team — right-aligned */}
+            <Stack direction="row-reverse" alignItems="center" spacing={1} sx={{ flex: 1, minWidth: 0 }}>
               <Avatar
                 src={match.oppositionTeamLogoUrl}
-                sx={{ width: 48, height: 48, mx: 'auto', mb: 0.5, bgcolor: 'rgba(255,255,255,0.15)', fontSize: 18 }}
+                sx={{ width: 34, height: 34, flexShrink: 0, bgcolor: 'rgba(255,255,255,0.15)', fontSize: 14 }}
               >
                 {match.oppositionTeamAbbreviation ?? match.oppositionTeamName?.charAt(0)}
               </Avatar>
-              <Typography variant="body2" fontWeight="bold" noWrap>{match.oppositionTeamName}</Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>Away</Typography>
-            </Box>
+              <Box sx={{ minWidth: 0, textAlign: 'right' }}>
+                <Typography variant="body2" fontWeight="bold" noWrap sx={{ lineHeight: 1.2 }}>{match.oppositionTeamName}</Typography>
+                <Typography variant="caption" sx={{ opacity: 0.6, fontSize: '0.65rem' }}>Away</Typography>
+              </Box>
+            </Stack>
           </Stack>
 
-          <Divider sx={{ borderColor: 'rgba(255,255,255,0.15)', my: 1.5 }} />
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.15)', my: 1 }} />
 
           <Stack direction="row" flexWrap="wrap" gap={1.5} alignItems="center">
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <CalendarMonth sx={{ fontSize: 14, opacity: 0.75 }} />
+              <CalendarMonth sx={{ fontSize: 13, opacity: 0.75 }} />
               <Typography variant="caption">{fmtDate(match.matchDate)}</Typography>
             </Box>
             {fmtTime(match.scheduledStartTime) && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <AccessTime sx={{ fontSize: 14, opacity: 0.75 }} />
+                <AccessTime sx={{ fontSize: 13, opacity: 0.75 }} />
                 <Typography variant="caption">{fmtTime(match.scheduledStartTime)}</Typography>
               </Box>
             )}
             {match.fieldName && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <LocationOn sx={{ fontSize: 14, opacity: 0.75 }} />
+                <LocationOn sx={{ fontSize: 13, opacity: 0.75 }} />
                 <Typography variant="caption">{match.fieldName}</Typography>
               </Box>
             )}
             {match.tournamentName && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <EmojiEvents sx={{ fontSize: 14, opacity: 0.75 }} />
+                <EmojiEvents sx={{ fontSize: 13, opacity: 0.75 }} />
                 <Typography variant="caption">
                   {match.tournamentName}
                   {match.matchStage ? ` — ${STAGE_LABELS[match.matchStage] ?? match.matchStage}` : ''}
@@ -157,30 +162,26 @@ export const MatchDetailPage: React.FC = () => {
           </Stack>
 
           {!match.matchCompleted && (teamAnnounced || availCount?.pollOpen) && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
               {teamAnnounced ? (
                 <Chip
-                  icon={<RecordVoiceOver sx={{ fontSize: '16px !important' }} />}
+                  icon={<RecordVoiceOver sx={{ fontSize: '14px !important' }} />}
                   label="Team Announced"
                   color="info"
                   variant="outlined"
-                  sx={{ bgcolor: 'rgba(255,255,255,0.08)', color: 'inherit', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', height: 32, px: 0.5 }}
+                  sx={{ bgcolor: 'rgba(255,255,255,0.08)', color: 'inherit', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', height: 26, px: 0.5 }}
                 />
               ) : (
                 <Chip
-                  icon={<CheckCircle sx={{ fontSize: '16px !important' }} />}
+                  icon={<CheckCircle sx={{ fontSize: '14px !important' }} />}
                   label={`${availCount!.confirmed} / ${availCount!.total} confirmed available`}
                   color={availCount!.confirmed > 0 ? 'success' : 'default'}
                   variant="outlined"
-                  sx={{ bgcolor: 'rgba(255,255,255,0.08)', color: 'inherit', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', height: 32, px: 0.5 }}
+                  sx={{ bgcolor: 'rgba(255,255,255,0.08)', color: 'inherit', borderColor: 'rgba(255,255,255,0.3)', fontSize: '0.75rem', height: 26, px: 0.5 }}
                 />
               )}
             </Box>
           )}
-
-          <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1, opacity: 0.5, fontSize: '0.65rem', letterSpacing: 0.5 }}>
-            Tap to view both sides
-          </Typography>
         </Box>
       ) : (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
@@ -197,7 +198,7 @@ export const MatchDetailPage: React.FC = () => {
       >
         <Tab icon={<HowToVote fontSize="small" />} iconPosition="start" label="Availability" />
         <Tab icon={<Groups fontSize="small" />} iconPosition="start" label="Team Sheet" />
-        <Tab icon={<SportsScore fontSize="small" />} iconPosition="start" label="Result" disabled={!match?.matchCompleted} />
+        <Tab icon={<SportsScore fontSize="small" />} iconPosition="start" label="Result" disabled={!match?.matchCompleted && (match?.matchDate ?? '9999-12-31') > new Date().toISOString().slice(0, 10)} />
       </Tabs>
 
       {/* Tab content */}

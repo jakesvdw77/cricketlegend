@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, CircularProgress, Alert,
-  ToggleButtonGroup, ToggleButton, Chip, Divider,
+  ToggleButtonGroup, ToggleButton, Chip, Divider, Button,
 } from '@mui/material';
-import { CheckCircle, Cancel, HelpOutline } from '@mui/icons-material';
-import { useParams } from 'react-router-dom';
+import { CheckCircle, Cancel, HelpOutline, ArrowBack } from '@mui/icons-material';
+import { useParams, useNavigate } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
+import { playerApi } from '../../api/playerApi';
 import { MatchPoll, AvailabilityStatus, PlayerAvailabilityEntry } from '../../types';
 
 const STATUS_LABELS: Record<AvailabilityStatus, string> = {
@@ -22,6 +23,7 @@ const STATUS_COLOR: Record<AvailabilityStatus, 'success' | 'error' | 'warning'> 
 
 export const MatchAvailabilityPoll: React.FC = () => {
   const { matchId, teamId } = useParams<{ matchId: string; teamId: string }>();
+  const navigate = useNavigate();
   const [poll, setPoll] = useState<MatchPoll | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +33,14 @@ export const MatchAvailabilityPoll: React.FC = () => {
   useEffect(() => {
     if (!matchId || !teamId) return;
     setLoading(true);
-    pollApi.getPoll(Number(matchId), Number(teamId))
-      .then(data => {
+    Promise.all([
+      pollApi.getPoll(Number(matchId), Number(teamId)),
+      playerApi.findMe(),
+    ])
+      .then(([data, me]) => {
         setPoll(data);
-        // Player's own status is reflected after submitting and re-fetching
+        const myEntry = data.availability?.find(a => a.playerId === me.playerId);
+        if (myEntry?.status) setMyStatus(myEntry.status);
       })
       .catch(() => setError('Poll not found or not available.'))
       .finally(() => setLoading(false));
@@ -70,6 +76,9 @@ export const MatchAvailabilityPoll: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 600, mx: 'auto' }}>
+      <Button startIcon={<ArrowBack />} onClick={() => navigate('/my-availability')} sx={{ mb: 2 }}>
+        My Availability
+      </Button>
       <Typography variant="h5" gutterBottom>Availability Poll</Typography>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6">{poll.homeTeamName} vs {poll.oppositionTeamName}</Typography>

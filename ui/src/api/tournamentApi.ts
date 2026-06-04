@@ -1,5 +1,5 @@
 import api from './axiosConfig';
-import { Tournament, TournamentPool, PoolStandings } from '../types';
+import { Tournament, TournamentPool, PoolStandings, TournamentStatsReport } from '../types';
 
 export const tournamentApi = {
   findAll: () => api.get<Tournament[]>('/tournaments').then(r => r.data),
@@ -17,4 +17,9 @@ export const tournamentApi = {
     api.delete(`/tournaments/pools/${poolId}/teams/${teamId}`),
   getStandings: (tournamentId: number) =>
     api.get<PoolStandings[]>(`/tournaments/${tournamentId}/standings`).then(r => r.data),
+  getStatsAnalysis: (tournamentId: number, stats: object, regenerate = false) =>
+    api.post<TournamentStatsReport>(
+      `/tournaments/${tournamentId}/stats/analysis?regenerate=${regenerate}`,
+      stats,
+    ).then(r => r.data),
 };

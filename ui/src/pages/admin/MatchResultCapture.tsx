@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import {
   ArrowBack, Save, EmojiEvents, SportsCricket, CalendarMonth, LocationOn, Leaderboard,
-  AutoFixHigh, Sync, Upload, ExpandMore, ExpandLess,
+  AutoFixHigh, Sync, Upload, ExpandMore, ExpandLess, Casino,
 } from '@mui/icons-material';
 import { useSidebarLock } from '../../context/SidebarContext';
 import { useAuth } from '../../hooks/useAuth';
@@ -244,7 +244,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
     setSaving(true);
     setError(null);
     try {
-      await matchApi.update(+matchId, match);
+      if (isAdmin) await matchApi.update(+matchId, match);
       const saved = await matchApi.saveResult(+matchId, result);
       setResult(saved);
       setSaved(true);
@@ -375,6 +375,122 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
       set({ winningTeamId: secondTeam?.id, wonWithBonusPoint: hasBonusPoint(scoreBattingSecond, scoreBattingFirst), matchOutcomeDescription: `${secondTeam?.name} won by ${wicketsLeft} wicket${wicketsLeft !== 1 ? 's' : ''}${superOver}` });
     }
   };
+
+  // ── DEV ONLY: simulate a fictional result ────────────────────────────────────
+  const simulateResult = () => {
+    const maxOvers = (() => {
+      const fmt = tournament?.cricketFormat ?? '';
+      const n = parseInt(fmt.replace('T', ''), 10);
+      return isNaN(n) ? 20 : n;
+    })();
+
+    const tossWonBy: TossWinner      = Math.random() < 0.5 ? 'HOME' : 'OPPOSITION';
+    const tossDecision: TossDecision = Math.random() < 0.5 ? 'BAT' : 'BOWL';
+
+    const batFirstId  = tossWonBy === 'HOME'
+      ? (tossDecision === 'BAT' ? match.homeTeamId : match.oppositionTeamId)
+      : (tossDecision === 'BAT' ? match.oppositionTeamId : match.homeTeamId);
+    const batSecondId = batFirstId === match.homeTeamId ? match.oppositionTeamId : match.homeTeamId;
+
+    const fullOvers = (max: number) => `${max}.0`;
+    const partialOvers = (max: number) => {
+      const o = Math.floor(Math.random() * (max - 1)) + 1;
+      const b = Math.floor(Math.random() * 6);
+      return `${o}.${b}`;
+    };
+
+    const minRPO = 4.5, maxRPO = 9.0;
+    const score1 = Math.round((Math.random() * (maxRPO - minRPO) + minRPO) * maxOvers);
+    const wkts1  = Math.floor(Math.random() * 11);
+
+    const secondWins = Math.random() < 0.4;
+    const score2 = secondWins
+      ? score1 + Math.floor(Math.random() * 30) + 1
+      : Math.max(0, score1 - Math.floor(Math.random() * 60));
+    const wkts2  = secondWins ? Math.floor(Math.random() * 9) + 1 : 10;
+    const overs2 = secondWins ? partialOvers(maxOvers) : fullOvers(maxOvers);
+
+    const firstName  = (batFirstId  === match.homeTeamId ? match.homeTeamName  : match.oppositionTeamName) ?? 'Team A';
+    const secondName = (batSecondId === match.homeTeamId ? match.homeTeamName  : match.oppositionTeamName) ?? 'Team B';
+
+    let winningTeamId: number | undefined;
+    let matchDrawn = false;
+    let outcome: string;
+    if (score1 > score2) {
+      winningTeamId = batFirstId;
+      const margin = score1 - score2;
+      outcome = `${firstName} won by ${margin} run${margin !== 1 ? 's' : ''}`;
+    } else if (score2 > score1) {
+      winningTeamId = batSecondId;
+      const left = 10 - wkts2;
+      outcome = `${secondName} won by ${left} wicket${left !== 1 ? 's' : ''}`;
+    } else {
+      matchDrawn = true;
+      outcome = 'Match drawn';
+    }
+
+    // Resolve player lists for each innings directly (before result state updates)
+    const p1 = playersFor(batFirstId);   // team batting first
+    const p2 = playersFor(batSecondId);  // team batting second
+
+    const scoreCard: { teamA: TeamScorecard; teamB: TeamScorecard } = {
+      // teamA = first innings: p1 bat, p2 bowl
+      teamA: {
+        teamId:  batFirstId,
+        score:   score1,
+        wickets: wkts1,
+        overs:   fullOvers(maxOvers),
+        batting: simBatting(p1, score1, wkts1),
+        bowling: simBowling(p2, score1, wkts1, maxOvers),
+      },
+      // teamB = second innings: p2 bat, p1 bowl
+      teamB: {
+        teamId:  batSecondId,
+        score:   score2,
+        wickets: wkts2,
+        overs:   overs2,
+        batting: simBatting(p2, score2, wkts2),
+        bowling: simBowling(p1, score2, wkts2, maxOvers),
+      },
+    };
+
+    patchMatch({ tossWonBy, tossDecision });
+    set({
+      matchCompleted: true,
+      matchDrawn,
+      forfeited: false,
+      noResult: false,
+      sideBattingFirstId: batFirstId,
+      scoreBattingFirst:        score1,
+      wicketsLostBattingFirst:  wkts1,
+      oversBattingFirst:        fullOvers(maxOvers),
+      scoreBattingSecond:       score2,
+      wicketsLostBattingSecond: wkts2,
+      oversBattingSecond:       overs2,
+      winningTeamId,
+      matchOutcomeDescription: outcome,
+      resultVisibility: 'NOT_PUBLISHED',
+      scoreCard,
+    });
+
+    setTossOpen(true);
+    setScoresOpen(true);
+    setResultOpen(true);
+    setScorecardOpen(true);
+  };
+
+  const simulateButton = (
+    <Button
+      variant="outlined"
+      size="small"
+      color="warning"
+      startIcon={<Casino />}
+      onClick={simulateResult}
+      title="DEV ONLY — generates a fictional result"
+    >
+      Simulate
+    </Button>
+  );
 
   const saveButton = (
     <Button
@@ -526,6 +642,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                {simulateButton}
                 {syncScorecardButton}
                 {autoCalculateButton}
                 {viewStandingsButton}
@@ -536,6 +653,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
       ) : (
         /* Embedded: compact action row — no match info (already shown in parent header) */
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
+          {simulateButton}
           {syncScorecardButton}
           {autoCalculateButton}
           {viewStandingsButton}
@@ -785,6 +903,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
 
       {/* ── Bottom save bar ── */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
+        {simulateButton}
         {syncScorecardButton}
         {autoCalculateButton}
         {saveButton}
@@ -794,6 +913,127 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
   );
 };
 
+
+// ── Scorecard simulation helpers ─────────────────────────────────────────────
+
+const SIM_DISMISSALS = ['BOWLED', 'CAUGHT', 'LBW', 'RUN_OUT', 'STUMPED'] as const;
+const SIM_DISMISSAL_WEIGHTS = [30, 45, 15, 7, 3];
+
+function simDismissal(): string {
+  const total = SIM_DISMISSAL_WEIGHTS.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < SIM_DISMISSALS.length; i++) {
+    r -= SIM_DISMISSAL_WEIGHTS[i];
+    if (r <= 0) return SIM_DISMISSALS[i];
+  }
+  return 'BOWLED';
+}
+
+function simBatting(players: Player[], totalRuns: number, wickets: number): import('../../types').BattingEntry[] {
+  if (players.length === 0) return [];
+  const n = Math.min(players.length, 11);
+  const batsmanCount = Math.min(wickets + 2, n);
+
+  // descending weights — earlier batters get more runs
+  const weights = Array.from({ length: batsmanCount }, (_, i) =>
+    Math.max(0.3, (batsmanCount - i) * 1.5 + Math.random() * 2),
+  );
+  const weightTotal = weights.reduce((a, b) => a + b, 0);
+
+  const entries: import('../../types').BattingEntry[] = [];
+  let runsAssigned = 0;
+
+  for (let i = 0; i < n; i++) {
+    const p = players[i];
+    const dismissed = i < wickets;
+    const batted   = i < batsmanCount;
+
+    if (!batted) {
+      entries.push({ playerId: p.playerId, playerName: `${p.name} ${p.surname}`, battingPosition: i + 1, batted: false, score: 0, ballsFaced: 0, dismissed: false });
+      continue;
+    }
+
+    const isLast = i === batsmanCount - 1;
+    let score: number;
+    if (isLast) {
+      score = Math.max(0, totalRuns - runsAssigned);
+    } else {
+      const base = Math.round((weights[i] / weightTotal) * totalRuns);
+      const jitter = Math.floor((Math.random() - 0.5) * base * 0.4);
+      const cap = totalRuns - runsAssigned - (batsmanCount - i - 1);
+      score = Math.max(0, Math.min(base + jitter, cap));
+    }
+    runsAssigned += score;
+
+    const sr = 0.7 + Math.random() * 0.8;
+    const balls = Math.max(score === 0 ? 1 : score, Math.round(score / sr));
+    const fours = Math.max(0, Math.floor(score / 12 * Math.random() * 1.5));
+    const sixes  = Math.max(0, Math.floor(score / 20 * Math.random()));
+    const dots   = Math.max(0, balls - Math.ceil(score / 1.1));
+
+    entries.push({
+      playerId: p.playerId,
+      playerName: `${p.name} ${p.surname}`,
+      battingPosition: i + 1,
+      batted: true,
+      score,
+      ballsFaced: balls,
+      fours,
+      sixes,
+      dots,
+      dismissed,
+      dismissalType: dismissed ? simDismissal() : undefined,
+      topPerformer: i < batsmanCount && score === Math.max(...entries.filter(e => e.batted).map(e => e.score ?? 0), score),
+    });
+  }
+  return entries;
+}
+
+function simBowling(players: Player[], totalRuns: number, wickets: number, maxOvers: number): import('../../types').BowlingEntry[] {
+  if (players.length === 0) return [];
+  const numBowlers = Math.min(players.length, Math.floor(Math.random() * 3) + 4);
+  const selected = [...players].sort(() => Math.random() - 0.5).slice(0, numBowlers);
+  const maxBallsPerBowler = Math.ceil(maxOvers / 5) * 6;
+
+  let ballsLeft   = maxOvers * 6;
+  let runsLeft    = totalRuns;
+  let wicketsLeft = wickets;
+
+  return selected.map((p, i) => {
+    const isLast = i === selected.length - 1;
+
+    const fairBalls = Math.round(ballsLeft / (selected.length - i));
+    const rawBalls  = isLast ? ballsLeft : Math.round(fairBalls * (0.7 + Math.random() * 0.6));
+    const allocBalls = Math.min(rawBalls, maxBallsPerBowler, ballsLeft);
+    // round to complete overs unless last bowler
+    const useBalls = isLast ? allocBalls : Math.floor(allocBalls / 6) * 6;
+    ballsLeft -= useBalls;
+
+    const wkts = isLast ? wicketsLeft : (Math.random() < 0.45 ? Math.floor(Math.random() * Math.min(3, wicketsLeft + 1)) : 0);
+    wicketsLeft = Math.max(0, wicketsLeft - wkts);
+
+    const economy  = 4 + Math.random() * 5;
+    const runsRaw  = Math.round((useBalls / 6) * economy);
+    const runsAlloc = isLast ? Math.max(0, runsLeft) : Math.min(runsRaw, Math.max(0, runsLeft));
+    runsLeft -= runsAlloc;
+
+    const overs   = `${Math.floor(useBalls / 6)}.${useBalls % 6}`;
+    const maidens = useBalls >= 12 && runsAlloc < 4 ? 1 : 0;
+
+    return {
+      playerId: p.playerId,
+      playerName: `${p.name} ${p.surname}`,
+      overs,
+      runs:    Math.max(0, runsAlloc),
+      wickets: Math.max(0, wkts),
+      maidens,
+      wides:   Math.floor(Math.random() * 3),
+      noBalls: Math.random() < 0.25 ? 1 : 0,
+      dots:    Math.max(0, useBalls - Math.ceil(runsAlloc / 1.3)),
+      topPerformer: wkts >= 3,
+    };
+  });
+}
 
 // ── Route wrapper (reads URL params, locks sidebar) ──────────────────────────
 

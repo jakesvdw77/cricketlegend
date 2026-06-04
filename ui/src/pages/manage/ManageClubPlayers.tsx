@@ -105,8 +105,8 @@ export const ManageClubPlayers: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" sx={{ mr: 'auto' }}>Manage Players</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto', fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>Manage Players</Typography>
         <Chip label={`${players.length} player${players.length !== 1 ? 's' : ''}`} size="small" sx={{ mr: 1 }} />
         <Button
           variant="contained"

@@ -133,8 +133,9 @@ public class MatchController {
     public ResponseEntity<AiTeamPickDTO> getAiTeamPick(
             @PathVariable Long id,
             @RequestParam Long teamId,
-            @RequestParam(defaultValue = "false") boolean regenerate) {
-        return ResponseEntity.ok(aiTeamPickService.pick(id, teamId, regenerate));
+            @RequestParam(defaultValue = "false") boolean regenerate,
+            @RequestParam(defaultValue = "STRONGEST") String strategy) {
+        return ResponseEntity.ok(aiTeamPickService.pick(id, teamId, regenerate, strategy));
     }
 
     @GetMapping("/{id}/teamsheet/analysis")
@@ -147,7 +148,7 @@ public class MatchController {
     }
 
     @PostMapping("/{id}/result")
-    @PreAuthorize("hasRole('admin')")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
     @Operation(summary = "Save or update match result and scorecard")
     public ResponseEntity<MatchResultDTO> saveResult(@PathVariable Long id, @RequestBody MatchResultDTO dto) {
         return ResponseEntity.ok(matchService.saveResult(id, dto));

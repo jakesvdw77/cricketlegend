@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Box, Button, TextField, Typography, IconButton,
-  MenuItem, CircularProgress, Alert,
+  Box, Button, Typography, IconButton,
+  MenuItem, CircularProgress, Alert, TextField,
 } from '@mui/material';
-import { Check, Close, ContentCopy, Email, Refresh, WhatsApp } from '@mui/icons-material';
+import { Check, Close, Email, WhatsApp } from '@mui/icons-material';
+import { PlainTextEditor } from '../../components/PlainTextEditor';
 import { Team, Player, Tournament } from '../../types';
 import { tournamentApi } from '../../api/tournamentApi';
 import api from '../../api/axiosConfig';
@@ -74,7 +75,6 @@ const SquadShareDialog: React.FC<Props> = ({ open, onClose, team, squad }) => {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | ''>('');
   const [whatsAppText, setWhatsAppText] = useState('');
-  const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,13 +92,6 @@ const SquadShareDialog: React.FC<Props> = ({ open, onClose, team, squad }) => {
   useEffect(() => {
     if (open) regenerate();
   }, [open, selectedTournamentId, selectedTournament]);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(whatsAppText).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
-  };
 
   const handleSendEmail = async () => {
     setSending(true);
@@ -141,32 +134,15 @@ const SquadShareDialog: React.FC<Props> = ({ open, onClose, team, squad }) => {
           ))}
         </TextField>
 
-        {/* WhatsApp section */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
-            WhatsApp message — edit before copying
-          </Typography>
-          <Button size="small" variant="outlined" startIcon={<Refresh />} onClick={regenerate}>
-            Regenerate
-          </Button>
-          <Button
-            size="small" variant="contained"
-            startIcon={copied ? <Check /> : <ContentCopy />}
-            color={copied ? 'success' : 'primary'}
-            onClick={handleCopy}
-            sx={{ minWidth: 150 }}
-          >
-            {copied ? 'Copied!' : 'Copy to Clipboard'}
-          </Button>
+        <Box sx={{ mb: 2 }}>
+          <PlainTextEditor
+            value={whatsAppText}
+            onChange={setWhatsAppText}
+            onRegenerate={regenerate}
+            minRows={16}
+            label="WhatsApp message — edit before copying"
+          />
         </Box>
-
-        <TextField
-          multiline fullWidth minRows={16}
-          value={whatsAppText}
-          onChange={e => setWhatsAppText(e.target.value)}
-          inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.82rem', lineHeight: 1.7 } }}
-          sx={{ mb: 2, '& .MuiOutlinedInput-root': { bgcolor: '#ffffff' }, '& .MuiInputBase-input': { color: '#000000' } }}
-        />
 
         {/* Email section */}
         <Box sx={{ borderTop: 1, borderColor: 'divider', pt: 2 }}>

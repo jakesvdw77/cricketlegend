@@ -70,8 +70,8 @@ export const ManageClubTeams: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ mr: 'auto' }}>Manage Teams</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
+        <Typography variant="h5" sx={{ mr: 'auto', fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>Manage Teams</Typography>
         <Chip label={`${teams.length} team${teams.length !== 1 ? 's' : ''}`} size="small" />
       </Box>
 

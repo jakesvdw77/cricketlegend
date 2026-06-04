@@ -464,6 +464,19 @@ export interface XiAnalysis {
   };
 }
 
+export interface TournamentStatsReport {
+  generatedAt?: string;
+  summary: string;
+  battingAnalysis: string;
+  bowlingAnalysis: string;
+  extrasAnalysis: string;
+  keyPerformers: string[];
+  strengths: string[];
+  areasForImprovement: string[];
+  recommendations: string[];
+  overallRating: number;
+}
+
 export interface SquadAnalysis {
   generatedAt?: string;
   squadSummary: string;
@@ -575,8 +588,19 @@ export interface MatchPoll {
   pollId?: number;
   matchId: number;
   matchDate?: string;
+  scheduledStartTime?: string;
+  arrivalTime?: string;
   homeTeamName?: string;
   oppositionTeamName?: string;
+  homeTeamLogoUrl?: string;
+  oppositionTeamLogoUrl?: string;
+  fieldName?: string;
+  fieldAddress?: string;
+  fieldGoogleMapsUrl?: string;
+  fieldIconUrl?: string;
+  tournamentName?: string;
+  matchStage?: string;
+  umpire?: string;
   teamId: number;
   teamName?: string;
   open: boolean;

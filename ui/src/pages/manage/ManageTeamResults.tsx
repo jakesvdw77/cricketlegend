@@ -390,10 +390,15 @@ export const ManageTeamResults: React.FC = () => {
       .then(all => {
         const filtered = restrictByTeam ? all.filter(t => teamIds.has(t.teamId!)) : all;
         setTeams(filtered);
-        if (filtered.length === 1 && !searchParams.get('teamId')) setSelectedTeamId(filtered[0].teamId!);
       })
       .finally(() => setTeamsLoading(false));
   }, [teamsLoaded, restrictByTeam, teamIds]);
+
+  useEffect(() => {
+    if (teams.length === 1 && !selectedTeamId) {
+      setSelectedTeamId(teams[0].teamId!);
+    }
+  }, [teams, selectedTeamId]);
 
   useEffect(() => {
     if (!selectedTeamId) { setMatches([]); return; }
@@ -408,18 +413,20 @@ export const ManageTeamResults: React.FC = () => {
   const groups = groupByTournament(matches);
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', pb: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+    <Box sx={{ pb: 4 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
         {returnTo && (
-          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ mr: 0.5 }}>
+          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ flexShrink: 0 }}>
             Back
           </Button>
         )}
-        <SportsScore color="primary" />
-        <Typography variant="h5">Team Results</Typography>
-        {selectedTeamId && !matchesLoading && (
-          <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ ml: 1 }} />
-        )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+          <SportsScore color="primary" sx={{ flexShrink: 0 }} />
+          <Typography variant="h5" sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>Team Results</Typography>
+          {selectedTeamId && !matchesLoading && (
+            <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ ml: 0.5 }} />
+          )}
+        </Box>
       </Box>
 
       <TextField

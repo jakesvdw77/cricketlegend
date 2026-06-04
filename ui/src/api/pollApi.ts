@@ -5,6 +5,9 @@ export const pollApi = {
   togglePoll: (matchId: number, teamId: number, open: boolean) =>
     api.post<MatchPoll>(`/matches/${matchId}/poll`, { teamId, open }).then(r => r.data),
 
+  getMyOpenPolls: () =>
+    api.get<MatchPoll[]>('/my/polls').then(r => r.data),
+
   getPoll: (matchId: number, teamId: number) =>
     api.get<MatchPoll>(`/matches/${matchId}/poll/${teamId}`).then(r => r.data),
 

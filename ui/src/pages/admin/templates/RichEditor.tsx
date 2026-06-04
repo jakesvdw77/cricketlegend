@@ -1,32 +1,13 @@
-import React, { useState } from 'react';
-import { Box, Divider, IconButton, Paper, Popover, Tooltip, Typography } from '@mui/material';
+import React from 'react';
+import { Box, Divider, IconButton, Paper, Tooltip, Typography } from '@mui/material';
 import {
   FormatBold, FormatItalic, FormatListBulleted, FormatListNumbered,
-  InsertPhoto, Undo, Redo, EmojiEmotions,
+  InsertPhoto, Undo, Redo,
 } from '@mui/icons-material';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TiptapImage from '@tiptap/extension-image';
-
-const EMOJIS = [
-  // Cricket
-  '🏏','🔴','⚪','🏟️','🧤','🧢','🎽','👟','🏃','💪',
-  '⚡','🌱','☀️','🌧️','⛅','🌤️','📋','📊','✏️','🎯',
-  '🏆','🥇','🥈','🥉','🏅','🎖️','💯','🔥','⭐','🌟',
-  // Faces
-  '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊',
-  '😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋',
-  '😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐',
-  '😐','😑','😶','😏','😒','🙄','😬','🤥','😔','😪',
-  '🤤','😴','😷','🤒','🤕','🤢','🤮','🥵','🥶','😱',
-  '😨','😰','😥','😓','🤯','😤','😠','😡','🤬','💀',
-  // Gestures
-  '👍','👎','👏','🙌','🤝','🙏','✌️','🤞','👌','🤙',
-  // Hearts
-  '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❤️‍🔥',
-  // Celebration
-  '🎉','🎊','✨','🎈','🎁','🥂','🍾','🎶','🎵','🎤',
-];
+import { EmojiPickerButton } from '../../../components/EmojiPickerButton';
 
 interface Props {
   initialHtml: string;
@@ -34,8 +15,6 @@ interface Props {
 }
 
 const RichEditor: React.FC<Props> = ({ initialHtml, onChange }) => {
-  const [emojiAnchor, setEmojiAnchor] = useState<HTMLButtonElement | null>(null);
-
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -97,35 +76,7 @@ const RichEditor: React.FC<Props> = ({ initialHtml, onChange }) => {
           </IconButton>
         </Tooltip>
 
-        <Tooltip title="Insert Emoji">
-          <IconButton size="small" onClick={e => setEmojiAnchor(e.currentTarget)} sx={{ borderRadius: 1, p: 0.5 }}>
-            <EmojiEmotions fontSize="small" />
-          </IconButton>
-        </Tooltip>
-
-        <Popover
-          open={!!emojiAnchor}
-          anchorEl={emojiAnchor}
-          onClose={() => setEmojiAnchor(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        >
-          <Box sx={{ p: 1, width: 300, display: 'flex', flexWrap: 'wrap', gap: 0.25 }}>
-            {EMOJIS.map(emoji => (
-              <IconButton
-                key={emoji}
-                size="small"
-                onClick={() => {
-                  editor.chain().focus().insertContent(emoji).run();
-                  setEmojiAnchor(null);
-                }}
-                sx={{ fontSize: 18, p: 0.5, borderRadius: 1, minWidth: 32 }}
-              >
-                {emoji}
-              </IconButton>
-            ))}
-          </Box>
-        </Popover>
+        <EmojiPickerButton onSelect={emoji => editor.chain().focus().insertContent(emoji).run()} />
 
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 

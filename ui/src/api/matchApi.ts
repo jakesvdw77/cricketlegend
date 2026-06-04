@@ -21,8 +21,8 @@ export const matchApi = {
     api.get<MatchAnalysis>(`/matches/${id}/analysis?teamId=${teamId}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
   getXiAnalysis: (id: number, teamId: number, regenerate = false) =>
     api.get<XiAnalysis>(`/matches/${id}/teamsheet/analysis?teamId=${teamId}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
-  getAiTeamPick: (id: number, teamId: number, regenerate = false) =>
-    api.get<AiTeamPick>(`/matches/${id}/teamsheet/pick?teamId=${teamId}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
+  getAiTeamPick: (id: number, teamId: number, regenerate = false, strategy: 'STRONGEST' | 'ROTATION' = 'STRONGEST') =>
+    api.get<AiTeamPick>(`/matches/${id}/teamsheet/pick?teamId=${teamId}&strategy=${strategy}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
   saveResult: (id: number, dto: MatchResult) =>
     api.post<MatchResult>(`/matches/${id}/result`, dto).then(r => r.data),
   getTeamSheet: (id: number) => api.get<MatchSide[]>(`/matches/${id}/teamsheet`).then(r => r.data),

@@ -3,12 +3,12 @@ import {
   Alert, Box, Button, Card, CardContent, Chip,
   CircularProgress, Divider, Grid, IconButton,
   Stack, Tooltip, Typography, Dialog, DialogTitle,
-  DialogContent, DialogActions,
+  DialogContent, DialogActions, ToggleButtonGroup, ToggleButton, Paper,
 } from '@mui/material';
 import {
   Bolt, CheckCircle, ContentCopy,
   EmojiEvents, Groups, PhoneAndroid,
-  PictureAsPdf, Refresh, Warning,
+  PictureAsPdf, Refresh, Warning, RotateRight, EmojiEvents as Trophy,
 } from '@mui/icons-material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell,
@@ -35,7 +35,21 @@ const AVAIL_COLORS: Record<string, string> = {
   Available: '#4caf50', 'No Response': '#90a4ae', Unsure: '#ff9800', Unavailable: '#f44336',
 };
 
+type PickStrategy = 'STRONGEST' | 'ROTATION';
+
+const STRATEGY_META: Record<PickStrategy, { label: string; description: string }> = {
+  STRONGEST: {
+    label: 'Strongest XI',
+    description: 'Picks the best available players purely on skill and availability — ignores rotation.',
+  },
+  ROTATION: {
+    label: 'Player Rotation',
+    description: 'Prioritises players with fewer appearances to share opportunity, while maintaining squad balance.',
+  },
+};
+
 export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, matchTitle, onApply }) => {
+  const [strategy, setStrategy] = useState<PickStrategy>('STRONGEST');
   const [pick, setPick] = useState<AiTeamPick | null>(null);
   const [loading, setLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -46,16 +60,24 @@ export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, mat
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback((regen = false) => {
+  const load = useCallback((regen = false, strat: PickStrategy = strategy) => {
     if (regen) setRegenerating(true); else setLoading(true);
     setError(null);
-    matchApi.getAiTeamPick(matchId, teamId, regen)
+    matchApi.getAiTeamPick(matchId, teamId, regen, strat)
       .then(setPick)
       .catch(e => setError(e?.response?.data?.message ?? e?.message ?? 'Failed to generate team pick'))
       .finally(() => { setLoading(false); setRegenerating(false); });
-  }, [matchId, teamId]);
+  }, [matchId, teamId, strategy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
+
+  const handleStrategyChange = (_: React.MouseEvent, val: PickStrategy | null) => {
+    if (!val || val === strategy) return;
+    setStrategy(val);
+    setPick(null);
+    setError(null);
+    load(false, val);
+  };
 
   const copyJson = () => {
     if (!pick) return;
@@ -95,22 +117,65 @@ export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, mat
     setApplyConfirmOpen(false);
   };
 
+  // ── Strategy selector — always visible ──────────────────────────────────────
+  const strategySelector = (
+    <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 'bold' }}>
+        Selection Strategy
+      </Typography>
+      <ToggleButtonGroup
+        value={strategy}
+        exclusive
+        onChange={handleStrategyChange}
+        size="small"
+        fullWidth
+        disabled={loading || regenerating}
+      >
+        <ToggleButton value="STRONGEST" sx={{ gap: 0.75, py: 1 }}>
+          <Trophy fontSize="small" />
+          <Box sx={{ textAlign: 'left' }}>
+            <Typography variant="caption" fontWeight="bold" display="block">Strongest XI</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>Best players, merit only</Typography>
+          </Box>
+        </ToggleButton>
+        <ToggleButton value="ROTATION" sx={{ gap: 0.75, py: 1 }}>
+          <RotateRight fontSize="small" />
+          <Box sx={{ textAlign: 'left' }}>
+            <Typography variant="caption" fontWeight="bold" display="block">Player Rotation</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>Prioritise fewer appearances</Typography>
+          </Box>
+        </ToggleButton>
+      </ToggleButtonGroup>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1, fontStyle: 'italic' }}>
+        {STRATEGY_META[strategy].description}
+      </Typography>
+    </Paper>
+  );
+
   if (loading) return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6, gap: 2 }}>
-      <CircularProgress size={48} />
-      <Typography variant="body2" color="text.secondary">Selecting the best XI for {teamName}…</Typography>
-      <Typography variant="caption" color="text.disabled">Considering availability, form & fairness — up to 15 seconds</Typography>
-    </Box>
+    <>
+      {strategySelector}
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6, gap: 2 }}>
+        <CircularProgress size={48} />
+        <Typography variant="body2" color="text.secondary">
+          {strategy === 'ROTATION' ? 'Balancing rotation & squad strength for ' : 'Selecting the strongest XI for '}{teamName}…
+        </Typography>
+        <Typography variant="caption" color="text.disabled">Considering availability, form & balance — up to 15 seconds</Typography>
+      </Box>
+    </>
   );
 
   if (error) return (
-    <Box sx={{ py: 3 }}>
-      <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-      <Button startIcon={<Refresh />} variant="outlined" onClick={() => load()}>Try Again</Button>
-    </Box>
+    <>
+      {strategySelector}
+      <Box sx={{ py: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button startIcon={<Refresh />} variant="outlined" onClick={() => load()}>Try Again</Button>
+      </Box>
+    </>
   );
 
-  if (!pick) return null;
+  if (!pick) return <>{strategySelector}</>;
 
   const xi = [...(pick.selectedXi ?? [])].sort((a, b) => (a.battingPosition ?? 99) - (b.battingPosition ?? 99));
   const pieData = pick.chartData.availabilitySummary.map(a => ({
@@ -119,6 +184,7 @@ export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, mat
 
   return (
     <Box sx={{ pb: 2 }} ref={contentRef}>
+      {strategySelector}
       {pick.generatedAt && (
         <AnalysisCacheBanner
           generatedAt={pick.generatedAt}

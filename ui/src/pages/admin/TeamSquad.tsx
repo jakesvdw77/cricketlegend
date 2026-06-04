@@ -8,7 +8,7 @@ import {
 } from '@mui/material';
 import {
   ArrowBack, Print, PersonAdd, PersonRemove, Search, Share, SportsCricket, MoreVert,
-  WhatsApp, PictureAsPdf, Image as ImageIcon, Download, Psychology,
+  WhatsApp, PictureAsPdf, Image as ImageIcon, Download, Psychology, EmojiEvents,
 } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { teamApi } from '../../api/teamApi';
@@ -23,6 +23,7 @@ import { generateSquadImage, generateSquadNamesImage } from '../../utils/teamshe
 import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 import SquadShareDialog from './SquadShareDialog';
 import { SquadAnalysisView } from '../../components/team/SquadAnalysisView';
+import { TournamentSquadDialog } from '../manage/ManageTeamTournaments';
 
 // ── Squad image template picker ───────────────────────────────────────────────
 
@@ -85,6 +86,8 @@ export const TeamSquad: React.FC = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [squadTemplateOpen, setSquadTemplateOpen] = useState(false);
   const [squadAnalysisOpen, setSquadAnalysisOpen] = useState(false);
+  const [tournPickerOpen, setTournPickerOpen] = useState(false);
+  const [tournSquadPick, setTournSquadPick] = useState<{ tournamentName: string } | null>(null);
 
   useEffect(() => {
     teamApi.findById(id).then(t => {
@@ -97,10 +100,10 @@ export const TeamSquad: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (shareOptionsOpen && tournaments.length === 0) {
+    if ((shareOptionsOpen || tournPickerOpen) && tournaments.length === 0) {
       tournamentApi.findAll().then(setTournaments).catch(() => {});
     }
-  }, [shareOptionsOpen]);
+  }, [shareOptionsOpen, tournPickerOpen]);
 
   const selectedTournament = tournaments.find(t => t.tournamentId === selectedTournamentId) ?? null;
 
@@ -289,6 +292,9 @@ export const TeamSquad: React.FC = () => {
               <MoreVert />
             </IconButton>
             <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={closeMenu}>
+              <MenuItem onClick={() => { closeMenu(); setTournPickerOpen(true); }} disabled={!team}>
+                <EmojiEvents fontSize="small" sx={{ mr: 1 }} /> Tournaments
+              </MenuItem>
               <MenuItem onClick={() => { closeMenu(); openShareOptions(); }} disabled={!team || squad.length === 0}>
                 <Share fontSize="small" sx={{ mr: 1 }} /> Share
               </MenuItem>
@@ -299,6 +305,9 @@ export const TeamSquad: React.FC = () => {
           </>
         ) : (
           <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+            <Button variant="outlined" startIcon={<EmojiEvents />} onClick={() => setTournPickerOpen(true)} disabled={!team}>
+              Tournaments
+            </Button>
             <Button variant="outlined" startIcon={<Psychology />} onClick={() => setSquadAnalysisOpen(true)} disabled={!team || squad.length === 0}>
               Analysis
             </Button>
@@ -501,6 +510,49 @@ export const TeamSquad: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Tournament picker for squad view */}
+      <Dialog open={tournPickerOpen} onClose={() => setTournPickerOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <EmojiEvents fontSize="small" color="primary" />
+          Select Tournament
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <List disablePadding>
+            {tournaments.map(t => (
+              <ListItemButton
+                key={t.tournamentId}
+                onClick={() => {
+                  setTournPickerOpen(false);
+                  setTournSquadPick({ tournamentName: t.name });
+                }}
+              >
+                <ListItemAvatar>
+                  <Avatar src={t.logoUrl} variant="rounded" sx={{ width: 36, height: 36 }}>
+                    <EmojiEvents />
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText primary={t.name} />
+              </ListItemButton>
+            ))}
+            {tournaments.length === 0 && (
+              <ListItem><ListItemText primary="No tournaments found." /></ListItem>
+            )}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTournPickerOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Full-screen tournament squad view */}
+      {tournSquadPick && (
+        <TournamentSquadDialog
+          teamId={id}
+          tournamentName={tournSquadPick.tournamentName}
+          onClose={() => setTournSquadPick(null)}
+        />
+      )}
 
     </Box>
   );

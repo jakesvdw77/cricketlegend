@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Card, CardContent, Button, Avatar,
-  Chip, Divider, Skeleton, Stack, Paper, IconButton,
+  Chip, Divider, Skeleton, Stack, Paper, IconButton, Tooltip,
 } from '@mui/material';
 import {
   ArrowBack, CalendarMonth, AccessTime, LocationOn, EmojiEvents,
@@ -351,10 +351,11 @@ function MatchRow({ match, teamId, onNavigate, onShare }: {
                 onClick={e => { e.stopPropagation(); toDetail(1); }}>
                 Team Sheet
               </Button>
-              <Button size="small" startIcon={<Share />}
-                onClick={e => { e.stopPropagation(); setUpcomingShareOpen(true); }}>
-                Share
-              </Button>
+              <Tooltip title="Share match">
+                <IconButton size="small" onClick={e => { e.stopPropagation(); setUpcomingShareOpen(true); }} sx={{ color: 'text.secondary' }}>
+                  <Share fontSize="small" />
+                </IconButton>
+              </Tooltip>
             </Box>
           )}
         </Box>
@@ -415,13 +416,13 @@ export const ManageClubSchedule: React.FC = () => {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate('/manage-club/teams')}>Back</Button>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate('/manage-club/teams')} sx={{ flexShrink: 0 }}>Back</Button>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h5" noWrap>Schedule</Typography>
+          <Typography variant="h5" noWrap sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>Schedule</Typography>
           <Typography variant="caption" color="text.secondary">{teamName}</Typography>
         </Box>
-        <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" />
+        <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ flexShrink: 0 }} />
       </Box>
 
       {matches.length === 0 ? (

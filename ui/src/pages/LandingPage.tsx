@@ -128,8 +128,8 @@ const TournamentDirectoryCard: React.FC<TournamentCardProps> = ({ tournament, is
         )}
         <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%)' }} />
 
-        {/* Row 1 — status badge right-aligned */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 1.25, pt: 1.25, position: 'relative', zIndex: 1 }}>
+        {/* Row 1 — status badge left, social icons right */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', px: 1.25, pt: 1.25, position: 'relative', zIndex: 1 }}>
           {isLive ? (
             <Chip
               icon={<FiberManualRecord sx={{ fontSize: '8px !important' }} />}
@@ -143,6 +143,61 @@ const TournamentDirectoryCard: React.FC<TournamentCardProps> = ({ tournament, is
           ) : (
             <CountdownDisplay matchDate={tournament.startDate} startTime="00:00:00" />
           )}
+          {/* Social icons — top right of banner */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {tournament.websiteLink && (
+              <Tooltip title="Website">
+                <IconButton size="small" component="a" href={tournament.websiteLink} target="_blank" rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  sx={{ color: 'white', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}>
+                  <OpenInNew sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {tournament.facebookLink && (
+              <Tooltip title="Facebook">
+                <IconButton size="small" component="a" href={tournament.facebookLink} target="_blank" rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  sx={{ color: '#1877F2', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}>
+                  <Facebook sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {tournament.instagramLink && (
+              <Tooltip title="Instagram">
+                <IconButton size="small" component="a" href={tournament.instagramLink} target="_blank" rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  sx={{ color: '#E1306C', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}>
+                  <Instagram sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {tournament.youtubeLink && (
+              <Tooltip title="YouTube">
+                <IconButton size="small" component="a" href={tournament.youtubeLink} target="_blank" rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  sx={{ color: '#FF0000', p: 0.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }}>
+                  <YouTube sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            {tournament.registrationPageUrl && !isPast && (
+              <Button
+                variant="contained"
+                size="small"
+                disableElevation
+                startIcon={<AppRegistration sx={{ fontSize: '13px !important' }} />}
+                component="a"
+                href={tournament.registrationPageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ textTransform: 'none', flexShrink: 0, fontSize: '0.72rem', py: 0.25, px: 1, minHeight: 0, bgcolor: 'rgba(255,255,255,0.2)', color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' } }}
+                onClick={e => e.stopPropagation()}
+              >
+                Register
+              </Button>
+            )}
+          </Box>
         </Box>
 
         {/* Row 2 — logo + name + chips, just below the countdown */}
@@ -219,7 +274,7 @@ const TournamentDirectoryCard: React.FC<TournamentCardProps> = ({ tournament, is
           onClick={() => navigate(`/tournament/${tournament.tournamentId}`)}
           sx={{ textTransform: 'none', fontWeight: 600, flexShrink: 0 }}
         >
-          View Tournament
+          View
         </Button>
         <Button
           variant="outlined"
@@ -248,60 +303,6 @@ const TournamentDirectoryCard: React.FC<TournamentCardProps> = ({ tournament, is
           onClose={() => setSchedulePickerOpen(false)}
         />
 
-        {/* Social icons + Register — right-aligned group */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, ml: 'auto' }}>
-          {tournament.websiteLink && (
-            <Tooltip title="Website">
-              <IconButton size="small" component="a" href={tournament.websiteLink} target="_blank" rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                <OpenInNew sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-          )}
-          {tournament.facebookLink && (
-            <Tooltip title="Facebook">
-              <IconButton size="small" component="a" href={tournament.facebookLink} target="_blank" rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                <Facebook sx={{ fontSize: 16, color: '#1877F2' }} />
-              </IconButton>
-            </Tooltip>
-          )}
-          {tournament.instagramLink && (
-            <Tooltip title="Instagram">
-              <IconButton size="small" component="a" href={tournament.instagramLink} target="_blank" rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                <Instagram sx={{ fontSize: 16, color: '#E1306C' }} />
-              </IconButton>
-            </Tooltip>
-          )}
-          {tournament.youtubeLink && (
-            <Tooltip title="YouTube">
-              <IconButton size="small" component="a" href={tournament.youtubeLink} target="_blank" rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                <YouTube sx={{ fontSize: 16, color: '#FF0000' }} />
-              </IconButton>
-            </Tooltip>
-          )}
-          {tournament.registrationPageUrl && !isPast && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<AppRegistration sx={{ fontSize: '14px !important' }} />}
-              component="a"
-              href={tournament.registrationPageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{ textTransform: 'none', flexShrink: 0 }}
-              onClick={e => e.stopPropagation()}
-            >
-              Register
-            </Button>
-          )}
-        </Box>
       </Box>
     </Card>
   );
