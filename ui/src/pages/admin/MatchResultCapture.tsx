@@ -670,6 +670,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
 
           <Section title="Match Status">
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+
               <FormControlLabel
                 control={<Switch checked={!!result.matchCompleted} disabled={!!result.forfeited || !!result.noResult} onChange={e => set({ matchCompleted: e.target.checked })} color="success" />}
                 label="Match Completed"
@@ -725,38 +726,51 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
             </Box>
           </Section>
 
-          <Section title="Toss" collapsible open={tossOpen} onToggle={() => setTossOpen(o => !o)}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <TextField
-                select label="Toss Won By" value={match.tossWonBy ?? ''}
-                disabled={!!result.forfeited || !!result.noResult}
-                onChange={e => patchMatch({ tossWonBy: e.target.value as TossWinner || undefined })}
-                fullWidth
-              >
-                <MenuItem value=""><em>— Unknown —</em></MenuItem>
-                <MenuItem value="HOME">{match.homeTeamName ?? 'Home Team'}</MenuItem>
-                <MenuItem value="OPPOSITION">{match.oppositionTeamName ?? 'Opposition'}</MenuItem>
-              </TextField>
-              <TextField
-                select label="Toss Decision" value={match.tossDecision ?? ''}
-                disabled={!!result.forfeited || !!result.noResult}
-                onChange={e => patchMatch({ tossDecision: e.target.value as TossDecision || undefined })}
-                fullWidth
-              >
-                <MenuItem value=""><em>— Unknown —</em></MenuItem>
-                <MenuItem value="BAT">Decided to bat first</MenuItem>
-                <MenuItem value="BOWL">Decided to bowl first</MenuItem>
-              </TextField>
-            </Box>
-          </Section>
+          {!result.forfeited && !result.noResult && (
+            <Section title="Toss" collapsible open={tossOpen} onToggle={() => setTossOpen(o => !o)}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                <TextField
+                  select label="Toss Won By" value={match.tossWonBy ?? ''}
+                  onChange={e => patchMatch({ tossWonBy: e.target.value as TossWinner || undefined })}
+                  fullWidth
+                >
+                  <MenuItem value=""><em>— Unknown —</em></MenuItem>
+                  <MenuItem value="HOME">{match.homeTeamName ?? 'Home Team'}</MenuItem>
+                  <MenuItem value="OPPOSITION">{match.oppositionTeamName ?? 'Opposition'}</MenuItem>
+                </TextField>
+                <TextField
+                  select label="Toss Decision" value={match.tossDecision ?? ''}
+                  onChange={e => patchMatch({ tossDecision: e.target.value as TossDecision || undefined })}
+                  fullWidth
+                >
+                  <MenuItem value=""><em>— Unknown —</em></MenuItem>
+                  <MenuItem value="BAT">Decided to bat first</MenuItem>
+                  <MenuItem value="BOWL">Decided to bowl first</MenuItem>
+                </TextField>
+              </Box>
+            </Section>
+          )}
 
+          {/* Toss not yet set — explain why remaining sections are hidden */}
+          {!result.forfeited && !result.noResult && (!match.tossWonBy || !match.tossDecision) && (
+            <Alert severity="info" icon={false}>
+              <Typography variant="body2" fontWeight={600} gutterBottom>Toss required to continue</Typography>
+              <Typography variant="body2">
+                Set who won the toss and their decision above. This determines the batting order, which is needed before you can enter scores, match result, and scorecard.
+              </Typography>
+            </Alert>
+          )}
+
+          {/* Scores, result and scorecard — only show once toss is done (or irrelevant) */}
+          {(result.forfeited || result.noResult || (!!match.tossWonBy && !!match.tossDecision)) && (
+            <>
           <Section title="Scores" collapsible open={scoresOpen} onToggle={() => setScoresOpen(o => !o)}>
             {result.sideBattingFirstId
               ? <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
                   <Chip label={`Batting first: ${teams.find(t => t.id === result.sideBattingFirstId)?.name ?? '—'}`} color="primary" variant="outlined" />
                   <Chip label={`Batting second: ${teams.find(t => t.id !== result.sideBattingFirstId)?.name ?? '—'}`} color="secondary" variant="outlined" />
                 </Box>
-              : <Alert severity="warning" sx={{ mb: 2, maxWidth: 420 }}>Set the toss in the Toss section to determine who bats first.</Alert>
+              : null
             }
 
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -852,54 +866,51 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
               />
             </Box>
           </Section>
-        </Box>
 
-      {/* ── Scorecard (collapsed by default) ── */}
-      <Section title="Scorecard" collapsible open={scorecardOpen} onToggle={() => setScorecardOpen(o => !o)}>
-        <input
-          ref={importFileRef}
-          type="file"
-          accept=".json,application/json"
-          style={{ display: 'none' }}
-          onChange={handleImportJson}
-        />
-        {!result.sideBattingFirstId && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Set the toss in the Toss section above before capturing the scorecard.
-          </Alert>
-        )}
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
-          {isAdmin && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<Upload />}
-              disabled={!!result.forfeited}
-              onClick={() => { setImportError(null); importFileRef.current?.click(); }}
-            >
-              Import Scorecard JSON
-            </Button>
+          <Section title="Scorecard" collapsible open={scorecardOpen} onToggle={() => setScorecardOpen(o => !o)}>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={handleImportJson}
+            />
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
+              {isAdmin && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Upload />}
+                  disabled={!!result.forfeited}
+                  onClick={() => { setImportError(null); importFileRef.current?.click(); }}
+                >
+                  Import Scorecard JSON
+                </Button>
+              )}
+              {importError && (
+                <Alert severity="error" onClose={() => setImportError(null)} sx={{ py: 0 }}>
+                  {importError}
+                </Alert>
+              )}
+            </Box>
+            <ScorecardCaptureTab
+              firstInningsLabel={`1st Innings — ${firstTeamName} batting`}
+              secondInningsLabel={`2nd Innings — ${secondTeamName} batting`}
+              firstCard={firstCard}
+              secondCard={secondCard}
+              firstBatterOptions={firstInningsPlayers}
+              firstBowlerOptions={secondInningsPlayers}
+              secondBatterOptions={secondInningsPlayers}
+              secondBowlerOptions={firstInningsPlayers}
+              disabled={!result.sideBattingFirstId || !!result.forfeited}
+              onFirstCardChange={handleFirstCardChange}
+              onSecondCardChange={handleSecondCardChange}
+            />
+          </Section>
+            </>
           )}
-          {importError && (
-            <Alert severity="error" onClose={() => setImportError(null)} sx={{ py: 0 }}>
-              {importError}
-            </Alert>
-          )}
-        </Box>
-        <ScorecardCaptureTab
-          firstInningsLabel={`1st Innings — ${firstTeamName} batting`}
-          secondInningsLabel={`2nd Innings — ${secondTeamName} batting`}
-          firstCard={firstCard}
-          secondCard={secondCard}
-          firstBatterOptions={firstInningsPlayers}
-          firstBowlerOptions={secondInningsPlayers}
-          secondBatterOptions={secondInningsPlayers}
-          secondBowlerOptions={firstInningsPlayers}
-          disabled={!result.sideBattingFirstId || !!result.forfeited}
-          onFirstCardChange={handleFirstCardChange}
-          onSecondCardChange={handleSecondCardChange}
-        />
-      </Section>
+
+      </Box>
 
       {/* ── Bottom save bar ── */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>

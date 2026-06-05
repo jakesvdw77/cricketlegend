@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box, Typography, Button, Paper, CircularProgress, Alert,
+  Box, Typography, Button, Paper, CircularProgress, Alert, FormControlLabel, Switch,
+  useTheme, useMediaQuery,
 } from '@mui/material';
 import { Save } from '@mui/icons-material';
 import { playerApi } from '../api/playerApi';
@@ -9,10 +10,16 @@ import { Player, Club } from '../types';
 import { PlayerEditForm } from '../components/player/PlayerEditForm';
 import { useAuth } from '../hooks/useAuth';
 import { useLocation } from 'react-router-dom';
+import { useSidebar } from '../context/SidebarContext';
+import { useColorMode } from '../context/ColorModeContext';
 
 export const MyProfile: React.FC = () => {
   const { email } = useAuth();
   const location = useLocation();
+  const { autoCollapse, setAutoCollapse } = useSidebar();
+  const { mode, toggleMode } = useColorMode();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const openNotificationsTab = !!(location.state as any)?.openNotificationsTab;
   const [player, setPlayer] = useState<Player | null>(null);
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -96,6 +103,25 @@ export const MyProfile: React.FC = () => {
           clubs={clubs}
           readOnlyEmail
           initialTab={openNotificationsTab ? 2 : 0}
+          preferencesContent={
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <FormControlLabel
+                control={<Switch checked={mode === 'dark'} onChange={toggleMode} />}
+                label="Dark mode"
+              />
+              {!isMobile && (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={autoCollapse}
+                      onChange={e => setAutoCollapse(e.target.checked)}
+                    />
+                  }
+                  label="Auto-collapse sidebar after navigating"
+                />
+              )}
+            </Box>
+          }
         />
       </Paper>
     </Box>

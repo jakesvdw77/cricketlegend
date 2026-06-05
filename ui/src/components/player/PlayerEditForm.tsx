@@ -22,9 +22,10 @@ interface Props {
   readOnlyEmail?: boolean;
   readOnlyConsent?: boolean;
   initialTab?: number;
+  preferencesContent?: React.ReactNode;
 }
 
-export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, readOnlyEmail, readOnlyConsent, initialTab = 0 }) => {
+export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, readOnlyEmail, readOnlyConsent, initialTab = 0, preferencesContent }) => {
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState(initialTab);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +53,7 @@ export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, read
         <Tab label="General" />
         <Tab label="Cricket" />
         <Tab label="Notifications" />
+        {preferencesContent && <Tab label="Preferences" />}
       </Tabs>
 
       {/* Both panels share the same grid cell so the container height never changes */}
@@ -227,6 +229,12 @@ export const PlayerEditForm: React.FC<Props> = ({ editing, onChange, clubs, read
             </Typography>
           )}
         </Box>
+
+        {preferencesContent && (
+          <Box sx={{ gridArea: '1/1', display: 'flex', flexDirection: 'column', gap: 1, visibility: tab === 3 ? 'visible' : 'hidden' }}>
+            {preferencesContent}
+          </Box>
+        )}
 
       </Box>
     </Box>

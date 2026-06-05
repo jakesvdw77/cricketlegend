@@ -1,22 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Alert, Card, CardActionArea, CardContent,
   Chip, Avatar, Divider, Dialog, DialogTitle, DialogContent, DialogActions, Button,
   IconButton, Tooltip, Tabs, Tab, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, Paper,
+  TableHead, TableRow, Paper, TextField, MenuItem,
 } from '@mui/material';
 import {
   HowToVote, CalendarMonth, AccessTime, LocationOn,
-  CheckCircle, Cancel, HelpOutline, Person, Phone, Email, Share, Remove,
+  CheckCircle, Cancel, HelpOutline, Share, Remove, ArrowBack,
 } from '@mui/icons-material';
 import { MatchSharePanel } from '../../components/match/MatchSharePanel';
+import { AvailabilityViewDialog } from './AvailabilityViewDialog';
+import { PlayerEditForm } from '../../components/player/PlayerEditForm';
 import { pollApi } from '../../api/pollApi';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
 import { playerApi } from '../../api/playerApi';
+import { clubApi } from '../../api/clubApi';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
-import { Match, MatchPoll, Player } from '../../types';
+import { Club, Match, MatchPoll, Player } from '../../types';
 
 interface MatchPollEntry {
   match: Match;
@@ -78,14 +81,20 @@ const statusLabel: Record<string, string> = { YES: 'Available', NO: 'Unavailable
 
 export const TeamAvailabilityOverview: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { teamIds: managerTeamIds, restrictByTeam, homeClubId, loaded: teamsLoaded } = useManagerTeams();
   const [entries, setEntries] = useState<MatchPollEntry[]>([]);
+  const [managedTeams, setManagedTeams] = useState<{ teamId: number; teamName: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMap, setFilterMap] = useState<Record<string, FilterStatus>>({});
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playerLoading, setPlayerLoading] = useState(false);
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [saving, setSaving] = useState(false);
   const [shareEntry, setShareEntry] = useState<{ match: Match; teamId: number } | null>(null);
-  const [activeTab, setActiveTab] = useState(0);
+  const [availEntry, setAvailEntry] = useState<{ match: Match; teamId: number; teamName: string; pollOpen?: boolean } | null>(null);
+  const [activeTab, setActiveTab] = useState<number>((location.state as any)?.returnToTab ?? 0);
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState<number | ''>('');
 
   const openPlayerDialog = (e: React.MouseEvent, playerId: number) => {
     e.stopPropagation();
@@ -97,14 +106,27 @@ export const TeamAvailabilityOverview: React.FC = () => {
       .finally(() => setPlayerLoading(false));
   };
 
+  const handleSave = async () => {
+    if (!selectedPlayer?.playerId) return;
+    setSaving(true);
+    try {
+      await playerApi.update(selectedPlayer.playerId, selectedPlayer);
+      setSelectedPlayer(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (!teamsLoaded) return;
 
     const load = async () => {
-      const [allTeams, allMatches] = await Promise.all([
+      const [allTeams, allMatches, allClubs] = await Promise.all([
         teamApi.findAll(),
         matchApi.findAll(),
+        clubApi.findAll(),
       ]);
+      setClubs(allClubs);
 
       let relevantTeamIds: Set<number>;
       if (restrictByTeam) {
@@ -120,6 +142,13 @@ export const TeamAvailabilityOverview: React.FC = () => {
       }
 
       const teamNameMap = new Map(allTeams.map(t => [t.teamId!, t.teamName]));
+
+      const relevantTeamsList = allTeams
+        .filter(t => t.teamId != null && relevantTeamIds.has(t.teamId!))
+        .map(t => ({ teamId: t.teamId!, teamName: t.teamName }))
+        .sort((a, b) => a.teamName.localeCompare(b.teamName));
+      setManagedTeams(relevantTeamsList);
+      if (relevantTeamsList.length === 1) setSelectedTeamFilter(relevantTeamsList[0].teamId);
 
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -172,8 +201,12 @@ export const TeamAvailabilityOverview: React.FC = () => {
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const todayMondayKey = getMondayKey(todayStr);
 
+  const displayEntries = selectedTeamFilter
+    ? entries.filter(e => e.teamId === selectedTeamFilter)
+    : entries;
+
   const weekMap = new Map<string, MatchPollEntry[]>();
-  for (const entry of entries) {
+  for (const entry of displayEntries) {
     const key = getMondayKey(entry.match.matchDate);
     if (!weekMap.has(key)) weekMap.set(key, []);
     weekMap.get(key)!.push(entry);
@@ -183,7 +216,7 @@ export const TeamAvailabilityOverview: React.FC = () => {
   // --- Per-player tab data ---
   // Collect all unique players (by playerId) and all match columns
   const playerMap = new Map<number, string>(); // playerId -> playerName
-  for (const { poll } of entries) {
+  for (const { poll } of displayEntries) {
     for (const a of poll?.availability ?? []) {
       if (!playerMap.has(a.playerId)) playerMap.set(a.playerId, a.playerName);
     }
@@ -191,16 +224,17 @@ export const TeamAvailabilityOverview: React.FC = () => {
   const sortedPlayers = [...playerMap.entries()].sort(([, a], [, b]) => a.localeCompare(b));
 
   // Build column definitions: one per entry (match + team)
-  const columns = entries.map(e => ({
+  const columns = displayEntries.map(e => ({
     key: `${e.match.matchId}-${e.teamId}`,
     match: e.match,
     teamName: e.teamName,
+    teamId: e.teamId,
     poll: e.poll,
   }));
 
   // Build status lookup: [playerId][colKey] = status
   const statusLookup = new Map<number, Map<string, AvailStatus>>();
-  for (const { match, teamId, poll } of entries) {
+  for (const { match, teamId, poll } of displayEntries) {
     const colKey = `${match.matchId}-${teamId}`;
     for (const a of poll?.availability ?? []) {
       if (!statusLookup.has(a.playerId)) statusLookup.set(a.playerId, new Map());
@@ -210,9 +244,35 @@ export const TeamAvailabilityOverview: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <HowToVote color="primary" />
-        <Typography variant="h5">Team Availability</Typography>
+      {/* ── Toolbar: title + filter ── */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <HowToVote color="primary" />
+          <Typography variant="h5">Team Availability</Typography>
+        </Box>
+        {managedTeams.length > 1 && (
+          <TextField
+            select
+            label="Filter by Team"
+            size="small"
+            value={selectedTeamFilter}
+            onChange={e => {
+              const v = e.target.value;
+              setSelectedTeamFilter(v === '' ? '' : Number(v));
+            }}
+            sx={{ minWidth: 210 }}
+          >
+            <MenuItem value=""><em>All Teams</em></MenuItem>
+            {managedTeams.map(t => (
+              <MenuItem key={t.teamId} value={t.teamId}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Avatar sx={{ width: 22, height: 22, fontSize: 10, bgcolor: 'primary.main' }}>{t.teamName.charAt(0)}</Avatar>
+                  {t.teamName}
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
       </Box>
 
       <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 3 }}>
@@ -228,22 +288,25 @@ export const TeamAvailabilityOverview: React.FC = () => {
         <>
           {/* ── Tab 0: Per Match ── */}
           {activeTab === 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {weeks.map(([mondayKey, weekEntries]) => (
                 <Box key={mondayKey}>
-                  <Typography
-                    variant="overline"
-                    sx={{ fontWeight: 'bold', letterSpacing: 1.5, color: 'text.secondary', display: 'block', mb: 1.5 }}
-                  >
-                    {fmtWeekLabel(mondayKey, todayMondayKey)}
-                  </Typography>
+                  {/* Week divider */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                    <Divider sx={{ flex: 1 }} />
+                    <Typography variant="caption" fontWeight="bold" color="text.secondary"
+                      sx={{ letterSpacing: 1.2, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                      {fmtWeekLabel(mondayKey, todayMondayKey)}
+                    </Typography>
+                    <Divider sx={{ flex: 1 }} />
+                  </Box>
 
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                     {weekEntries.map(({ match, teamId, teamName, poll }) => {
-                      const available = poll?.availability?.filter(a => a.status === 'YES') ?? [];
-                      const unavailable = poll?.availability?.filter(a => a.status === 'NO') ?? [];
-                      const unsure = poll?.availability?.filter(a => a.status === 'UNSURE') ?? [];
-                      const noResponse = poll?.availability?.filter(a => !a.status) ?? [];
+                      const available   = poll?.availability?.filter(a => a.status === 'YES')    ?? [];
+                      const unavailable = poll?.availability?.filter(a => a.status === 'NO')     ?? [];
+                      const unsure      = poll?.availability?.filter(a => a.status === 'UNSURE') ?? [];
+                      const noResponse  = poll?.availability?.filter(a => !a.status)             ?? [];
 
                       const cardKey = `${match.matchId}-${teamId}`;
                       const activeFilter: FilterStatus = filterMap[cardKey] ?? 'YES';
@@ -254,169 +317,174 @@ export const TeamAvailabilityOverview: React.FC = () => {
                       };
 
                       const displayPlayers =
-                        activeFilter === 'YES' ? available :
-                        activeFilter === 'NO' ? unavailable :
+                        activeFilter === 'YES'    ? available :
+                        activeFilter === 'NO'     ? unavailable :
                         activeFilter === 'UNSURE' ? unsure :
                         noResponse;
 
                       const displayLabel =
-                        activeFilter === 'YES' ? 'Available Players' :
-                        activeFilter === 'NO' ? 'Unavailable Players' :
-                        activeFilter === 'UNSURE' ? 'Unsure Players' :
+                        activeFilter === 'YES'    ? 'Available' :
+                        activeFilter === 'NO'     ? 'Unavailable' :
+                        activeFilter === 'UNSURE' ? 'Unsure' :
                         'No Response';
 
                       const playerChipColor =
-                        activeFilter === 'YES' ? 'success' :
-                        activeFilter === 'NO' ? 'error' :
+                        activeFilter === 'YES'    ? 'success' :
+                        activeFilter === 'NO'     ? 'error' :
                         activeFilter === 'UNSURE' ? 'warning' :
                         'default';
+
+                      const borderColor = poll?.open
+                        ? 'success.main'
+                        : poll
+                          ? 'divider'
+                          : 'divider';
+
+                      const statusText = poll?.open
+                        ? 'Poll Open'
+                        : poll
+                          ? 'Poll Closed'
+                          : 'No poll';
+
+                      const statusColor = poll?.open ? 'success.main' : 'text.disabled';
+
+                      const metaParts = [
+                        fmtDate(match.matchDate),
+                        fmtTime(match.scheduledStartTime),
+                        match.fieldName,
+                      ].filter(Boolean).join(' · ');
 
                       return (
                         <Card
                           key={cardKey}
                           variant="outlined"
-                          sx={{ flex: '1 1 300px', minWidth: 280 }}
+                          sx={{
+                            flex: '1 1 300px', minWidth: 280,
+                            borderColor: 'divider',
+                            borderLeftWidth: 4,
+                            borderLeftColor: borderColor,
+                            borderRadius: 1,
+                            position: 'relative',
+                          }}
                         >
+                          {/* Share button sits outside the clickable area */}
+                          <Tooltip title="Share match">
+                            <IconButton
+                              size="small"
+                              onClick={e => { e.stopPropagation(); setShareEntry({ match, teamId }); }}
+                              sx={{ position: 'absolute', top: 6, right: 6, color: 'text.secondary', zIndex: 1 }}
+                            >
+                              <Share sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Tooltip>
                           <CardActionArea
-                            onClick={() => navigate(`/admin/matches/${match.matchId}/detail`, {
-                              state: { teamId, initialTab: 0, returnTo: '/manage-club/team-availability' },
-                            })}
+                            onClick={() => setAvailEntry({ match, teamId, teamName, pollOpen: poll?.open })}
                             sx={{ height: '100%', alignItems: 'flex-start' }}
                           >
-                          <CardContent>
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1, gap: 1, flexWrap: 'wrap' }}>
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Typography variant="subtitle2" fontWeight="bold" sx={{ lineHeight: 1.3 }}>
+                            <CardContent sx={{ pb: '12px !important' }}>
+                              {/* Title row */}
+                              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 0.5, pr: 3 }}>
+                                <Typography variant="subtitle1" fontWeight="bold" noWrap sx={{ flex: 1, minWidth: 0 }}>
                                   {match.homeTeamName ?? '—'} vs {match.oppositionTeamName ?? '—'}
                                 </Typography>
-                                <Chip label={teamName} size="small" variant="outlined" sx={{ mt: 0.5 }} />
+                                <Typography variant="caption" fontWeight="medium" sx={{ color: statusColor, flexShrink: 0 }}>
+                                  {statusText}
+                                </Typography>
                               </Box>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                {poll ? (
-                                  <Chip
-                                    label={poll.open ? 'Poll Open' : 'Poll Closed'}
-                                    color={poll.open ? 'success' : 'default'}
-                                    size="small"
-                                    icon={<HowToVote fontSize="small" />}
-                                  />
-                                ) : (
-                                  <Chip label="No poll" size="small" variant="outlined" />
-                                )}
-                                <Tooltip title="Share match">
-                                  <IconButton
-                                    size="small"
-                                    onClick={e => { e.stopPropagation(); setShareEntry({ match, teamId }); }}
-                                    sx={{ color: 'text.secondary' }}
-                                  >
-                                    <Share fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              </Box>
-                            </Box>
 
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.4, mb: poll?.availability?.length ? 1.5 : 0 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <CalendarMonth sx={{ fontSize: 14 }} color="action" />
-                                <Typography variant="body2">{fmtDate(match.matchDate)}</Typography>
-                              </Box>
-                              {fmtTime(match.scheduledStartTime) && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <AccessTime sx={{ fontSize: 14 }} color="action" />
-                                  <Typography variant="body2">{fmtTime(match.scheduledStartTime)}</Typography>
-                                </Box>
+                              {/* Team chip — only when multiple teams shown */}
+                              {!selectedTeamFilter && managedTeams.length > 1 && (
+                                <Chip label={teamName} size="small" variant="outlined"
+                                  sx={{ mb: 0.75, height: 18, fontSize: '0.65rem' }} />
                               )}
-                              {match.fieldName && (
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <LocationOn sx={{ fontSize: 14 }} color="action" />
-                                  <Typography variant="body2" noWrap>{match.fieldName}</Typography>
-                                </Box>
-                              )}
-                            </Box>
 
-                            {poll && (poll.availability?.length ?? 0) > 0 && (
-                              <>
-                                <Divider sx={{ my: 1.5 }} />
+                              {/* Compact meta */}
+                              <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ mb: 1.25 }}>
+                                {metaParts}
+                              </Typography>
 
-                                <Box sx={{ display: 'flex', gap: 0.75, mb: 1.5, flexWrap: 'wrap' }}>
-                                  <Chip
-                                    icon={<CheckCircle />}
-                                    label={`${available.length} Available`}
-                                    color="success"
-                                    size="small"
-                                    variant={activeFilter === 'YES' ? 'filled' : 'outlined'}
-                                    onClick={e => setFilter(e, 'YES')}
-                                    sx={{ cursor: 'pointer' }}
-                                  />
-                                  {unavailable.length > 0 && (
+                              {poll && (poll.availability?.length ?? 0) > 0 && (
+                                <>
+                                  <Divider sx={{ mb: 1.25 }} />
+
+                                  {/* Filter chips */}
+                                  <Box sx={{ display: 'flex', gap: 0.75, mb: 1.25, flexWrap: 'wrap' }}>
                                     <Chip
-                                      icon={<Cancel />}
-                                      label={`${unavailable.length} Unavailable`}
-                                      color="error"
+                                      icon={<CheckCircle />}
+                                      label={`${available.length} Yes`}
+                                      color="success"
                                       size="small"
-                                      variant={activeFilter === 'NO' ? 'filled' : 'outlined'}
-                                      onClick={e => setFilter(e, 'NO')}
+                                      variant={activeFilter === 'YES' ? 'filled' : 'outlined'}
+                                      onClick={e => setFilter(e, 'YES')}
                                       sx={{ cursor: 'pointer' }}
                                     />
-                                  )}
-                                  {unsure.length > 0 && (
-                                    <Chip
-                                      icon={<HelpOutline />}
-                                      label={`${unsure.length} Unsure`}
-                                      color="warning"
-                                      size="small"
-                                      variant={activeFilter === 'UNSURE' ? 'filled' : 'outlined'}
-                                      onClick={e => setFilter(e, 'UNSURE')}
-                                      sx={{ cursor: 'pointer' }}
-                                    />
-                                  )}
-                                  {noResponse.length > 0 && (
-                                    <Chip
-                                      label={`${noResponse.length} No response`}
-                                      size="small"
-                                      variant={activeFilter === 'NONE' ? 'filled' : 'outlined'}
-                                      onClick={e => setFilter(e, 'NONE')}
-                                      sx={{ cursor: 'pointer' }}
-                                    />
-                                  )}
-                                </Box>
-
-                                {displayPlayers.length > 0 && (
-                                  <Box>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                      sx={{ display: 'block', mb: 0.75, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 'bold' }}
-                                    >
-                                      {displayLabel}
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-                                      {displayPlayers.map(p => (
-                                        <Chip
-                                          key={p.playerId}
-                                          avatar={
-                                            <Avatar src={p.profilePictureUrl ?? undefined} sx={{ bgcolor: `${playerChipColor}.main`, fontSize: 12 }}>
-                                              {p.playerName.charAt(0)}
-                                            </Avatar>
-                                          }
-                                          label={p.playerName}
-                                          size="small"
-                                          color={playerChipColor as any}
-                                          variant="outlined"
-                                          onClick={e => openPlayerDialog(e, p.playerId)}
-                                          sx={{ cursor: 'pointer' }}
-                                        />
-                                      ))}
-                                    </Box>
+                                    {unavailable.length > 0 && (
+                                      <Chip
+                                        icon={<Cancel />}
+                                        label={`${unavailable.length} No`}
+                                        color="error"
+                                        size="small"
+                                        variant={activeFilter === 'NO' ? 'filled' : 'outlined'}
+                                        onClick={e => setFilter(e, 'NO')}
+                                        sx={{ cursor: 'pointer' }}
+                                      />
+                                    )}
+                                    {unsure.length > 0 && (
+                                      <Chip
+                                        icon={<HelpOutline />}
+                                        label={`${unsure.length} Unsure`}
+                                        color="warning"
+                                        size="small"
+                                        variant={activeFilter === 'UNSURE' ? 'filled' : 'outlined'}
+                                        onClick={e => setFilter(e, 'UNSURE')}
+                                        sx={{ cursor: 'pointer' }}
+                                      />
+                                    )}
+                                    {noResponse.length > 0 && (
+                                      <Chip
+                                        label={`${noResponse.length} Pending`}
+                                        size="small"
+                                        variant={activeFilter === 'NONE' ? 'filled' : 'outlined'}
+                                        onClick={e => setFilter(e, 'NONE')}
+                                        sx={{ cursor: 'pointer' }}
+                                      />
+                                    )}
                                   </Box>
-                                )}
-                                {displayPlayers.length === 0 && (
-                                  <Typography variant="caption" color="text.secondary">
-                                    No players in this group.
-                                  </Typography>
-                                )}
-                              </>
-                            )}
-                          </CardContent>
+
+                                  {/* Player list */}
+                                  {displayPlayers.length > 0 ? (
+                                    <Box>
+                                      <Typography variant="caption" color="text.secondary"
+                                        sx={{ display: 'block', mb: 0.75, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 'bold' }}>
+                                        {displayLabel}
+                                      </Typography>
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                                        {displayPlayers.map(p => (
+                                          <Chip
+                                            key={p.playerId}
+                                            avatar={
+                                              <Avatar src={p.profilePictureUrl ?? undefined} sx={{ bgcolor: `${playerChipColor}.main`, fontSize: 12 }}>
+                                                {p.playerName.charAt(0)}
+                                              </Avatar>
+                                            }
+                                            label={p.playerName}
+                                            size="small"
+                                            color={playerChipColor as any}
+                                            variant="outlined"
+                                            onClick={e => openPlayerDialog(e, p.playerId)}
+                                            sx={{ cursor: 'pointer' }}
+                                          />
+                                        ))}
+                                      </Box>
+                                    </Box>
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary">
+                                      No players in this group.
+                                    </Typography>
+                                  )}
+                                </>
+                              )}
+                            </CardContent>
                           </CardActionArea>
                         </Card>
                       );
@@ -456,15 +524,23 @@ export const TeamAvailabilityOverview: React.FC = () => {
                           align="center"
                           sx={{ minWidth: 120, verticalAlign: 'top', pb: 1 }}
                         >
-                          <Typography variant="caption" fontWeight="bold" display="block" noWrap>
-                            {fmtDateShort(col.match.matchDate)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: '0.65rem' }}>
-                            {col.match.homeTeamName} vs {col.match.oppositionTeamName}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: '0.65rem' }}>
-                            {col.teamName}
-                          </Typography>
+                          <Box
+                            onClick={() => setAvailEntry({ match: col.match, teamId: col.teamId, teamName: col.teamName, pollOpen: col.poll?.open })}
+                            sx={{ cursor: 'pointer', '&:hover': { opacity: 0.7 } }}
+                          >
+                            <Typography variant="caption" fontWeight="bold" display="block" noWrap>
+                              {fmtDateShort(col.match.matchDate)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: '0.65rem' }}>
+                              {col.match.homeTeamName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.6rem', opacity: 0.6 }}>
+                              vs
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ fontSize: '0.65rem' }}>
+                              {col.match.oppositionTeamName}
+                            </Typography>
+                          </Box>
                         </TableCell>
                       ))}
                     </TableRow>
@@ -482,11 +558,14 @@ export const TeamAvailabilityOverview: React.FC = () => {
                             borderColor: 'divider',
                           }}
                         >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box
+                            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .player-name': { textDecoration: 'underline' } }}
+                            onClick={e => openPlayerDialog(e as React.MouseEvent, playerId)}
+                          >
                             <Avatar sx={{ width: 24, height: 24, fontSize: 12, bgcolor: 'primary.main' }}>
                               {playerName.charAt(0)}
                             </Avatar>
-                            <Typography variant="body2" noWrap>{playerName}</Typography>
+                            <Typography className="player-name" variant="body2" noWrap color="primary">{playerName}</Typography>
                           </Box>
                         </TableCell>
                         {columns.map(col => {
@@ -520,6 +599,15 @@ export const TeamAvailabilityOverview: React.FC = () => {
         </>
       )}
 
+      <AvailabilityViewDialog
+        open={!!availEntry}
+        onClose={() => setAvailEntry(null)}
+        match={availEntry?.match ?? null}
+        teamId={availEntry?.teamId ?? null}
+        teamName={availEntry?.teamName}
+        pollOpen={availEntry?.pollOpen}
+      />
+
       <MatchSharePanel
         open={!!shareEntry}
         match={shareEntry?.match ?? ({} as Match)}
@@ -527,82 +615,32 @@ export const TeamAvailabilityOverview: React.FC = () => {
         onClose={() => setShareEntry(null)}
       />
 
-      <Dialog open={playerLoading || !!selectedPlayer} onClose={() => setSelectedPlayer(null)} maxWidth="xs" fullWidth>
+      <Dialog open={playerLoading || !!selectedPlayer} onClose={() => setSelectedPlayer(null)} maxWidth="md" fullWidth>
         {playerLoading ? (
           <DialogContent sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
           </DialogContent>
         ) : selectedPlayer && (
           <>
-            <DialogTitle sx={{ bgcolor: 'primary.main', color: 'primary.contrastText', pb: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Person />
-                <Typography variant="h6">Player Details</Typography>
-              </Box>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button startIcon={<ArrowBack />} onClick={() => setSelectedPlayer(null)} sx={{ mr: 1 }}>
+                Back
+              </Button>
+              {selectedPlayer.name} {selectedPlayer.surname}
             </DialogTitle>
-            <DialogContent sx={{ pt: 2 }}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
-                <Avatar
-                  src={selectedPlayer.profilePictureUrl ?? ''}
-                  sx={{ width: 72, height: 72, fontSize: 28, mb: 1 }}
-                >
-                  {selectedPlayer.name.charAt(0)}
-                </Avatar>
-                <Typography variant="h6" fontWeight="bold">
-                  {selectedPlayer.name} {selectedPlayer.surname}
-                </Typography>
-                {selectedPlayer.homeClubName && (
-                  <Typography variant="body2" color="text.secondary">{selectedPlayer.homeClubName}</Typography>
-                )}
-              </Box>
-              <Divider sx={{ mb: 1.5 }} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {selectedPlayer.contactNumber && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Phone fontSize="small" color="action" />
-                    <Typography
-                      component="a"
-                      href={`tel:${selectedPlayer.contactNumber}`}
-                      variant="body2"
-                      sx={{ color: 'primary.main', textDecoration: 'none' }}
-                    >
-                      {selectedPlayer.contactNumber}
-                    </Typography>
-                  </Box>
-                )}
-                {selectedPlayer.alternativeContactNumber && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Phone fontSize="small" color="action" />
-                    <Typography
-                      component="a"
-                      href={`tel:${selectedPlayer.alternativeContactNumber}`}
-                      variant="body2"
-                      sx={{ color: 'primary.main', textDecoration: 'none' }}
-                    >
-                      {selectedPlayer.alternativeContactNumber}
-                    </Typography>
-                  </Box>
-                )}
-                {selectedPlayer.email && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Email fontSize="small" color="action" />
-                    <Typography
-                      component="a"
-                      href={`mailto:${selectedPlayer.email}`}
-                      variant="body2"
-                      sx={{ color: 'primary.main', textDecoration: 'none' }}
-                    >
-                      {selectedPlayer.email}
-                    </Typography>
-                  </Box>
-                )}
-                {!selectedPlayer.contactNumber && !selectedPlayer.email && (
-                  <Typography variant="body2" color="text.secondary">No contact details available.</Typography>
-                )}
-              </Box>
+            <DialogContent dividers>
+              <PlayerEditForm
+                editing={selectedPlayer}
+                onChange={patch => setSelectedPlayer(p => p ? { ...p, ...patch } : p)}
+                clubs={clubs}
+                readOnlyConsent
+              />
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setSelectedPlayer(null)}>Close</Button>
+              <Button onClick={() => setSelectedPlayer(null)}>Cancel</Button>
+              <Button variant="contained" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
             </DialogActions>
           </>
         )}

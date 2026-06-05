@@ -27,12 +27,14 @@ const STATUS_COLOR: Record<AvailabilityStatus, 'success' | 'error' | 'warning'> 
 
 interface MatchAvailabilityManagerProps {
   embedded?: boolean;
+  matchIdProp?: number;
   preselectedTeamIdProp?: number;
   onAvailabilityCount?: (confirmed: number, total: number, pollOpen: boolean) => void;
 }
 
-export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> = ({ embedded = false, preselectedTeamIdProp, onAvailabilityCount }) => {
-  const { matchId } = useParams<{ matchId: string }>();
+export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> = ({ embedded = false, matchIdProp, preselectedTeamIdProp, onAvailabilityCount }) => {
+  const { matchId: matchIdParam } = useParams<{ matchId: string }>();
+  const matchId = matchIdProp != null ? String(matchIdProp) : matchIdParam;
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as any;
@@ -44,7 +46,7 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
   const [poll, setPoll] = useState<MatchPoll | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showOnlyConfirmed, setShowOnlyConfirmed] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'YES' | 'NO' | 'UNSURE' | 'NONE' | null>(null);
   const [overrideAnchor, setOverrideAnchor] = useState<{ el: HTMLElement; playerId: number } | null>(null);
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
@@ -119,7 +121,9 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
   };
 
   const displayedPlayers: PlayerAvailabilityEntry[] = poll?.availability?.filter(a =>
-    !showOnlyConfirmed || a.status === 'YES'
+    statusFilter === null ? true :
+    statusFilter === 'NONE' ? !a.status :
+    a.status === statusFilter
   ) ?? [];
 
   return (
@@ -218,19 +222,34 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
 
       {poll && (
         <>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={showOnlyConfirmed}
-                  onChange={e => setShowOnlyConfirmed(e.target.checked)}
-                />
-              }
-              label={<Typography variant="caption">Show Only Confirmed</Typography>}
-              labelPlacement="start"
-              sx={{ mr: 0, ml: 0 }}
-            />
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+              {([
+                { key: 'YES',    count: poll.availability?.filter(a => a.status === 'YES').length ?? 0,    label: 'Available',   color: 'success.main' },
+                { key: 'NO',     count: poll.availability?.filter(a => a.status === 'NO').length ?? 0,     label: 'Unavailable', color: 'error.main' },
+                { key: 'UNSURE', count: poll.availability?.filter(a => a.status === 'UNSURE').length ?? 0, label: 'Unsure',      color: 'warning.main' },
+                { key: 'NONE',   count: poll.availability?.filter(a => !a.status).length ?? 0,             label: 'No Response', color: 'text.secondary' },
+              ] as const).map(({ key, count, label, color }, i, arr) => {
+                const active = statusFilter === key;
+                return (
+                  <Box
+                    key={key}
+                    onClick={() => setStatusFilter(active ? null : key)}
+                    sx={{
+                      px: 3, py: 1.25, textAlign: 'center', minWidth: 90, cursor: 'pointer',
+                      borderRight: i < arr.length - 1 ? '1px solid' : 'none',
+                      borderColor: 'divider',
+                      bgcolor: active ? 'action.selected' : 'transparent',
+                      transition: 'background-color 0.15s',
+                      '&:hover': { bgcolor: active ? 'action.selected' : 'action.hover' },
+                    }}
+                  >
+                    <Typography variant="h5" fontWeight="bold" sx={{ color, lineHeight: 1 }}>{count}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: 'block' }}>{label}</Typography>
+                  </Box>
+                );
+              })}
+            </Box>
           </Box>
 
           <Grid container spacing={2} justifyContent="center">
@@ -254,6 +273,7 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
                     variant="outlined"
                     sx={{
                       height: '100%',
+                      bgcolor: 'background.paper',
                       borderColor:
                         entry.status === 'YES' ? 'success.main' :
                         entry.status === 'NO' ? 'error.main' :
@@ -264,11 +284,11 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
                     <CardActionArea
                       disabled={!canOverride}
                       onClick={canOverride ? e => setOverrideAnchor({ el: e.currentTarget, playerId: entry.playerId }) : undefined}
-                      sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, height: '100%' }}
+                      sx={{ p: 1.5, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.75, height: '100%' }}
                     >
                       <Avatar
                         src={entry.profilePictureUrl ?? undefined}
-                        sx={{ bgcolor: avatarBg, width: 48, height: 48, fontSize: '1rem', fontWeight: 700 }}
+                        sx={{ bgcolor: avatarBg, width: 44, height: 44, fontSize: '0.9rem', fontWeight: 700 }}
                       >
                         {initials}
                       </Avatar>
@@ -295,12 +315,6 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
               );
             })}
           </Grid>
-
-          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1 }}>
-            {match?.matchCompleted || !poll?.open
-              ? 'Poll is closed — availability can no longer be changed.'
-              : 'Click a player\'s availability status to change it.'}
-          </Typography>
 
           <Menu
             anchorEl={overrideAnchor?.el}

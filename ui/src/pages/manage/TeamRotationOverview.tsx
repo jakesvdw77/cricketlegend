@@ -3,18 +3,22 @@ import {
   Box, Typography, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
   Avatar, Chip, Tooltip, TableSortLabel, Tabs, Tab, Divider,
+  Dialog, DialogTitle, DialogContent, DialogActions, Button,
 } from '@mui/material';
 import {
   QueryStats, EmojiEvents, CheckCircle, Remove,
-  SportsCricket, TrendingUp, TrendingDown, Equalizer, Psychology,
+  SportsCricket, TrendingUp, TrendingDown, Equalizer, Psychology, ArrowBack,
 } from '@mui/icons-material';
 import { LinearProgress } from '@mui/material';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
+import { playerApi } from '../../api/playerApi';
+import { clubApi } from '../../api/clubApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
-import { Match, MatchResult, MatchSide, Tournament, TournamentStatsReport } from '../../types';
+import { Club, Match, MatchResult, MatchSide, Player, Tournament, TournamentStatsReport } from '../../types';
 import { AnalysisCacheBanner } from '../../components/AnalysisCacheBanner';
+import { PlayerEditForm } from '../../components/player/PlayerEditForm';
 
 // ── Overs helpers ─────────────────────────────────────────────────────────────
 
@@ -186,12 +190,23 @@ const fmtDateShort = (d?: string) => {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export const TeamRotationOverview: React.FC = () => {
+interface TeamStatsPanelProps {
+  embedded?: boolean;
+  initialTournamentId?: number;
+  lockedTeamId?: number;
+}
+
+export const TeamStatsPanel: React.FC<TeamStatsPanelProps> = ({
+  embedded = false,
+  initialTournamentId,
+  lockedTeamId,
+}) => {
   const { teamIds: managerTeamIds, restrictByTeam, homeClubId, loaded: teamsLoaded } = useManagerTeams();
 
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [tournamentsLoading, setTournamentsLoading] = useState(true);
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | ''>('');
+  const [selectedTeamId, setSelectedTeamId] = useState<number | ''>('');
 
   const [columns, setColumns] = useState<MatchColumn[]>([]);
   const [playerMap, setPlayerMap] = useState<Map<number, string>>(new Map());
@@ -218,10 +233,16 @@ export const TeamRotationOverview: React.FC = () => {
   const [aiRegenerating, setAiRegenerating] = useState(false);
   const [aiError, setAiError]             = useState<string | null>(null);
 
+  const [clubs, setClubs]                 = useState<Club[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [playerLoading, setPlayerLoading]   = useState(false);
+  const [saving, setSaving]                 = useState(false);
+
   // ── Load tournaments ────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!teamsLoaded) return;
+    clubApi.findAll().then(setClubs);
     Promise.all([tournamentApi.findAll(), matchApi.findAll()])
       .then(([allTournaments, allMatches]) => {
         if (!restrictByTeam) { setTournaments(allTournaments); return; }
@@ -241,6 +262,21 @@ export const TeamRotationOverview: React.FC = () => {
       setSelectedTournamentId(tournaments[0].tournamentId!);
     }
   }, [tournaments, selectedTournamentId]);
+
+  useEffect(() => {
+    if (initialTournamentId && !selectedTournamentId) setSelectedTournamentId(initialTournamentId);
+  }, [initialTournamentId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (lockedTeamId) setSelectedTeamId(lockedTeamId);
+  }, [lockedTeamId]);
+
+  // Reset stats when team filter changes
+  useEffect(() => {
+    setBattingMap(new Map()); setBowlingMap(new Map());
+    setOverview(null); setStatsLoaded(false);
+    setAiReport(null); setAiError(null);
+  }, [selectedTeamId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load columns + squads when tournament changes ───────────────────────────
 
@@ -322,7 +358,8 @@ export const TeamRotationOverview: React.FC = () => {
     setStatsLoading(true);
 
     const load = async () => {
-      const uniqueMatchIds = [...new Set(columns.map(c => c.matchId))];
+      const filteredCols = selectedTeamId ? columns.filter(c => c.teamId === selectedTeamId) : columns;
+      const uniqueMatchIds = [...new Set(filteredCols.map(c => c.matchId))];
       const results = await Promise.allSettled(uniqueMatchIds.map(mid => matchApi.getResult(mid)));
 
       type Side = {
@@ -356,12 +393,14 @@ export const TeamRotationOverview: React.FC = () => {
       // ── Team overview (aggregate) ───────────────────────────────────────────
       const ov = emptyOverview();
 
-      for (const col of columns) {
+      for (const col of filteredCols) {
         const matchResult = resultMap.get(col.matchId);
         const sides       = scorecardMap.get(col.matchId);
 
-        // Match record
-        ov.matchesPlayed++;
+        // Match record — only count matches that have an actual outcome
+        if (matchResult?.matchCompleted || matchResult?.forfeited || matchResult?.noResult) {
+          ov.matchesPlayed++;
+        }
         if (matchResult?.matchCompleted) {
           if (matchResult.noResult)       ov.noResults++;
           else if (matchResult.matchDrawn) ov.draws++;
@@ -468,7 +507,7 @@ export const TeamRotationOverview: React.FC = () => {
     };
 
     load().catch(() => {}).finally(() => setStatsLoading(false));
-  }, [activeTab, columns, statsLoaded, statsLoading, playerMap]);
+  }, [activeTab, columns, selectedTeamId, statsLoaded, statsLoading, playerMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── AI report — lazy-load on tab 4, callable for regenerate ─────────────────
 
@@ -507,8 +546,13 @@ export const TeamRotationOverview: React.FC = () => {
 
     const selectedTournament = tournaments.find(t => t.tournamentId === selectedTournamentId);
 
+    const selectedTeamName = selectedTeamId
+      ? (columns.find(c => c.teamId === selectedTeamId)?.teamName ?? 'Selected Team')
+      : 'All Teams';
+
     const stats = {
       tournamentName: selectedTournament?.name ?? 'Tournament',
+      teamName: selectedTeamName,
       matchesPlayed: overview.matchesPlayed, wins: overview.wins, losses: overview.losses,
       draws: overview.draws, noResults: overview.noResults,
       winPct, nrr,
@@ -543,15 +587,26 @@ export const TeamRotationOverview: React.FC = () => {
 
   // ── Derived rows ────────────────────────────────────────────────────────────
 
-  const playerRows = useMemo((): PlayerRow[] =>
-    sortRows(
-      [...playerMap.entries()].map(([playerId, playerName]) => ({
-        playerId, playerName,
-        gamesPlayed: columns.filter(c => c.playingXiSet.has(playerId)).length,
-      })),
+  const availableTeams = useMemo(() => {
+    const seen = new Map<number, string>();
+    for (const c of columns) if (!seen.has(c.teamId)) seen.set(c.teamId, c.teamName);
+    return [...seen.entries()]
+      .map(([teamId, teamName]) => ({ teamId, teamName }))
+      .sort((a, b) => a.teamName.localeCompare(b.teamName));
+  }, [columns]);
+
+  const playerRows = useMemo((): PlayerRow[] => {
+    const filteredCols = selectedTeamId ? columns.filter(c => c.teamId === selectedTeamId) : columns;
+    return sortRows(
+      [...playerMap.entries()]
+        .map(([playerId, playerName]) => ({
+          playerId, playerName,
+          gamesPlayed: filteredCols.filter(c => c.playingXiSet.has(playerId)).length,
+        }))
+        .filter(r => !selectedTeamId || r.gamesPlayed > 0),
       r => r.gamesPlayed, rotationSortDir,
-    ),
-  [playerMap, columns, rotationSortDir]);
+    );
+  }, [playerMap, columns, selectedTeamId, rotationSortDir]);
 
   const battingRows = useMemo(() =>
     sortRows([...battingMap.values()], r => battingSortValue(r, battingSortKey), battingSortDir),
@@ -570,6 +625,26 @@ export const TeamRotationOverview: React.FC = () => {
     else { setBowlingSortKey(key); setBowlingSortDir('desc'); }
   };
 
+  const openPlayerDialog = (playerId: number) => {
+    setPlayerLoading(true);
+    setSelectedPlayer(null);
+    playerApi.findById(playerId)
+      .then(setSelectedPlayer)
+      .catch(() => {})
+      .finally(() => setPlayerLoading(false));
+  };
+
+  const handleSave = async () => {
+    if (!selectedPlayer?.playerId) return;
+    setSaving(true);
+    try {
+      await playerApi.update(selectedPlayer.playerId, selectedPlayer);
+      setSelectedPlayer(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   if (!teamsLoaded || tournamentsLoading)
@@ -577,29 +652,52 @@ export const TeamRotationOverview: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-        <QueryStats color="primary" />
-        <Typography variant="h5">Team Stats</Typography>
-      </Box>
+      {!embedded && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+          <QueryStats color="primary" />
+          <Typography variant="h5">Team Stats</Typography>
+        </Box>
+      )}
 
-      <FormControl sx={{ mb: 3, minWidth: 320 }} size="small">
-        <InputLabel>Tournament</InputLabel>
-        <Select
-          value={selectedTournamentId}
-          label="Tournament"
-          onChange={e => {
-            setSelectedTournamentId(e.target.value as number);
-            setColumns([]); setPlayerMap(new Map());
-            setBattingMap(new Map()); setBowlingMap(new Map());
-            setOverview(null); setStatsLoaded(false);
-            setAiReport(null); setAiError(null); setActiveTab(0);
-          }}
-        >
-          {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
-        </Select>
-      </FormControl>
+      {!embedded && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+          <FormControl sx={{ minWidth: 280 }} size="small">
+            <InputLabel>Tournament</InputLabel>
+            <Select
+              value={selectedTournamentId}
+              label="Tournament"
+              onChange={e => {
+                setSelectedTournamentId(e.target.value as number);
+                setSelectedTeamId('');
+                setColumns([]); setPlayerMap(new Map());
+                setBattingMap(new Map()); setBowlingMap(new Map());
+                setOverview(null); setStatsLoaded(false);
+                setAiReport(null); setAiError(null); setActiveTab(0);
+              }}
+            >
+              {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
+            </Select>
+          </FormControl>
 
-      {!selectedTournamentId && (
+          {!lockedTeamId && availableTeams.length > 1 && (
+            <FormControl sx={{ minWidth: 220 }} size="small">
+              <InputLabel>Team</InputLabel>
+              <Select
+                value={selectedTeamId}
+                label="Team"
+                onChange={e => setSelectedTeamId(e.target.value as number | '')}
+              >
+                <MenuItem value=""><em>All Teams</em></MenuItem>
+                {availableTeams.map(t => (
+                  <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        </Box>
+      )}
+
+      {!embedded && !selectedTournamentId && (
         <Alert severity="info" icon={<EmojiEvents />}>Select a tournament to view team stats.</Alert>
       )}
 
@@ -609,11 +707,25 @@ export const TeamRotationOverview: React.FC = () => {
         columns.length === 0
           ? <Alert severity="info">No matches found for your teams in this tournament.</Alert>
           : <>
-              <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 3 }}>
+              <Tabs
+                value={activeTab}
+                onChange={(_, v) => setActiveTab(v)}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{
+                  mb: 3,
+                  position: 'sticky',
+                  top: embedded ? 0 : { xs: 56, sm: 64 },
+                  zIndex: 10,
+                  bgcolor: 'background.paper',
+                  borderBottom: 1,
+                  borderColor: 'divider',
+                }}
+              >
                 <Tab label="Overview" />
-                <Tab label="Player Rotation" />
-                <Tab label="Batting Stats" />
-                <Tab label="Bowling Stats" />
+                <Tab label="Rotation" />
+                <Tab label="Batting" />
+                <Tab label="Bowling" />
                 <Tab label="AI Report" icon={<Psychology fontSize="small" />} iconPosition="start" />
               </Tabs>
 
@@ -632,21 +744,21 @@ export const TeamRotationOverview: React.FC = () => {
               {activeTab === 1 && (
                 playerRows.length === 0
                   ? <Alert severity="info">No squad data found.</Alert>
-                  : <RotationTable columns={columns} playerRows={playerRows} sortDir={rotationSortDir} onToggleSort={() => setRotationSortDir(d => d === 'desc' ? 'asc' : 'desc')} />
+                  : <RotationTable columns={columns} playerRows={playerRows} sortDir={rotationSortDir} onToggleSort={() => setRotationSortDir(d => d === 'desc' ? 'asc' : 'desc')} onPlayerClick={openPlayerDialog} />
               )}
 
               {/* ── Tab 2: Batting Stats ── */}
               {activeTab === 2 && (
                 statsLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>
                 : battingRows.length === 0 ? <Alert severity="info">No batting scorecards recorded yet.</Alert>
-                : <BattingStatsTable rows={battingRows} sortKey={battingSortKey} sortDir={battingSortDir} onSort={handleBattingSort} />
+                : <BattingStatsTable rows={battingRows} sortKey={battingSortKey} sortDir={battingSortDir} onSort={handleBattingSort} onPlayerClick={openPlayerDialog} />
               )}
 
               {/* ── Tab 3: Bowling Stats ── */}
               {activeTab === 3 && (
                 statsLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>
                 : bowlingRows.length === 0 ? <Alert severity="info">No bowling scorecards recorded yet.</Alert>
-                : <BowlingStatsTable rows={bowlingRows} sortKey={bowlingSortKey} sortDir={bowlingSortDir} onSort={handleBowlingSort} />
+                : <BowlingStatsTable rows={bowlingRows} sortKey={bowlingSortKey} sortDir={bowlingSortDir} onSort={handleBowlingSort} onPlayerClick={openPlayerDialog} />
               )}
 
               {/* ── Tab 4: AI Report ── */}
@@ -674,9 +786,40 @@ export const TeamRotationOverview: React.FC = () => {
               )}
             </>
       )}
+
+      <Dialog open={playerLoading || !!selectedPlayer} onClose={() => setSelectedPlayer(null)} maxWidth="md" fullWidth>
+        {playerLoading ? (
+          <DialogContent sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </DialogContent>
+        ) : selectedPlayer && (
+          <>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button startIcon={<ArrowBack />} onClick={() => setSelectedPlayer(null)} sx={{ mr: 1 }}>Back</Button>
+              {selectedPlayer.name} {selectedPlayer.surname}
+            </DialogTitle>
+            <DialogContent dividers>
+              <PlayerEditForm
+                editing={selectedPlayer}
+                onChange={patch => setSelectedPlayer(p => p ? { ...p, ...patch } : p)}
+                clubs={clubs}
+                readOnlyConsent
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setSelectedPlayer(null)}>Cancel</Button>
+              <Button variant="contained" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Box>
   );
 };
+
+export const TeamRotationOverview: React.FC = () => <TeamStatsPanel />;
 
 // ── Team Overview Dashboard ────────────────────────────────────────────────────
 
@@ -953,9 +1096,10 @@ interface RotationTableProps {
   playerRows: PlayerRow[];
   sortDir: SortDir;
   onToggleSort: () => void;
+  onPlayerClick: (playerId: number) => void;
 }
 
-const RotationTable: React.FC<RotationTableProps> = ({ columns, playerRows, sortDir, onToggleSort }) => (
+const RotationTable: React.FC<RotationTableProps> = ({ columns, playerRows, sortDir, onToggleSort, onPlayerClick }) => (
   <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
     <Table size="small" stickyHeader>
       <TableHead>
@@ -982,9 +1126,12 @@ const RotationTable: React.FC<RotationTableProps> = ({ columns, playerRows, sort
         {playerRows.map(row => (
           <TableRow key={row.playerId} hover>
             <TableCell sx={{ position: 'sticky', left: 0, zIndex: 1, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .player-name': { textDecoration: 'underline' } }}
+                onClick={() => onPlayerClick(row.playerId)}
+              >
                 <Avatar sx={{ width: 24, height: 24, fontSize: 12, bgcolor: 'primary.main' }}>{row.playerName.charAt(0)}</Avatar>
-                <Typography variant="body2" noWrap>{row.playerName}</Typography>
+                <Typography className="player-name" variant="body2" noWrap color="primary">{row.playerName}</Typography>
               </Box>
             </TableCell>
             <TableCell align="center">
@@ -1006,7 +1153,7 @@ const RotationTable: React.FC<RotationTableProps> = ({ columns, playerRows, sort
 
 // ── Batting Stats Table ────────────────────────────────────────────────────────
 
-interface BattingStatsTableProps { rows: BattingAccumulator[]; sortKey: BattingSortKey; sortDir: SortDir; onSort: (k: BattingSortKey) => void; }
+interface BattingStatsTableProps { rows: BattingAccumulator[]; sortKey: BattingSortKey; sortDir: SortDir; onSort: (k: BattingSortKey) => void; onPlayerClick: (playerId: number) => void; }
 
 const BATTING_COLS: { key: BattingSortKey; label: string; tooltip: string }[] = [
   { key: 'innings',      label: 'Inn',  tooltip: 'Innings batted' },
@@ -1016,7 +1163,7 @@ const BATTING_COLS: { key: BattingSortKey; label: string; tooltip: string }[] = 
   { key: 'highestScore', label: 'HS',   tooltip: 'Highest score (* = not out)' },
 ];
 
-const BattingStatsTable: React.FC<BattingStatsTableProps> = ({ rows, sortKey, sortDir, onSort }) => (
+const BattingStatsTable: React.FC<BattingStatsTableProps> = ({ rows, sortKey, sortDir, onSort, onPlayerClick }) => (
   <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
     <Table size="small" stickyHeader>
       <TableHead>
@@ -1037,9 +1184,12 @@ const BattingStatsTable: React.FC<BattingStatsTableProps> = ({ rows, sortKey, so
         {rows.map(row => (
           <TableRow key={row.playerId} hover>
             <TableCell sx={{ position: 'sticky', left: 0, zIndex: 1, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .player-name': { textDecoration: 'underline' } }}
+                onClick={() => onPlayerClick(row.playerId)}
+              >
                 <Avatar sx={{ width: 24, height: 24, fontSize: 12, bgcolor: 'primary.main' }}>{row.playerName.charAt(0)}</Avatar>
-                <Typography variant="body2" noWrap>{row.playerName}</Typography>
+                <Typography className="player-name" variant="body2" noWrap color="primary">{row.playerName}</Typography>
               </Box>
             </TableCell>
             <TableCell align="center"><Typography variant="body2">{row.innings}</Typography></TableCell>
@@ -1056,7 +1206,7 @@ const BattingStatsTable: React.FC<BattingStatsTableProps> = ({ rows, sortKey, so
 
 // ── Bowling Stats Table ────────────────────────────────────────────────────────
 
-interface BowlingStatsTableProps { rows: BowlingAccumulator[]; sortKey: BowlingSortKey; sortDir: SortDir; onSort: (k: BowlingSortKey) => void; }
+interface BowlingStatsTableProps { rows: BowlingAccumulator[]; sortKey: BowlingSortKey; sortDir: SortDir; onSort: (k: BowlingSortKey) => void; onPlayerClick: (playerId: number) => void; }
 
 const BOWLING_COLS: { key: BowlingSortKey; label: string; tooltip: string }[] = [
   { key: 'innings',    label: 'Inn',  tooltip: 'Innings bowled' },
@@ -1066,7 +1216,7 @@ const BOWLING_COLS: { key: BowlingSortKey; label: string; tooltip: string }[] = 
   { key: 'economy',   label: 'Econ', tooltip: 'Economy rate (runs conceded per over). Lower is better.' },
 ];
 
-const BowlingStatsTable: React.FC<BowlingStatsTableProps> = ({ rows, sortKey, sortDir, onSort }) => (
+const BowlingStatsTable: React.FC<BowlingStatsTableProps> = ({ rows, sortKey, sortDir, onSort, onPlayerClick }) => (
   <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
     <Table size="small" stickyHeader>
       <TableHead>
@@ -1090,9 +1240,12 @@ const BowlingStatsTable: React.FC<BowlingStatsTableProps> = ({ rows, sortKey, so
         {rows.map(row => (
           <TableRow key={row.playerId} hover>
             <TableCell sx={{ position: 'sticky', left: 0, zIndex: 1, bgcolor: 'background.paper', borderRight: '1px solid', borderColor: 'divider' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer', '&:hover .player-name': { textDecoration: 'underline' } }}
+                onClick={() => onPlayerClick(row.playerId)}
+              >
                 <Avatar sx={{ width: 24, height: 24, fontSize: 12, bgcolor: 'secondary.main' }}>{row.playerName.charAt(0)}</Avatar>
-                <Typography variant="body2" noWrap>{row.playerName}</Typography>
+                <Typography className="player-name" variant="body2" noWrap color="primary">{row.playerName}</Typography>
               </Box>
             </TableCell>
             <TableCell align="center"><Typography variant="body2">{row.innings}</Typography></TableCell>

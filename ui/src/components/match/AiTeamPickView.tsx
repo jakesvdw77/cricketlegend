@@ -16,7 +16,8 @@ import {
   PieChart, Pie, Legend,
 } from 'recharts';
 import { matchApi } from '../../api/matchApi';
-import { AiTeamPick } from '../../types';
+import { teamApi } from '../../api/teamApi';
+import { AiTeamPick, Player } from '../../types';
 import { generateTeamPickPdf, printAnalysisAsScreen } from '../../utils/matchPdf';
 import { AnalysisCacheBanner } from '../AnalysisCacheBanner';
 
@@ -36,6 +37,27 @@ const AVAIL_COLORS: Record<string, string> = {
 };
 
 type PickStrategy = 'STRONGEST' | 'ROTATION';
+
+// Client-side fallback: match an AI-generated name string to a squad player.
+// Tries progressively looser strategies so minor name differences don't break the apply flow.
+function resolveByName(aiName: string, squad: Player[], usedIds: Set<number>): number | null {
+  const norm = (s: string) => s.toLowerCase().replace(/[.\s]+/g, ' ').trim();
+  const target = norm(aiName);
+  const available = squad.filter(p => p.playerId != null && !usedIds.has(p.playerId!));
+
+  for (const p of available)
+    if (norm(`${p.name} ${p.surname}`) === target) return p.playerId!;
+  for (const p of available)
+    if (norm(`${p.surname} ${p.name}`) === target) return p.playerId!;
+  for (const p of available)
+    if (norm(`${p.name.charAt(0)} ${p.surname}`) === target) return p.playerId!;
+  for (const p of available)
+    if (target.includes(norm(p.name)) && target.includes(norm(p.surname))) return p.playerId!;
+  const bySurname = available.filter(p => norm(p.surname) === target);
+  if (bySurname.length === 1) return bySurname[0].playerId!;
+
+  return null;
+}
 
 const STRATEGY_META: Record<PickStrategy, { label: string; description: string }> = {
   STRONGEST: {
@@ -59,12 +81,36 @@ export const AiTeamPickView: React.FC<Props> = ({ matchId, teamId, teamName, mat
   const [printing, setPrinting] = useState(false);
   const [applyConfirmOpen, setApplyConfirmOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const squadRef   = useRef<Player[]>([]);
 
   const load = useCallback((regen = false, strat: PickStrategy = strategy) => {
     if (regen) setRegenerating(true); else setLoading(true);
     setError(null);
-    matchApi.getAiTeamPick(matchId, teamId, regen, strat)
-      .then(setPick)
+
+    const squadPromise = squadRef.current.length > 0
+      ? Promise.resolve(squadRef.current)
+      : teamApi.getSquad(teamId).then(sq => { squadRef.current = sq; return sq; });
+
+    Promise.all([matchApi.getAiTeamPick(matchId, teamId, regen, strat), squadPromise])
+      .then(([rawPick, squad]) => {
+        let p = rawPick;
+        if (p.resolvedXiPlayerIds.length < 11) {
+          const usedIds = new Set<number>();
+          const clientIds: number[] = [];
+          for (const xi of p.selectedXi) {
+            const id = resolveByName(xi.name, squad, usedIds);
+            if (id != null) { clientIds.push(id); usedIds.add(id); }
+          }
+          if (clientIds.length >= 11) {
+            p = { ...p, resolvedXiPlayerIds: clientIds };
+            if (p.twelfthMan && !p.resolvedTwelfthManId) {
+              const twelfthId = resolveByName(p.twelfthMan.name, squad, usedIds);
+              if (twelfthId) p = { ...p, resolvedTwelfthManId: twelfthId };
+            }
+          }
+        }
+        setPick(p);
+      })
       .catch(e => setError(e?.response?.data?.message ?? e?.message ?? 'Failed to generate team pick'))
       .finally(() => { setLoading(false); setRegenerating(false); });
   }, [matchId, teamId, strategy]); // eslint-disable-line react-hooks/exhaustive-deps

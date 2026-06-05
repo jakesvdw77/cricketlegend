@@ -13,14 +13,22 @@ public interface MatchAvailabilityPollRepository extends JpaRepository<MatchAvai
 
     @Query("""
         SELECT p FROM MatchAvailabilityPoll p
+        JOIN p.match m
+        LEFT JOIN m.result r
         WHERE p.open = true
-          AND :playerId MEMBER OF p.team.squadPlayerIds
-          AND (p.match.result IS NULL
+          AND (
+            :playerId MEMBER OF p.team.squadPlayerIds
+            OR EXISTS (
+              SELECT a FROM PlayerAvailability a
+              WHERE a.poll = p AND a.player.playerId = :playerId
+            )
+          )
+          AND (r IS NULL
             OR (
-              (p.match.result.matchCompleted IS NULL OR p.match.result.matchCompleted = false)
-              AND (p.match.result.forfeited IS NULL OR p.match.result.forfeited = false)
-              AND (p.match.result.noResult IS NULL OR p.match.result.noResult = false)
-              AND (p.match.result.matchDrawn IS NULL OR p.match.result.matchDrawn = false)
+              (r.matchCompleted IS NULL OR r.matchCompleted = false)
+              AND (r.forfeited IS NULL OR r.forfeited = false)
+              AND (r.noResult IS NULL OR r.noResult = false)
+              AND (r.matchDrawn IS NULL OR r.matchDrawn = false)
             )
           )
         """)

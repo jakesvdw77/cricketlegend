@@ -4,7 +4,7 @@ import {
   Tabs, Tab, Menu, MenuItem, IconButton, Tooltip, useTheme, useMediaQuery,
   Dialog, DialogTitle, DialogContent, Chip,
 } from '@mui/material';
-import { ArrowBack, AutoAwesome, Close, Psychology, Share, Sync, MoreVert, Visibility, Campaign, Edit, CheckCircle } from '@mui/icons-material';
+import { ArrowBack, AutoAwesome, Close, Share, Sync, MoreVert, Visibility, Campaign, Edit, CheckCircle } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
@@ -12,7 +12,6 @@ import { playerApi } from '../../api/playerApi';
 import { Match, MatchSide, Player } from '../../types';
 import { TeamSidePanel } from '../../components/match/TeamSidePanel';
 import TeamsheetTemplatesDialog from '../../components/match/TeamsheetTemplatesDialog';
-import { XiAnalysisView } from '../../components/match/XiAnalysisView';
 import { AiTeamPickView } from '../../components/match/AiTeamPickView';
 
 interface TeamsheetProps { embedded?: boolean; restrictToTeamIdProp?: number; onAnnouncedChange?: (announced: boolean) => void; }
@@ -33,12 +32,13 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
   const [activeTab, setActiveTab] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [analysisTeamId, setAnalysisTeamId] = useState<number | null>(null);
   const [pickTeamId, setPickTeamId] = useState<number | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [announceTeamId, setAnnounceTeamId] = useState<number | null>(null);
   const [editAnnounceTeamId, setEditAnnounceTeamId] = useState<number | null>(null);
+
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity?: 'success' | 'error' }>({ open: false, message: '' });
+  const [panelRefreshKey, setPanelRefreshKey] = useState<Record<number, number>>({});
 
   useEffect(() => {
     Promise.all([
@@ -139,18 +139,21 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
         {isMobile ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, ml: embedded ? 'auto' : 0 }}>
             {announceControl}
+            <Tooltip title={!eitherAnnounced ? 'Announce the team first to refresh calendars' : 'Refresh calendars'}>
+              <span>
+                <IconButton
+                  onClick={refreshCalendar}
+                  disabled={syncing || !eitherAnnounced || !!match?.matchCompleted}
+                  size="small"
+                >
+                  {syncing ? <CircularProgress size={18} /> : <Sync fontSize="small" />}
+                </IconButton>
+              </span>
+            </Tooltip>
             <IconButton onClick={e => setMenuAnchor(e.currentTarget)}>
               <MoreVert />
             </IconButton>
             <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={closeMenu}>
-              <Tooltip title={!eitherAnnounced ? 'Announce the team first to refresh calendars' : ''} placement="left">
-                <span>
-                  <MenuItem onClick={() => { closeMenu(); refreshCalendar(); }} disabled={syncing || !eitherAnnounced} sx={{ width: '100%' }}>
-                    {syncing ? <CircularProgress size={16} sx={{ mr: 1 }} /> : <Sync fontSize="small" sx={{ mr: 1 }} />}
-                    Calendar
-                  </MenuItem>
-                </span>
-              </Tooltip>
               {!embedded && (
                 <Tooltip title={!eitherAnnounced ? 'Announce the team first to share' : ''} placement="left">
                   <span>
@@ -166,12 +169,6 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
                 </MenuItem>
               )}
               <MenuItem
-                onClick={() => { closeMenu(); setAnalysisTeamId(teamIds[activeTab] ?? teamIds[0] ?? null); }}
-                disabled={!hasFullXi}
-              >
-                <Psychology fontSize="small" sx={{ mr: 1 }} /> Analyse XI
-              </MenuItem>
-              <MenuItem
                 onClick={() => { closeMenu(); setPickTeamId(teamIds[activeTab] ?? teamIds[0] ?? null); }}
                 disabled={teamIds.length === 0}
               >
@@ -181,12 +178,8 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
           </Box>
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, ml: embedded ? 0 : 2 }}>
-            {/* Announce — left side */}
+            {/* Announce + Calendar — left side */}
             {announceControl}
-
-            <Box sx={{ flex: 1 }} />
-
-            {/* Right side: Calendar, Share, Analyse, Pick */}
             <Tooltip title={!eitherAnnounced ? 'Announce the team first to refresh calendars' : ''}>
               <span>
                 <Button
@@ -199,6 +192,10 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
                 </Button>
               </span>
             </Tooltip>
+
+            <Box sx={{ flex: 1 }} />
+
+            {/* Right side: Share, Pick */}
             {!embedded && (
               <Tooltip title={!eitherAnnounced ? 'Announce the team first to share' : ''}>
                 <span>
@@ -225,14 +222,6 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
             )}
             <Button
               variant="outlined"
-              startIcon={<Psychology />}
-              onClick={() => setAnalysisTeamId(teamIds[activeTab] ?? teamIds[0] ?? null)}
-              disabled={!hasFullXi}
-            >
-              Analyse XI
-            </Button>
-            <Button
-              variant="outlined"
               startIcon={<AutoAwesome />}
               onClick={() => setPickTeamId(teamIds[activeTab] ?? teamIds[0] ?? null)}
               disabled={teamIds.length === 0 || !!match?.matchCompleted}
@@ -254,6 +243,7 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
       {teamIds.map((teamId, idx) => (
         <Box key={teamId} hidden={activeTab !== idx} sx={{ mt: teamIds.length === 1 ? 2 : 0 }}>
           <TeamSidePanel
+            key={`${teamId}-${panelRefreshKey[teamId] ?? 0}`}
             matchId={id}
             teamId={teamId}
             teamName={getTeamName(teamId)}
@@ -319,6 +309,7 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
                       if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
                       return [...prev, saved];
                     });
+                    setPanelRefreshKey(prev => ({ ...prev, [capturedTeamId]: (prev[capturedTeamId] ?? 0) + 1 }));
                     setPickTeamId(null);
                     setSnackbar({ open: true, message: `AI XI applied for ${capturedTeamName}!`, severity: 'success' });
                   })
@@ -327,32 +318,6 @@ export const Teamsheet: React.FC<TeamsheetProps> = ({ embedded = false, restrict
                     setSnackbar({ open: true, message: `Error: ${msg}`, severity: 'error' });
                   });
               }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Analyse XI dialog */}
-      <Dialog open={!!analysisTeamId} onClose={() => setAnalysisTeamId(null)} maxWidth="lg" fullWidth fullScreen>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 1 }}>
-          <Psychology color="primary" />
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" component="span">XI Analysis</Typography>
-            {analysisTeamId && (
-              <Typography variant="body2" color="text.secondary">
-                {getTeamName(analysisTeamId)} — {match?.homeTeamName} vs {match?.oppositionTeamName}
-              </Typography>
-            )}
-          </Box>
-          <IconButton size="small" onClick={() => setAnalysisTeamId(null)}><Close /></IconButton>
-        </DialogTitle>
-        <DialogContent>
-          {analysisTeamId && match && (
-            <XiAnalysisView
-              matchId={id}
-              teamId={analysisTeamId}
-              teamName={getTeamName(analysisTeamId)}
-              matchTitle={`${match.homeTeamName} vs ${match.oppositionTeamName}`}
             />
           )}
         </DialogContent>

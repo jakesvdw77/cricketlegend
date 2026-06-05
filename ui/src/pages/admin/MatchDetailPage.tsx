@@ -8,11 +8,12 @@ import {
 import {
   ArrowBack, CalendarMonth, AccessTime, LocationOn,
   EmojiEvents, Groups, HowToVote, SportsScore,
-  Share, CheckCircle, RecordVoiceOver,
+  Share, CheckCircle, RecordVoiceOver, Analytics,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { Match } from '../../types';
 import { Teamsheet } from './Teamsheet';
+import { MatchAnalysisTab } from '../../components/match/MatchAnalysisTab';
 import { MatchAvailabilityManager } from './MatchAvailabilityManager';
 import { MatchResultCaptureContent } from './MatchResultCapture';
 import { MatchSharePanel } from '../../components/match/MatchSharePanel';
@@ -83,21 +84,6 @@ export const MatchDetailPage: React.FC = () => {
             '&:hover': { opacity: 0.9 },
           }}
         >
-          {/* Share icon — top-right corner */}
-          <Tooltip title="Share match">
-            <IconButton
-              size="small"
-              onClick={e => { e.stopPropagation(); setShareOpen(true); }}
-              sx={{
-                position: 'absolute', top: 6, right: 6,
-                color: 'rgba(255,255,255,0.75)',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', opacity: 1 },
-              }}
-            >
-              <Share fontSize="small" />
-            </IconButton>
-          </Tooltip>
-
           {/* Teams row — compact inline layout */}
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
             {/* Home team */}
@@ -133,7 +119,7 @@ export const MatchDetailPage: React.FC = () => {
 
           <Divider sx={{ borderColor: 'rgba(255,255,255,0.15)', my: 1 }} />
 
-          <Stack direction="row" flexWrap="wrap" gap={1.5} alignItems="center">
+          <Stack direction="row" flexWrap="wrap" gap={1.5} alignItems="center" justifyContent="space-between">
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <CalendarMonth sx={{ fontSize: 13, opacity: 0.75 }} />
               <Typography variant="caption">{fmtDate(match.matchDate)}</Typography>
@@ -159,6 +145,19 @@ export const MatchDetailPage: React.FC = () => {
                 </Typography>
               </Box>
             )}
+            <Tooltip title="Share match">
+              <IconButton
+                size="small"
+                onClick={e => { e.stopPropagation(); setShareOpen(true); }}
+                sx={{
+                  ml: 'auto',
+                  color: 'rgba(255,255,255,0.75)',
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.12)', opacity: 1 },
+                }}
+              >
+                <Share fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Stack>
 
           {!match.matchCompleted && (teamAnnounced || availCount?.pollOpen) && (
@@ -198,6 +197,7 @@ export const MatchDetailPage: React.FC = () => {
       >
         <Tab icon={<HowToVote fontSize="small" />} iconPosition="start" label="Availability" />
         <Tab icon={<Groups fontSize="small" />} iconPosition="start" label="Team Sheet" />
+        {teamId != null && <Tab icon={<Analytics fontSize="small" />} iconPosition="start" label="Match Analysis" />}
         <Tab icon={<SportsScore fontSize="small" />} iconPosition="start" label="Result" disabled={!match?.matchCompleted && (match?.matchDate ?? '9999-12-31') > new Date().toISOString().slice(0, 10)} />
       </Tabs>
 
@@ -212,7 +212,23 @@ export const MatchDetailPage: React.FC = () => {
       {tab === 1 && (
         <Teamsheet embedded restrictToTeamIdProp={teamId} onAnnouncedChange={setTeamAnnounced} />
       )}
-      {tab === 2 && (
+      {tab === 2 && teamId != null && match && (() => {
+        const isHome       = match.homeTeamId === teamId;
+        const ownName      = isHome ? (match.homeTeamName ?? '')        : (match.oppositionTeamName ?? '');
+        const oppTeamId    = isHome ? match.oppositionTeamId            : match.homeTeamId;
+        const oppTeamName  = isHome ? (match.oppositionTeamName ?? '')  : (match.homeTeamName ?? '');
+        return (
+          <MatchAnalysisTab
+            matchId={id}
+            teamId={teamId}
+            teamName={ownName}
+            matchTitle={`${match.homeTeamName} vs ${match.oppositionTeamName}`}
+            oppositionTeamId={oppTeamId}
+            oppositionTeamName={oppTeamName}
+          />
+        );
+      })()}
+      {tab === 3 && (
         <MatchResultCaptureContent
           matchId={id}
           onBack={() => navigate(returnTo)}

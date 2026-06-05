@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, Typography, CircularProgress, Chip, Avatar, Divider, Stack,
-  Card, CardContent, MenuItem, TextField, useTheme, useMediaQuery, Button,
+  Box, Typography, CircularProgress, Chip, Avatar, Divider,
+  Card, CardContent, MenuItem, TextField, Button,
   Dialog, DialogTitle, DialogContent, IconButton, Paper,
 } from '@mui/material';
 import {
-  EmojiEvents, CalendarMonth, AccessTime, LocationOn, SportsScore,
-  CheckCircle, Cancel, Remove, ArrowBack, Share, Close, Psychology,
+  EmojiEvents, SportsScore,
+  CheckCircle, Cancel, Remove, ArrowBack, Share, Close, Psychology, Edit, QueryStats,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
@@ -21,12 +21,8 @@ import BroadcastScorecardTemplate from '../admin/templates/BroadcastScorecardTem
 import ManOfTheMatchTemplate from '../admin/templates/ManOfTheMatchTemplate';
 import { TemplateProps, TeamFilter } from '../admin/templates/types';
 import { GameAnalysisView } from '../../components/match/GameAnalysisView';
-
-const STAGE_LABELS: Record<string, string> = {
-  FRIENDLY: 'Friendly', POOL: 'Pool', PLAYOFFS: 'Playoffs',
-  ROUND_OF_16: 'Round of 16', QUARTER_FINAL: 'Quarter-Final',
-  SEMI_FINAL: 'Semi-Final', FINAL: 'Final',
-};
+import { ResultViewDialog } from './ResultViewDialog';
+import { TeamStatsDialog } from './TeamStatsDialog';
 
 const fmtDate = (d?: string) => {
   if (!d) return '—';
@@ -52,57 +48,65 @@ function resultLine(m: Match, teamId: number): { label: string; color: 'success'
   const icon = (c: 'success' | 'error' | 'default') =>
     c === 'success' ? <CheckCircle /> : c === 'error' ? <Cancel /> : <Remove />;
 
-  if (m.noResult)   return { label: 'No Result',  color: 'default',  icon: icon('default') };
-  if (m.matchDrawn) return { label: 'Draw',        color: 'default',  icon: icon('default') };
-  if (m.forfeited)  return { label: 'Forfeited',   color: 'default',  icon: icon('default') };
-  if (!m.matchCompleted) return { label: 'Upcoming', color: 'default', icon: icon('default') };
+  if (m.noResult)        return { label: 'No Result', color: 'default', icon: icon('default') };
+  if (m.matchDrawn)      return { label: 'Draw',      color: 'default', icon: icon('default') };
+  if (m.forfeited)       return { label: 'Forfeited', color: 'default', icon: icon('default') };
+  if (!m.matchCompleted) return { label: 'Pending',   color: 'default', icon: icon('default') };
 
-  const desc = (m.matchOutcomeDescription ?? '').toLowerCase();
+  const desc   = (m.matchOutcomeDescription ?? '').toLowerCase();
   const myName = (m.homeTeamId === teamId ? (m.homeTeamName ?? '') : (m.oppositionTeamName ?? '')).toLowerCase();
-  const won = desc.includes('won') && myName && desc.includes(myName);
+  const won    = desc.includes('won') && myName && desc.includes(myName);
   return won
-    ? { label: 'Won', color: 'success', icon: icon('success') }
-    : { label: 'Lost', color: 'error', icon: icon('error') };
+    ? { label: 'Won',  color: 'success', icon: icon('success') }
+    : { label: 'Lost', color: 'error',   icon: icon('error') };
 }
 
-interface TournamentGroup {
-  tournamentId: number | null;
-  tournamentName: string;
-  matches: Match[];
-  latestDate: string;
-}
+// ── Week grouping ──────────────────────────────────────────────────────────────
 
-const groupByTournament = (matches: Match[]): TournamentGroup[] => {
-  const map = new Map<string, TournamentGroup>();
+const weekStartOf = (dateStr: string): string => {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+};
+
+const weekLabelOf = (weekStartStr: string): string => {
+  const d = new Date(weekStartStr + 'T00:00:00');
+  return 'Week of ' + d.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+interface WeekGroup { weekStart: string; label: string; matches: Match[] }
+
+const groupByWeek = (matches: Match[]): WeekGroup[] => {
+  const map = new Map<string, WeekGroup>();
   for (const m of matches) {
-    const key = m.tournamentId != null ? String(m.tournamentId) : '__none__';
-    if (!map.has(key)) {
-      map.set(key, {
-        tournamentId: m.tournamentId ?? null,
-        tournamentName: m.tournamentName ?? 'Friendlies / No Tournament',
-        matches: [],
-        latestDate: sortKey(m),
-      });
-    }
-    const g = map.get(key)!;
-    g.matches.push(m);
-    if (sortKey(m) > g.latestDate) g.latestDate = sortKey(m);
+    const ws = m.matchDate ? weekStartOf(m.matchDate) : '0000-01-01';
+    if (!map.has(ws)) map.set(ws, { weekStart: ws, label: weekLabelOf(ws), matches: [] });
+    map.get(ws)!.matches.push(m);
   }
   for (const g of map.values()) {
     g.matches.sort((a, b) => sortKey(b).localeCompare(sortKey(a)));
   }
-  return [...map.values()].sort((a, b) => b.latestDate.localeCompare(a.latestDate));
+  return [...map.values()].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
 };
+
+// ── ShareMatchDialog ───────────────────────────────────────────────────────────
 
 type ShareStep = 'type' | 'template' | 'motm' | 'analysis';
 
 const SHARE_TYPES: { key: ShareStep; label: string; description: string; icon: React.ReactNode }[] = [
-  { key: 'template', label: 'Match Result',    description: 'Result, scores & share templates',    icon: <SportsScore sx={{ fontSize: 32 }} /> },
-  { key: 'motm',     label: 'Man of the Match', description: 'Player highlight card with photo',   icon: <EmojiEvents  sx={{ fontSize: 32 }} /> },
-  { key: 'analysis', label: 'Game Analysis',   description: 'AI-powered insights & chart data',    icon: <Psychology   sx={{ fontSize: 32 }} /> },
+  { key: 'template', label: 'Match Result',     description: 'Result, scores & share templates',  icon: <SportsScore sx={{ fontSize: 32 }} /> },
+  { key: 'motm',     label: 'Man of the Match',  description: 'Player highlight card with photo',  icon: <EmojiEvents  sx={{ fontSize: 32 }} /> },
+  { key: 'analysis', label: 'Game Analysis',    description: 'AI-powered insights & chart data',   icon: <Psychology   sx={{ fontSize: 32 }} /> },
 ];
 
-export const ShareMatchDialog: React.FC<{ match: Match | null; teamId: number | ''; teamName: string; onClose: () => void }> = ({ match, teamId, teamName, onClose }) => {
+export const ShareMatchDialog: React.FC<{
+  match: Match | null;
+  teamId: number | '';
+  teamName: string;
+  onClose: () => void;
+}> = ({ match, teamId, teamName, onClose }) => {
   const [step, setStep] = useState<ShareStep>('type');
   const [result, setResult] = useState<MatchResult | null>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -130,8 +134,8 @@ export const ShareMatchDialog: React.FC<{ match: Match | null; teamId: number | 
 
   const firstInningsTeam  = result ? teams.find(t => t.id === result.sideBattingFirstId) : null;
   const secondInningsTeam = result ? teams.find(t => t.id !== result.sideBattingFirstId && t.id != null) : null;
-  const firstTeamName  = firstInningsTeam?.name  ?? match.homeTeamName        ?? '1st Innings';
-  const secondTeamName = secondInningsTeam?.name ?? match.oppositionTeamName  ?? '2nd Innings';
+  const firstTeamName  = firstInningsTeam?.name  ?? match.homeTeamName       ?? '1st Innings';
+  const secondTeamName = secondInningsTeam?.name ?? match.oppositionTeamName ?? '2nd Innings';
 
   const emptyResult: MatchResult = {
     matchCompleted: false, matchDrawn: false, forfeited: false, noResult: false,
@@ -144,22 +148,13 @@ export const ShareMatchDialog: React.FC<{ match: Match | null; teamId: number | 
   const hasScorecard = !!(firstCard.batting?.length || secondCard.batting?.length);
 
   const templateProps: TemplateProps = {
-    match,
-    result: result ?? emptyResult,
-    tournament,
-    firstTeamName,
-    secondTeamName,
-    firstCard,
-    secondCard,
-    motmName: result?.manOfTheMatchName ?? null,
-    teamFilter,
+    match, result: result ?? emptyResult, tournament,
+    firstTeamName, secondTeamName, firstCard, secondCard,
+    motmName: result?.manOfTheMatchName ?? null, teamFilter,
   };
 
   const stepTitle: Record<ShareStep, string> = {
-    type:     'Share',
-    template: 'Match Result',
-    motm:     'Man of the Match',
-    analysis: 'Game Analysis',
+    type: 'Share', template: 'Match Result', motm: 'Man of the Match', analysis: 'Game Analysis',
   };
 
   return (
@@ -205,11 +200,9 @@ export const ShareMatchDialog: React.FC<{ match: Match | null; teamId: number | 
           </Box>
 
         ) : step === 'motm' ? (
-          loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
-          ) : (
-            <ManOfTheMatchTemplate {...templateProps} />
-          )
+          loading
+            ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+            : <ManOfTheMatchTemplate {...templateProps} />
 
         ) : step === 'analysis' ? (
           teamId ? (
@@ -261,109 +254,139 @@ export const ShareMatchDialog: React.FC<{ match: Match | null; teamId: number | 
   );
 };
 
-const MatchRow: React.FC<{ match: Match; teamId: number; onShare: (m: Match) => void }> = ({ match: m, teamId, onShare }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+// ── Match card ─────────────────────────────────────────────────────────────────
+
+const MatchCard: React.FC<{ match: Match; teamId: number; onShare: (m: Match) => void; onEdit: (m: Match) => void; onStats: (m: Match) => void; onAnalysis: (m: Match) => void }> = ({ match: m, teamId, onShare, onEdit, onStats, onAnalysis }) => {
   const navigate = useNavigate();
   const isHome = m.homeTeamId === teamId;
-  const opponent = isHome ? m.oppositionTeamName : m.homeTeamName;
-  const opponentLogo = isHome ? m.oppositionTeamLogoUrl : m.homeTeamLogoUrl;
+  const opponent     = isHome ? m.oppositionTeamName     : m.homeTeamName;
+  const opponentLogo = isHome ? m.oppositionTeamLogoUrl  : m.homeTeamLogoUrl;
   const opponentAbbr = isHome ? m.oppositionTeamAbbreviation : m.homeTeamAbbreviation;
-  const result = resultLine(m, teamId);
+  const hasResult    = isFinal(m);
+  const result       = resultLine(m, teamId);
 
   const homeBattedFirst =
     (m.tossWonBy === 'HOME' && m.tossDecision === 'BAT') ||
     (m.tossWonBy === 'OPPOSITION' && m.tossDecision === 'BOWL');
-  const myRuns    = isHome ? (homeBattedFirst ? m.scoreBattingFirst    : m.scoreBattingSecond)   : (homeBattedFirst ? m.scoreBattingSecond   : m.scoreBattingFirst);
-  const myWkts    = isHome ? (homeBattedFirst ? m.wicketsLostBattingFirst : m.wicketsLostBattingSecond) : (homeBattedFirst ? m.wicketsLostBattingSecond : m.wicketsLostBattingFirst);
-  const myOvers   = isHome ? (homeBattedFirst ? m.oversBattingFirst    : m.oversBattingSecond)   : (homeBattedFirst ? m.oversBattingSecond   : m.oversBattingFirst);
-  const oppRuns   = isHome ? (homeBattedFirst ? m.scoreBattingSecond   : m.scoreBattingFirst)    : (homeBattedFirst ? m.scoreBattingFirst    : m.scoreBattingSecond);
-  const oppWkts   = isHome ? (homeBattedFirst ? m.wicketsLostBattingSecond : m.wicketsLostBattingFirst) : (homeBattedFirst ? m.wicketsLostBattingFirst : m.wicketsLostBattingSecond);
-  const oppOvers  = isHome ? (homeBattedFirst ? m.oversBattingSecond   : m.oversBattingFirst)    : (homeBattedFirst ? m.oversBattingFirst    : m.oversBattingSecond);
+
+  const myRuns   = isHome ? (homeBattedFirst ? m.scoreBattingFirst  : m.scoreBattingSecond) : (homeBattedFirst ? m.scoreBattingSecond : m.scoreBattingFirst);
+  const myWkts   = isHome ? (homeBattedFirst ? m.wicketsLostBattingFirst : m.wicketsLostBattingSecond) : (homeBattedFirst ? m.wicketsLostBattingSecond : m.wicketsLostBattingFirst);
+  const myOvers  = isHome ? (homeBattedFirst ? m.oversBattingFirst  : m.oversBattingSecond) : (homeBattedFirst ? m.oversBattingSecond : m.oversBattingFirst);
+  const oppRuns  = isHome ? (homeBattedFirst ? m.scoreBattingSecond : m.scoreBattingFirst)  : (homeBattedFirst ? m.scoreBattingFirst  : m.scoreBattingSecond);
+  const oppWkts  = isHome ? (homeBattedFirst ? m.wicketsLostBattingSecond : m.wicketsLostBattingFirst) : (homeBattedFirst ? m.wicketsLostBattingFirst : m.wicketsLostBattingSecond);
+  const oppOvers = isHome ? (homeBattedFirst ? m.oversBattingSecond : m.oversBattingFirst)  : (homeBattedFirst ? m.oversBattingFirst  : m.oversBattingSecond);
 
   const myScore  = fmtScore(myRuns,  myWkts,  myOvers);
   const oppScore = fmtScore(oppRuns, oppWkts, oppOvers);
+
+  const metaParts = [
+    fmtDate(m.matchDate),
+    fmtTime(m.scheduledStartTime),
+    m.fieldName,
+    m.tournamentName,
+  ].filter(Boolean).join(' · ');
+
+  const borderLeftColor = hasResult
+    ? (result.color === 'success' ? 'success.main' : result.color === 'error' ? 'error.main' : 'grey.400')
+    : 'divider';
 
   return (
     <Card
       variant="outlined"
       onClick={() => m.matchId && navigate(`/matches/scorecards?matchId=${m.matchId}`)}
-      sx={{ mb: 1.5, cursor: m.matchId ? 'pointer' : 'default', '&:hover': m.matchId ? { borderColor: 'primary.main' } : {} }}
+      sx={{
+        mb: 1,
+        cursor: m.matchId ? 'pointer' : 'default',
+        borderLeftWidth: 4,
+        borderLeftColor,
+        '&:hover': m.matchId
+          ? { borderTopColor: 'primary.main', borderRightColor: 'primary.main', borderBottomColor: 'primary.main' }
+          : {},
+      }}
     >
       <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
-
-        {/* Teams + result chip */}
-        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Avatar src={opponentLogo} sx={{ width: 26, height: 26, fontSize: 12 }}>
+        {/* Opponent + result */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+            <Avatar src={opponentLogo ?? undefined} sx={{ width: 24, height: 24, fontSize: 11 }}>
               {opponent?.charAt(0)}
             </Avatar>
-            <Typography variant="caption" color="text.secondary">{isHome ? 'vs' : '@'}</Typography>
-            <Typography variant="body2" fontWeight="bold">
+            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+              {isHome ? 'vs' : '@'}
+            </Typography>
+            <Typography variant="body2" fontWeight="bold" noWrap>
               {opponentAbbr ?? opponent ?? '—'}
             </Typography>
-          </Stack>
-          <Stack direction="row" alignItems="center" spacing={0.5}>
-            <Chip label={result.label} color={result.color} size="small" icon={result.icon} />
-            <IconButton size="small" onClick={e => { e.stopPropagation(); onShare(m); }} sx={{ color: 'text.secondary' }}>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+            {hasResult ? (
+              <Chip label={result.label} color={result.color} size="small" icon={result.icon} />
+            ) : (
+              <Typography variant="caption" color="text.disabled">No result yet</Typography>
+            )}
+            {m.matchId && (
+              <IconButton
+                size="small"
+                onClick={e => { e.stopPropagation(); onAnalysis(m); }}
+                sx={{ color: 'text.secondary' }}
+                title="AI match analysis"
+              >
+                <Psychology sx={{ fontSize: 16 }} />
+              </IconButton>
+            )}
+            {m.tournamentId && (
+              <IconButton
+                size="small"
+                onClick={e => { e.stopPropagation(); onStats(m); }}
+                sx={{ color: 'text.secondary' }}
+                title="Team stats"
+              >
+                <QueryStats sx={{ fontSize: 16 }} />
+              </IconButton>
+            )}
+            <IconButton
+              size="small"
+              onClick={e => { e.stopPropagation(); onEdit(m); }}
+              sx={{ color: 'text.secondary' }}
+              title="Edit result"
+            >
+              <Edit sx={{ fontSize: 16 }} />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={e => { e.stopPropagation(); onShare(m); }}
+              sx={{ color: 'text.secondary' }}
+              title="Share"
+            >
               <Share sx={{ fontSize: 16 }} />
             </IconButton>
-          </Stack>
-        </Stack>
+          </Box>
+        </Box>
 
         {/* Scores */}
         {(myScore || oppScore) && (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.75 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 28 }}>Us</Typography>
-            <Typography variant="body2" fontWeight="bold">{myScore ?? '—'}</Typography>
-            <Typography variant="caption" color="text.disabled">·</Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ minWidth: 28 }}>Opp</Typography>
-            <Typography variant="body2">{oppScore ?? '—'}</Typography>
-          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            {[myScore ? `Us ${myScore}` : null, oppScore ? `Opp ${oppScore}` : null].filter(Boolean).join(' · ')}
+          </Typography>
         )}
 
         {/* Outcome */}
         {m.matchOutcomeDescription && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
             {m.matchOutcomeDescription}
           </Typography>
         )}
 
         {/* Meta */}
-        <Stack
-          direction={isMobile ? 'column' : 'row'}
-          spacing={1}
-          alignItems={{ sm: 'center' }}
-          sx={{ mt: 1, flexWrap: 'wrap' }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <CalendarMonth sx={{ fontSize: 13, color: 'text.secondary' }} />
-            <Typography variant="caption">{fmtDate(m.matchDate)}</Typography>
-          </Box>
-          {fmtTime(m.scheduledStartTime) && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <AccessTime sx={{ fontSize: 13, color: 'text.secondary' }} />
-              <Typography variant="caption">{fmtTime(m.scheduledStartTime)}</Typography>
-            </Box>
-          )}
-          {m.fieldName && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {m.fieldIconUrl
-                ? <Avatar src={m.fieldIconUrl} variant="rounded" sx={{ width: 13, height: 13 }} />
-                : <LocationOn sx={{ fontSize: 13, color: 'text.secondary' }} />}
-              <Typography variant="caption" noWrap sx={{ maxWidth: 180 }}>{m.fieldName}</Typography>
-            </Box>
-          )}
-          {m.matchStage && (
-            <Chip label={STAGE_LABELS[m.matchStage] ?? m.matchStage} size="small" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
-          )}
-        </Stack>
-
-
+        <Typography variant="caption" color="text.disabled" noWrap sx={{ display: 'block', mt: 0.5 }}>
+          {metaParts}
+        </Typography>
       </CardContent>
     </Card>
   );
 };
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export const ManageTeamResults: React.FC = () => {
   const location = useLocation();
@@ -376,6 +399,9 @@ export const ManageTeamResults: React.FC = () => {
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [shareMatch, setShareMatch] = useState<Match | null>(null);
+  const [editMatch, setEditMatch] = useState<Match | null>(null);
+  const [statsMatch, setStatsMatch] = useState<Match | null>(null);
+  const [analysisMatch, setAnalysisMatch] = useState<Match | null>(null);
 
   const selectedTeamId: number | '' = Number(searchParams.get('teamId')) || '';
   const selectedTeam = teams.find(t => t.teamId === selectedTeamId);
@@ -395,70 +421,83 @@ export const ManageTeamResults: React.FC = () => {
   }, [teamsLoaded, restrictByTeam, teamIds]);
 
   useEffect(() => {
-    if (teams.length === 1 && !selectedTeamId) {
-      setSelectedTeamId(teams[0].teamId!);
-    }
+    if (teams.length === 1 && !selectedTeamId) setSelectedTeamId(teams[0].teamId!);
   }, [teams, selectedTeamId]);
 
   useEffect(() => {
     if (!selectedTeamId) { setMatches([]); return; }
     setMatchesLoading(true);
+    const today = new Date().toISOString().slice(0, 10);
     matchApi.findAll()
       .then(all => setMatches(
-        all.filter(m => (m.homeTeamId === selectedTeamId || m.oppositionTeamId === selectedTeamId) && isFinal(m))
+        all.filter(m =>
+          (m.homeTeamId === selectedTeamId || m.oppositionTeamId === selectedTeamId) &&
+          (m.matchDate ?? '') <= today
+        )
       ))
       .finally(() => setMatchesLoading(false));
   }, [selectedTeamId]);
 
-  const groups = groupByTournament(matches);
+  const groups = groupByWeek(matches);
 
   return (
     <Box sx={{ pb: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
+      {/* Toolbar */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
         {returnTo && (
           <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ flexShrink: 0 }}>
             Back
           </Button>
         )}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-          <SportsScore color="primary" sx={{ flexShrink: 0 }} />
-          <Typography variant="h5" sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>Team Results</Typography>
-          {selectedTeamId && !matchesLoading && (
-            <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" sx={{ ml: 0.5 }} />
-          )}
-        </Box>
+        <SportsScore color="primary" sx={{ flexShrink: 0 }} />
+        <Typography variant="h6" fontWeight={700} sx={{ flexShrink: 0 }}>Team Results</Typography>
+
+        {teams.length > 1 && (
+          <TextField
+            select
+            size="small"
+            value={selectedTeamId}
+            onChange={e => setSelectedTeamId(e.target.value as number | '')}
+            sx={{ minWidth: 200, ml: 1 }}
+            disabled={teamsLoading || !teamsLoaded}
+          >
+            <MenuItem value=""><em>— Choose a team —</em></MenuItem>
+            {teams.map(t => (
+              <MenuItem key={t.teamId} value={t.teamId}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Avatar src={t.logoUrl} sx={{ width: 20, height: 20, fontSize: 10 }}>{t.teamName.charAt(0)}</Avatar>
+                  {t.teamName}
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
+
+        <Box sx={{ flex: 1 }} />
+
+        {selectedTeamId && !matchesLoading && (
+          <Chip label={`${matches.length} match${matches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" />
+        )}
       </Box>
 
-      <TextField
-        select
-        label="Select Team"
-        size="small"
-        value={selectedTeamId}
-        onChange={e => setSelectedTeamId(e.target.value as number | '')}
-        sx={{ minWidth: 260, mb: 3 }}
-        disabled={teamsLoading || !teamsLoaded}
-      >
-        <MenuItem value=""><em>— Choose a team —</em></MenuItem>
-        {teams.map(t => (
-          <MenuItem key={t.teamId} value={t.teamId}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Avatar src={t.logoUrl} sx={{ width: 22, height: 22, fontSize: 10 }}>{t.teamName.charAt(0)}</Avatar>
-              {t.teamName}
-            </Box>
-          </MenuItem>
-        ))}
-      </TextField>
+      {/* Single-team label */}
+      {teams.length === 1 && selectedTeam && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Avatar src={selectedTeam.logoUrl} sx={{ width: 22, height: 22, fontSize: 10 }}>
+            {selectedTeam.teamName.charAt(0)}
+          </Avatar>
+          <Typography variant="body2" color="text.secondary">{selectedTeam.teamName}</Typography>
+        </Box>
+      )}
 
       {matchesLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
-          <CircularProgress />
-        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>
       )}
 
       {!matchesLoading && selectedTeamId && groups.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
           <SportsScore sx={{ fontSize: 56, mb: 1, opacity: 0.3 }} />
-          <Typography variant="body1">No results found for this team.</Typography>
+          <Typography variant="body1">No past matches found for this team.</Typography>
         </Box>
       )}
 
@@ -468,19 +507,20 @@ export const ManageTeamResults: React.FC = () => {
         </Box>
       )}
 
-      {!matchesLoading && groups.map((group, i) => (
-        <Box key={group.tournamentId ?? '__none__'} sx={{ mb: 3 }}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
-            <EmojiEvents color="action" fontSize="small" />
-            <Typography variant="subtitle1" fontWeight="bold">{group.tournamentName}</Typography>
-            <Chip label={group.matches.length} size="small" variant="outlined" sx={{ height: 20, fontSize: 11 }} />
-          </Stack>
+      {!matchesLoading && groups.map(group => (
+        <Box key={group.weekStart} sx={{ mb: 2 }}>
+          {/* Week divider */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Divider sx={{ flex: 1 }} />
+            <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontWeight: 600 }}>
+              {group.label}
+            </Typography>
+            <Divider sx={{ flex: 1 }} />
+          </Box>
 
           {group.matches.map(m => (
-            <MatchRow key={m.matchId} match={m} teamId={selectedTeamId as number} onShare={setShareMatch} />
+            <MatchCard key={m.matchId} match={m} teamId={selectedTeamId as number} onShare={setShareMatch} onEdit={setEditMatch} onStats={setStatsMatch} onAnalysis={setAnalysisMatch} />
           ))}
-
-          {i < groups.length - 1 && <Divider sx={{ mt: 2 }} />}
         </Box>
       ))}
 
@@ -490,6 +530,66 @@ export const ManageTeamResults: React.FC = () => {
         teamName={selectedTeam?.teamName ?? ''}
         onClose={() => setShareMatch(null)}
       />
+
+      <TeamStatsDialog
+        open={!!statsMatch}
+        match={statsMatch}
+        teamId={selectedTeamId || null}
+        teamName={selectedTeam?.teamName}
+        onClose={() => setStatsMatch(null)}
+      />
+
+      <ResultViewDialog
+        open={!!editMatch}
+        match={editMatch}
+        onClose={() => {
+          setEditMatch(null);
+          // Re-fetch matches so the card reflects any saved result
+          if (selectedTeamId) {
+            const today = new Date().toISOString().slice(0, 10);
+            matchApi.findAll().then(all => setMatches(
+              all.filter(m =>
+                (m.homeTeamId === selectedTeamId || m.oppositionTeamId === selectedTeamId) &&
+                (m.matchDate ?? '') <= today
+              )
+            ));
+          }
+        }}
+      />
+
+      {/* AI Match Analysis Dialog */}
+      <Dialog
+        open={!!analysisMatch}
+        onClose={() => setAnalysisMatch(null)}
+        fullScreen
+        PaperProps={{ sx: { display: 'flex', flexDirection: 'column' } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5, flexShrink: 0, gap: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="h6" noWrap>
+              {analysisMatch ? `${analysisMatch.homeTeamName} vs ${analysisMatch.oppositionTeamName}` : ''}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.25 }}>
+              <Chip icon={<Psychology fontSize="small" />} label="Game Analysis" size="small" color="primary" variant="outlined" />
+              {analysisMatch?.tournamentName && (
+                <Chip label={analysisMatch.tournamentName} size="small" variant="outlined" />
+              )}
+            </Box>
+          </Box>
+          <IconButton size="small" onClick={() => setAnalysisMatch(null)}><Close /></IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+          {analysisMatch && selectedTeamId && (
+            <GameAnalysisView
+              matchId={analysisMatch.matchId!}
+              teamId={selectedTeamId as number}
+              teamName={selectedTeam?.teamName ?? ''}
+              matchTitle={`${analysisMatch.homeTeamName ?? ''} vs ${analysisMatch.oppositionTeamName ?? ''}`}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };

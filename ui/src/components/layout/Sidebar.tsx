@@ -12,6 +12,7 @@ import {
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
+import {useSidebar} from '../../context/SidebarContext';
 
 const DRAWER_WIDTH = 240;
 
@@ -23,6 +24,7 @@ interface Props {
 export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const navigate = useNavigate();
     const {isAdmin, isManager, isFinancialAdmin} = useAuth();
+    const { autoCollapse } = useSidebar();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     type Section = 'capture' | 'financials' | 'access' | 'view' | 'matchCentre' | 'administration' | 'manageClub' | 'financeManager' | 'teamManager';
@@ -39,7 +41,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
     const financeManagerOpen = openSection === 'financeManager';
     const teamManagerOpen    = openSection === 'teamManager';
 
-    const go = (path: string) => { navigate(path); if (isMobile) onClose(); };
+    const go = (path: string) => { navigate(path); if (isMobile || autoCollapse) onClose(); };
 
     return (
         <Drawer
