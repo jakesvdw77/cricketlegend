@@ -67,6 +67,33 @@ public class AiService {
         return response.getResult().getOutput().getText();
     }
 
+    /**
+     * Multipart call with multiple image attachments.
+     * Pass null for apiKey or model to fall back to admin-configured defaults.
+     */
+    public String call(String apiKey, String model, String feature,
+                       String systemPrompt, String userPrompt,
+                       List<Media> mediaItems) {
+        String resolvedApiKey = resolveApiKey(apiKey);
+        String resolvedModel  = resolveModel(model);
+
+        AnthropicChatModel chatModel = buildChatModel(resolvedApiKey, resolvedModel);
+
+        UserMessage.Builder builder = UserMessage.builder().text(userPrompt);
+        for (Media m : mediaItems) {
+            builder.media(m);
+        }
+
+        Prompt prompt = new Prompt(List.of(
+                new SystemMessage(systemPrompt),
+                builder.build()
+        ));
+
+        ChatResponse response = chatModel.call(prompt);
+        aiUsageService.log(feature, resolvedModel, response.getMetadata().getUsage());
+        return response.getResult().getOutput().getText();
+    }
+
     // ── private helpers ──────────────────────────────────────────────────────
 
     private AnthropicChatModel buildChatModel(String apiKey, String model) {

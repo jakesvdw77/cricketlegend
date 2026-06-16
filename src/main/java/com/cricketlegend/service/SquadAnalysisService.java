@@ -130,6 +130,8 @@ public class SquadAnalysisService {
                 - Rate the team's skills honestly on a 1-10 scale
                 - For any numeric field where data is unavailable, use JSON null — NEVER a string
                 - Return ONLY valid JSON — no markdown, no explanations, no code fences
+                - NEVER invent or assume any facts not present in the data — no locations, cities, countries, nicknames, team histories, or context of any kind
+                - Refer to teams only by the names provided; do not add descriptors like city names or regional labels
 
                 You MUST return a JSON object matching exactly this schema:
                 {

@@ -106,6 +106,8 @@ public class TournamentStatsAnalysisService {
                 - Keep each text section concise but meaningful (2–4 sentences)
                 - For overallRating: use a number between 1.0 and 10.0 — NEVER a string
                 - Return ONLY valid JSON — no markdown, no explanations, no code fences
+                - NEVER invent or assume any facts not present in the data — no locations, cities, countries, nicknames, team histories, rivalries, or context of any kind
+                - Refer to the team only by the name provided; do not add descriptors like city names or regional labels
 
                 You MUST return a JSON object matching exactly this schema:
                 {

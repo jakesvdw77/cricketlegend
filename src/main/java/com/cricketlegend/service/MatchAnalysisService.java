@@ -162,6 +162,8 @@ public class MatchAnalysisService {
                 - Rate batting and bowling performance out of 10 based on the scorecard data
                 - For any numeric field where data is unavailable, use JSON null — NEVER a string like "N/A" or "Data unavailable"
                 - Return ONLY valid JSON — no markdown, no explanations, no code fences
+                - NEVER invent or assume any facts not present in the data — no locations, cities, countries, nicknames, team histories, or context of any kind
+                - Refer to teams only by the names provided; do not add descriptors like city names or regional labels
 
                 You MUST return a JSON object matching this exact schema:
                 {

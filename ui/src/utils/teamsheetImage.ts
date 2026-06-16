@@ -1,4 +1,5 @@
 import { Match, MatchSide, Player, Team, Tournament } from '../types';
+import { getEffectiveRole } from './matchRole';
 
 const fmtMatchDate = (d: string) =>
   new Date(d + 'T00:00:00').toLocaleDateString('en-ZA', {
@@ -243,12 +244,12 @@ export async function generatePlayingXiImage(
   const logoCY = 30 + logoR;
   drawPhoto(ctx, teamLogo, logoCX, logoCY, logoR, teamName.charAt(0));
 
-  // "PLAYING XI"
+  // "MATCH DAY SQUAD"
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 68px Arial, sans-serif';
-  ctx.fillText('PLAYING XI', W / 2, logoCY + logoR + 18);
+  ctx.font = 'bold 52px Arial, sans-serif';
+  ctx.fillText('MATCH DAY SQUAD', W / 2, logoCY + logoR + 18);
 
   // Team name pill
   const pillText = teamName.toUpperCase();
@@ -1259,13 +1260,37 @@ function drawGlovesIcon(ctx: CanvasRenderingContext2D, cx: number, cy: number, s
 
 function drawRoleIcon(
   ctx: CanvasRenderingContext2D, p: Player, side: MatchSide,
-  cx: number, cy: number, sz: number,
+  cx: number, cy: number, sz: number, battingPos: number,
 ) {
-  const isWK     = p.playerId === side.wicketKeeperPlayerId;
-  const isBowler = !!(p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler);
-  if (isWK)      drawGlovesIcon(ctx, cx, cy, sz);
-  else if (isBowler) drawBallIcon(ctx, cx, cy, sz);
-  else           drawBatIcon(ctx, cx, cy, sz);
+  const isWK    = p.playerId === side.wicketKeeperPlayerId;
+  const role    = getEffectiveRole(p, side);
+  const topOrder = battingPos <= 7;
+  const small   = sz * 0.72;
+  const gap     = sz * 0.4;
+
+  if (isWK && topOrder && (role === 'BOWLER' || role === 'ALL_ROUNDER')) {
+    // bat left, gloves centre-left, ball right — too crowded; show bat + gloves
+    drawBatIcon(ctx, cx - gap, cy, small);
+    drawGlovesIcon(ctx, cx + gap, cy, small);
+  } else if (isWK && topOrder) {
+    // top-order keeper: bat + gloves
+    drawBatIcon(ctx, cx - gap, cy, small);
+    drawGlovesIcon(ctx, cx + gap, cy, small);
+  } else if (isWK && (role === 'BOWLER' || role === 'ALL_ROUNDER')) {
+    // lower-order bowling keeper: gloves + ball
+    drawGlovesIcon(ctx, cx - gap, cy, small);
+    drawBallIcon(ctx, cx + gap, cy, small);
+  } else if (isWK) {
+    // lower-order pure keeper
+    drawGlovesIcon(ctx, cx, cy, sz);
+  } else if (role === 'ALL_ROUNDER') {
+    drawBatIcon(ctx, cx - gap, cy, small);
+    drawBallIcon(ctx, cx + gap, cy, small);
+  } else if (role === 'BOWLER') {
+    drawBallIcon(ctx, cx, cy, sz);
+  } else {
+    drawBatIcon(ctx, cx, cy, sz);
+  }
 }
 
 // ── Playing XI — Batting Order image ─────────────────────────────────────────
@@ -1303,7 +1328,7 @@ export async function generatePlayingXiBattingOrderImage(
   const ROW_H  = 76;
   const NUM_W  = 90;
   const ICON_W = 100;
-  const SUB_H  = twelfth ? 64 : 0;
+  const SUB_H  = twelfth ? ROW_H : 0;
   const H      = HDR_H + xi.length * ROW_H + SUB_H + 40;
 
   const canvas = document.createElement('canvas');
@@ -1332,8 +1357,8 @@ export async function generatePlayingXiBattingOrderImage(
 
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   ctx.fillStyle = '#ffffff';
-  ctx.font      = 'bold 68px Arial, sans-serif';
-  ctx.fillText('PLAYING XI', W / 2, logoCY + logoR + 16);
+  ctx.font      = 'bold 52px Arial, sans-serif';
+  ctx.fillText('MATCH DAY SQUAD', W / 2, logoCY + logoR + 16);
 
   // Team name pill
   ctx.font = 'bold 22px Arial, sans-serif';
@@ -1388,7 +1413,7 @@ export async function generatePlayingXiBattingOrderImage(
     // Icon column
     ctx.fillStyle = 'rgba(10,60,30,0.85)';
     ctx.fillRect(W - ICON_W, rowY, ICON_W, ROW_H);
-    drawRoleIcon(ctx, p, side, W - ICON_W / 2, rowY + ROW_H / 2, 44);
+    drawRoleIcon(ctx, p, side, W - ICON_W / 2, rowY + ROW_H / 2, 44, i + 1);
 
     // Player name (draw main name first, then gold captain badge if needed)
     const wkSuffix = isWK ? '  (WK)' : '';
@@ -1419,16 +1444,223 @@ export async function generatePlayingXiBattingOrderImage(
   ctx.fillStyle = 'rgba(134,239,172,0.12)';
   ctx.fillRect(0, HDR_H + xi.length * ROW_H, W, 1);
 
-  // 12th man
+  // Super sub row
   if (twelfth) {
-    const subY = HDR_H + xi.length * ROW_H + 18;
+    const rowY = HDR_H + xi.length * ROW_H;
+
+    // Separator line
+    ctx.fillStyle = 'rgba(134,239,172,0.12)';
+    ctx.fillRect(0, rowY, W, 1);
+
+    // Slightly dimmed background
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(0, rowY, W, ROW_H);
+
+    // "SS" number column
+    ctx.fillStyle = 'rgba(20,90,50,0.85)';
+    ctx.fillRect(0, rowY, NUM_W, ROW_H);
+    ctx.fillStyle = '#86efac';
+    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('SS', NUM_W / 2, rowY + ROW_H / 2);
+
+    // Icon column
+    ctx.fillStyle = 'rgba(10,60,30,0.85)';
+    ctx.fillRect(W - ICON_W, rowY, ICON_W, ROW_H);
+    drawRoleIcon(ctx, twelfth, side, W - ICON_W / 2, rowY + ROW_H / 2, 44, 12);
+
+    // Player name
+    const mainName = `${twelfth.name} ${twelfth.surname}`.toUpperCase();
+    const nameX    = NUM_W + 20;
+    const maxW     = W - NUM_W - ICON_W - 40;
+    let fs = 26;
+    ctx.font = `bold ${fs}px Arial, sans-serif`;
+    while (ctx.measureText(mainName).width > maxW && fs > 14) {
+      fs--; ctx.font = `bold ${fs}px Arial, sans-serif`;
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(mainName, nameX, rowY + ROW_H / 2, maxW);
+  }
+
+  return new Promise<string>(resolve => {
+    canvas.toBlob(blob => resolve(URL.createObjectURL(blob!)), 'image/png');
+  });
+}
+
+// ── Playing XI — Batting Order Plain (no role icons) ─────────────────────────
+
+export async function generatePlayingXiBattingOrderPlainImage(
+  match: Match,
+  sides: MatchSide[],
+  players: Player[],
+  filterTeamId?: number,
+): Promise<string> {
+  const sidesToShow = filterTeamId
+    ? sides.filter(s => s.teamId === filterTeamId)
+    : sides.slice(0, 1);
+  const side = sidesToShow[0];
+  if (!side) throw new Error('No team side found');
+
+  const xi = (side.playingXi ?? [])
+    .map(pid => players.find(p => p.playerId === pid))
+    .filter(Boolean) as Player[];
+  const twelfth = side.twelfthManPlayerId
+    ? players.find(p => p.playerId === side.twelfthManPlayerId)
+    : undefined;
+
+  const teamName    = side.teamId === match.homeTeamId
+    ? (match.homeTeamName ?? 'Home') : (match.oppositionTeamName ?? 'Away');
+  const teamLogoUrl = side.teamId === match.homeTeamId
+    ? match.homeTeamLogoUrl : match.oppositionTeamLogoUrl;
+  const opponent    = side.teamId === match.homeTeamId
+    ? match.oppositionTeamName : match.homeTeamName;
+
+  const teamLogo = teamLogoUrl ? await loadImg(teamLogoUrl) : null;
+
+  const W      = 1080;
+  const HDR_H  = 340;
+  const ROW_H  = 76;
+  const NUM_W  = 90;
+  const SUB_H  = twelfth ? ROW_H : 0;
+  const H      = HDR_H + xi.length * ROW_H + SUB_H + 40;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx     = canvas.getContext('2d')!;
+
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0,    '#051a0e');
+  bg.addColorStop(0.45, '#0d3b1e');
+  bg.addColorStop(1,    '#051a0e');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let gx = 24; gx < W; gx += 48)
+    for (let gy = 24; gy < H; gy += 48) {
+      ctx.beginPath(); ctx.arc(gx, gy, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+  // Header
+  const logoR  = 48;
+  const logoCY = 28 + logoR;
+  drawPhoto(ctx, teamLogo, W / 2, logoCY, logoR, teamName.charAt(0));
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#ffffff';
+  ctx.font      = 'bold 52px Arial, sans-serif';
+  ctx.fillText('MATCH DAY SQUAD', W / 2, logoCY + logoR + 16);
+
+  // Team name pill
+  ctx.font = 'bold 22px Arial, sans-serif';
+  const pW = ctx.measureText(teamName.toUpperCase()).width + 40;
+  const pH = 36; const pX = W / 2 - pW / 2;
+  const pY = logoCY + logoR + 16 + 72 + 8;
+  roundedRect(ctx, pX, pY, pW, pH, pH / 2);
+  ctx.fillStyle = 'rgba(78,160,100,0.35)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(134,239,172,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#86efac'; ctx.textBaseline = 'middle';
+  ctx.fillText(teamName.toUpperCase(), W / 2, pY + pH / 2);
+
+  // Sub-info
+  const sub = [opponent ? `vs ${opponent}` : null, match.matchDate].filter(Boolean).join('  ·  ');
+  if (sub) {
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '20px Arial, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillText(
-      `12TH MAN:  ${twelfth.name} ${twelfth.surname}`.toUpperCase(),
-      W / 2, subY, W - 80,
-    );
+    ctx.font = '20px Arial, sans-serif'; ctx.textBaseline = 'top';
+    ctx.fillText(sub, W / 2, pY + pH + 14, W - 80);
+  }
+
+  // Divider
+  const dg = ctx.createLinearGradient(40, 0, W - 40, 0);
+  dg.addColorStop(0, 'transparent'); dg.addColorStop(0.12, '#4CAF50');
+  dg.addColorStop(0.88, '#4CAF50'); dg.addColorStop(1, 'transparent');
+  ctx.strokeStyle = dg; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(40, pY + pH + 52); ctx.lineTo(W - 40, pY + pH + 52); ctx.stroke();
+
+  // Player rows
+  for (let i = 0; i < xi.length; i++) {
+    const p    = xi[i];
+    const rowY = HDR_H + i * ROW_H;
+    const isCapt = p.playerId === side.captainPlayerId;
+    const isWK   = p.playerId === side.wicketKeeperPlayerId;
+
+    if (i % 2 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(0, rowY, W, ROW_H);
+    }
+    if (i > 0) {
+      ctx.fillStyle = 'rgba(134,239,172,0.12)';
+      ctx.fillRect(0, rowY, W, 1);
+    }
+
+    // Number column
+    ctx.fillStyle = 'rgba(20,90,50,0.85)';
+    ctx.fillRect(0, rowY, NUM_W, ROW_H);
+    ctx.fillStyle = '#86efac';
+    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), NUM_W / 2, rowY + ROW_H / 2);
+
+    // Player name (full width — no icon column)
+    const wkSuffix = isWK ? '  (WK)' : '';
+    const mainName = `${p.name} ${p.surname}${wkSuffix}`.toUpperCase();
+    const nameX    = NUM_W + 20;
+    const maxW     = W - NUM_W - 40 - (isCapt ? 72 : 0);
+    let fs = 26;
+    ctx.font = `bold ${fs}px Arial, sans-serif`;
+    while (ctx.measureText(mainName).width > maxW && fs > 14) {
+      fs--; ctx.font = `bold ${fs}px Arial, sans-serif`;
+    }
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(mainName, nameX, rowY + ROW_H / 2, maxW);
+
+    // Gold captain badge
+    if (isCapt) {
+      const nameEndX = nameX + Math.min(ctx.measureText(mainName).width, maxW) + 14;
+      const badgeW = 52; const badgeH = 28; const badgeR = 8;
+      roundedRect(ctx, nameEndX, rowY + ROW_H / 2 - badgeH / 2, badgeW, badgeH, badgeR);
+      ctx.fillStyle = '#FFD700'; ctx.fill();
+      ctx.fillStyle = '#000'; ctx.font = `bold 16px Arial, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('(C)', nameEndX + badgeW / 2, rowY + ROW_H / 2);
+    }
+  }
+
+  // Bottom border of last row
+  ctx.fillStyle = 'rgba(134,239,172,0.12)';
+  ctx.fillRect(0, HDR_H + xi.length * ROW_H, W, 1);
+
+  // Super sub row
+  if (twelfth) {
+    const rowY = HDR_H + xi.length * ROW_H;
+
+    ctx.fillStyle = 'rgba(134,239,172,0.12)';
+    ctx.fillRect(0, rowY, W, 1);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(0, rowY, W, ROW_H);
+
+    ctx.fillStyle = 'rgba(20,90,50,0.85)';
+    ctx.fillRect(0, rowY, NUM_W, ROW_H);
+    ctx.fillStyle = '#86efac';
+    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('SS', NUM_W / 2, rowY + ROW_H / 2);
+
+    const mainName = `${twelfth.name} ${twelfth.surname}`.toUpperCase();
+    const nameX    = NUM_W + 20;
+    const maxW     = W - NUM_W - 40;
+    let fs = 26;
+    ctx.font = `bold ${fs}px Arial, sans-serif`;
+    while (ctx.measureText(mainName).width > maxW && fs > 14) {
+      fs--; ctx.font = `bold ${fs}px Arial, sans-serif`;
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(mainName, nameX, rowY + ROW_H / 2, maxW);
   }
 
   return new Promise<string>(resolve => {
@@ -1534,8 +1766,8 @@ export async function generatePlayingXiWithPhotoImage(
 
   ctx2.textAlign = 'right'; ctx2.textBaseline = 'top';
   ctx2.fillStyle = '#ffffff';
-  ctx2.font = 'bold 74px Arial, sans-serif';
-  ctx2.fillText('PLAYING XI', W - 30, 108);
+  ctx2.font = 'bold 60px Arial, sans-serif';
+  ctx2.fillText('MATCH DAY SQUAD', W - 30, 108);
 
   ctx2.fillStyle = '#86efac';
   ctx2.font = 'bold 23px Arial, sans-serif';

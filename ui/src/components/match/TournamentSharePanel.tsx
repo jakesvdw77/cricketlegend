@@ -3,7 +3,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   List, ListItemButton, ListItemIcon, ListItemText,
   Button, CircularProgress, IconButton, Box, Snackbar,
-  Chip, FormControlLabel, Switch, Typography, Avatar,
+  Avatar,
 } from '@mui/material';
 import {
   PictureAsPdf, Image as ImageIcon,
@@ -19,18 +19,12 @@ import {
   generateSquadPdf,
 } from '../../utils/matchPdf';
 import {
-  generateMatchScheduleImage,
   generateSquadImage,
   generateSquadNamesImage,
   generateTournamentCountdownImage,
 } from '../../utils/teamsheetImage';
 import { PdfPreviewDialog } from '../PdfPreviewDialog';
-
-interface TournamentGroup {
-  tournamentId: number | null;
-  tournamentName: string;
-  matches: Match[];
-}
+import { SchedulePickerDialog } from '../SchedulePickerDialog';
 
 // ── Image preview dialog ──────────────────────────────────────────────────────
 
@@ -57,108 +51,6 @@ const ImagePreviewDialog: React.FC<{
         <Button variant="contained" startIcon={<Download />}
           onClick={() => { const a = document.createElement('a'); a.href = imageUrl!; a.download = filename; a.click(); }}>
           Download PNG
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-// ── Schedule image day-picker dialog ─────────────────────────────────────────
-
-const ScheduleImageDialog: React.FC<{
-  group: TournamentGroup | null;
-  teamName?: string;
-  onClose: () => void;
-  onGenerated: (url: string) => void;
-}> = ({ group, teamName, onClose, onGenerated }) => {
-  const [loading, setLoading] = useState(false);
-  const [allMatches, setAllMatches] = useState<Match[]>([]);
-  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
-  const [showVenue, setShowVenue] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string | undefined>();
-
-  React.useEffect(() => {
-    if (!group) return;
-    setLoading(true);
-    setSelectedDates(new Set());
-    Promise.all([
-      group.tournamentId
-        ? matchApi.findByTournament(group.tournamentId)
-        : Promise.resolve(group.matches),
-      group.tournamentId
-        ? tournamentApi.findById(group.tournamentId).then(t => t.logoUrl).catch(() => undefined)
-        : Promise.resolve(undefined),
-    ]).then(([ms, logo]) => {
-      const sorted = [...ms].sort((a, b) => {
-        const d = (a.matchDate ?? '').localeCompare(b.matchDate ?? '');
-        return d !== 0 ? d : (a.scheduledStartTime ?? '').localeCompare(b.scheduledStartTime ?? '');
-      });
-      setAllMatches(sorted);
-      setLogoUrl(logo);
-    }).finally(() => setLoading(false));
-  }, [group?.tournamentId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const filtered = teamName
-    ? allMatches.filter(m => m.homeTeamName === teamName || m.oppositionTeamName === teamName)
-    : allMatches;
-
-  const uniqueDates = [...new Set(filtered.map(m => m.matchDate ?? 'TBD'))].sort();
-  const allSel = uniqueDates.length > 0 && uniqueDates.every(d => selectedDates.has(d));
-  const toggle = (d: string) => setSelectedDates(p => { const n = new Set(p); n.has(d) ? n.delete(d) : n.add(d); return n; });
-  const fmtChip = (d: string) => d === 'TBD' ? 'Date TBD'
-    : new Date(d + 'T00:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
-
-  const handleGenerate = async () => {
-    if (!group) return;
-    setGenerating(true);
-    try {
-      const toInclude = filtered.filter(m => selectedDates.has(m.matchDate ?? 'TBD'));
-      const url = await generateMatchScheduleImage(group.tournamentName, logoUrl, toInclude, showVenue, teamName);
-      onClose();
-      onGenerated(url);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  return (
-    <Dialog open={!!group} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{teamName ? 'Team Match Schedule Image' : 'Tournament Match Schedule Image'}</DialogTitle>
-      <DialogContent>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress /></Box>
-        ) : (
-          <>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Select the days to include in the image.
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {uniqueDates.length > 1 && (
-                <Chip label={allSel ? 'Deselect All' : 'Select All'} onClick={() => setSelectedDates(allSel ? new Set() : new Set(uniqueDates))}
-                  color={allSel ? 'primary' : 'default'} variant={allSel ? 'filled' : 'outlined'} sx={{ fontWeight: 'bold' }} />
-              )}
-              {uniqueDates.map(d => {
-                const count = filtered.filter(m => (m.matchDate ?? 'TBD') === d).length;
-                const sel = selectedDates.has(d);
-                return (
-                  <Chip key={d} label={`${fmtChip(d)} (${count})`} onClick={() => toggle(d)}
-                    color={sel ? 'primary' : 'default'} variant={sel ? 'filled' : 'outlined'} />
-                );
-              })}
-              {uniqueDates.length === 0 && <Typography variant="body2" color="text.secondary">No matches found.</Typography>}
-            </Box>
-            {uniqueDates.length > 0 && (
-              <FormControlLabel sx={{ mt: 2 }} control={<Switch checked={showVenue} onChange={e => setShowVenue(e.target.checked)} />} label="Show venue" />
-            )}
-          </>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" disabled={selectedDates.size === 0 || generating || loading}
-          onClick={handleGenerate} startIcon={generating ? <CircularProgress size={16} /> : <ImageIcon />}>
-          {generating ? 'Generating…' : 'Generate Image'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -248,8 +140,9 @@ export const TournamentSharePanel: React.FC<Props> = ({ open, tournament, teamId
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageTitle, setImageTitle] = useState('');
-  const [schedTeamGroup, setSchedTeamGroup] = useState<TournamentGroup | null>(null);
-  const [schedTournGroup, setSchedTournGroup] = useState<TournamentGroup | null>(null);
+  const [schedPickerOpen, setSchedPickerOpen] = useState(false);
+  const [schedPickerPreTeamId, setSchedPickerPreTeamId] = useState<number | null | undefined>(undefined);
+  const [schedPickerPreTeamName, setSchedPickerPreTeamName] = useState<string | undefined>(undefined);
   const [squadTemplateOpen, setSquadTemplateOpen] = useState(false);
   const [squadCtx, setSquadCtx] = useState<SquadCtx | null>(null);
   const [teamPickerTeams, setTeamPickerTeams] = useState<TournamentTeam[]>([]);
@@ -264,12 +157,6 @@ export const TournamentSharePanel: React.FC<Props> = ({ open, tournament, teamId
     const all = await matchApi.findByTournament(tournament.tournamentId);
     return teamId ? all.filter(m => m.homeTeamId === teamId || m.oppositionTeamId === teamId) : all;
   };
-
-  const buildGroup = (matches: Match[]): TournamentGroup => ({
-    tournamentId: tournament.tournamentId ?? null,
-    tournamentName: tournament.name,
-    matches,
-  });
 
   // Opens team picker by fetching tournament teams from pools
   const openTeamPicker = async (action: SquadAction) => {
@@ -341,17 +228,18 @@ export const TournamentSharePanel: React.FC<Props> = ({ open, tournament, teamId
     finally { setLoading(false); }
   };
 
-  const handleTeamScheduleImage = async () => {
-    setLoading(true);
-    try {
-      const matches = await fetchTeamMatches();
-      setListOpen(false); setSchedTeamGroup(buildGroup(matches));
-    } catch { err('Could not load matches.'); }
-    finally { setLoading(false); }
+  const handleTeamScheduleImage = () => {
+    setSchedPickerPreTeamId(teamId);
+    setSchedPickerPreTeamName(teamId !== undefined ? teamName : undefined);
+    setListOpen(false);
+    setSchedPickerOpen(true);
   };
 
-  const handleTournamentScheduleImage = async () => {
-    setListOpen(false); setSchedTournGroup(buildGroup([]));
+  const handleTournamentScheduleImage = () => {
+    setSchedPickerPreTeamId(undefined);
+    setSchedPickerPreTeamName(undefined);
+    setListOpen(false);
+    setSchedPickerOpen(true);
   };
 
   const handleCountdownImage = async () => {
@@ -432,17 +320,11 @@ export const TournamentSharePanel: React.FC<Props> = ({ open, tournament, teamId
         <DialogActions><Button onClick={onClose}>Cancel</Button></DialogActions>
       </Dialog>
 
-      <ScheduleImageDialog
-        group={schedTeamGroup}
-        teamName={teamName}
-        onClose={() => { setSchedTeamGroup(null); onClose(); }}
-        onGenerated={url => { setImageTitle('Team Match Schedule'); setImageUrl(url); }}
-      />
-
-      <ScheduleImageDialog
-        group={schedTournGroup}
-        onClose={() => { setSchedTournGroup(null); onClose(); }}
-        onGenerated={url => { setImageTitle('Tournament Match Schedule'); setImageUrl(url); }}
+      <SchedulePickerDialog
+        tournament={schedPickerOpen ? tournament : null}
+        preSelectTeamId={schedPickerPreTeamId}
+        preSelectTeamName={schedPickerPreTeamName}
+        onClose={() => { setSchedPickerOpen(false); onClose(); }}
       />
 
       <TeamPickerDialog

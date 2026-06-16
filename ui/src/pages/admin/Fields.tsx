@@ -129,7 +129,7 @@ export const Fields: React.FC = () => {
     return (
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)}>Back</Button>
+          <Button startIcon={<ArrowBack />} onClick={() => setOpen(false)} />
           <Typography variant="h6" sx={{ flex: 1 }}>{editing.fieldId ? 'Edit' : 'New'} Field</Typography>
           <Button variant="contained" onClick={save} disabled={!editing.name}>Save</Button>
         </Box>
@@ -172,7 +172,7 @@ export const Fields: React.FC = () => {
     return (
       <Box sx={{ maxWidth: 800 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)}>Back</Button>
+          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)} />
           <Typography variant="h6" sx={{ flex: 1 }}>Field / Ground</Typography>
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

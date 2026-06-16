@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   EmojiEvents, CalendarMonth, AccessTime, LocationOn, SportsCricket,
-  SportsScore,
+  SportsScore, Assessment,
 } from '@mui/icons-material';
 import { matchApi } from '../api/matchApi';
 import { Match } from '../types';
@@ -187,6 +187,16 @@ const ResultRow: React.FC<{ match: Match }> = ({ match: m }) => {
             <Chip label={STAGE_LABELS[m.matchStage] ?? m.matchStage} size="small" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
           )}
         </Stack>
+
+        {/* Tap hint */}
+        {m.matchId && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 1, pt: 0.75, borderTop: '1px dashed', borderColor: 'divider' }}>
+            <Assessment sx={{ fontSize: 13, color: 'primary.main', opacity: 0.7 }} />
+            <Typography variant="caption" sx={{ color: 'primary.main', opacity: 0.7, fontWeight: 500, letterSpacing: 0.2 }}>
+              Tap for full Match Details
+            </Typography>
+          </Box>
+        )}
 
       </CardContent>
     </Card>

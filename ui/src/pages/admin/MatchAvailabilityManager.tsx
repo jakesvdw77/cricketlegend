@@ -3,9 +3,9 @@ import {
   Box, Typography, Paper, CircularProgress, Alert, Button,
   Avatar, Card, CardActionArea, Grid,
   Chip, MenuItem, TextField, Switch, FormControlLabel,
-  IconButton, Tooltip, Menu,
+  IconButton, Tooltip, Menu, Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
 } from '@mui/material';
-import { ArrowBack, CheckCircle, Cancel, HelpOutline, NotificationsActive, WhatsApp, Share } from '@mui/icons-material';
+import { ArrowBack, CheckCircle, Cancel, HelpOutline, NotificationsActive, WhatsApp, Share, LockOpen, Lock } from '@mui/icons-material';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { pollApi } from '../../api/pollApi';
 import { matchApi } from '../../api/matchApi';
@@ -51,7 +51,9 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [whatsAppOpen, setWhatsAppOpen] = useState(false);
+  const [whatsAppVariant, setWhatsAppVariant] = useState<'open' | 'closed'>('open');
   const [shareAnchor, setShareAnchor] = useState<null | HTMLElement>(null);
+  const [pendingToggle, setPendingToggle] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (matchId) matchApi.findById(Number(matchId)).then(setMatch);
@@ -91,6 +93,12 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
     } catch {
       setError('Failed to update poll status.');
     }
+  };
+
+  const confirmToggle = async () => {
+    if (pendingToggle === null) return;
+    setPendingToggle(null);
+    await handleTogglePoll(pendingToggle);
   };
 
   const handleResend = async () => {
@@ -159,9 +167,13 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
                   {resendSuccess ? 'Sent!' : 'Resend Notifications'}
                 </MenuItem>
               )}
-              <MenuItem onClick={() => { setShareAnchor(null); setWhatsAppOpen(true); }}>
-                <WhatsApp fontSize="small" sx={{ mr: 1, color: '#25D366' }} />
-                WhatsApp
+              <MenuItem disabled={!poll.open} onClick={() => { setShareAnchor(null); setWhatsAppVariant('open'); setWhatsAppOpen(true); }}>
+                <WhatsApp fontSize="small" sx={{ mr: 1, color: poll.open ? '#25D366' : undefined }} />
+                WhatsApp – Poll Open
+              </MenuItem>
+              <MenuItem disabled={poll.open} onClick={() => { setShareAnchor(null); setWhatsAppVariant('closed'); setWhatsAppOpen(true); }}>
+                <WhatsApp fontSize="small" sx={{ mr: 1, color: !poll.open ? '#25D366' : undefined }} />
+                WhatsApp – Poll Closed
               </MenuItem>
             </Menu>
           </>
@@ -191,7 +203,7 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
               control={
                 <Switch
                   checked={poll.open}
-                  onChange={e => handleTogglePoll(e.target.checked)}
+                  onChange={e => setPendingToggle(e.target.checked)}
                   color="success"
                   disabled={!!match?.matchCompleted}
                 />
@@ -209,7 +221,7 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
                 label="Open Poll"
                 color="primary"
                 clickable
-                onClick={() => handleTogglePoll(true)}
+                onClick={() => setPendingToggle(true)}
               />
             </Box>
           )}
@@ -336,8 +348,39 @@ export const MatchAvailabilityManager: React.FC<MatchAvailabilityManagerProps> =
           onClose={() => setWhatsAppOpen(false)}
           match={match}
           poll={poll}
+          variant={whatsAppVariant}
         />
       )}
+
+      <Dialog open={pendingToggle !== null} onClose={() => setPendingToggle(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {pendingToggle ? <LockOpen color="success" /> : <Lock color="action" />}
+          {pendingToggle ? 'Open Availability Poll?' : 'Close Availability Poll?'}
+        </DialogTitle>
+        <DialogContent>
+          {pendingToggle ? (
+            <DialogContentText>
+              Opening the poll will allow players to submit or update their availability for this match.
+              Players who have not yet responded will be able to do so, and existing responses can be changed.
+            </DialogContentText>
+          ) : (
+            <DialogContentText>
+              Closing the poll will prevent players from submitting or changing their availability.
+              All current responses will be locked in and players will only be able to view the results — not edit them.
+            </DialogContentText>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingToggle(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color={pendingToggle ? 'success' : 'primary'}
+            onClick={confirmToggle}
+          >
+            {pendingToggle ? 'Open Poll' : 'Close Poll'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

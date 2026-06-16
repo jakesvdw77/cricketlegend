@@ -1,48 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+  Box, Button, Typography, CircularProgress, Alert, Select, MenuItem, FormControl, InputLabel,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Menu,
   Avatar, Chip, Tooltip, TableSortLabel, Tabs, Tab, Divider,
-  Dialog, DialogTitle, DialogContent, DialogActions, Button,
+  Dialog, DialogTitle, DialogContent, IconButton,
 } from '@mui/material';
 import {
-  QueryStats, EmojiEvents, CheckCircle, Remove,
-  SportsCricket, TrendingUp, TrendingDown, Equalizer, Psychology, ArrowBack,
+  QueryStats, EmojiEvents, CheckCircle, Remove, ArrowDropDown,
+  SportsCricket, TrendingUp, TrendingDown, Equalizer, Psychology, Close, Leaderboard,
 } from '@mui/icons-material';
 import { LinearProgress } from '@mui/material';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
 import { playerApi } from '../../api/playerApi';
-import { clubApi } from '../../api/clubApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
-import { Club, Match, MatchResult, MatchSide, Player, Tournament, TournamentStatsReport } from '../../types';
+import { Match, MatchResult, MatchSide, Player, Tournament, TournamentStatsReport } from '../../types';
 import { AnalysisCacheBanner } from '../../components/AnalysisCacheBanner';
-import { PlayerEditForm } from '../../components/player/PlayerEditForm';
-
-// ── Overs helpers ─────────────────────────────────────────────────────────────
-
-function parseOversToBalls(overs?: string): number {
-  if (!overs) return 0;
-  const [whole, part] = overs.split('.');
-  return (parseInt(whole, 10) || 0) * 6 + (parseInt(part, 10) || 0);
-}
-
-function formatBallsToOvers(balls: number): string {
-  const complete = Math.floor(balls / 6);
-  const remainder = balls % 6;
-  return remainder === 0 ? `${complete}` : `${complete}.${remainder}`;
-}
-
-function fmtNum(n: number, decimals = 2): string {
-  if (!isFinite(n) || isNaN(n)) return '—';
-  return n.toFixed(decimals);
-}
-
-function fmtPct(n: number): string {
-  if (!isFinite(n) || isNaN(n)) return '—';
-  return `${n.toFixed(1)}%`;
-}
+import {
+  MatchEntry, SquadPlayer,
+  computeAggregate, parseOversToBalls, formatBallsToOvers, fmtNum, fmtPct,
+  PlayerDetailPanel,
+} from './PlayerStatsOverview';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -194,13 +174,16 @@ interface TeamStatsPanelProps {
   embedded?: boolean;
   initialTournamentId?: number;
   lockedTeamId?: number;
+  fromMyStats?: boolean;
 }
 
 export const TeamStatsPanel: React.FC<TeamStatsPanelProps> = ({
   embedded = false,
   initialTournamentId,
   lockedTeamId,
+  fromMyStats = false,
 }) => {
+  const navigate = useNavigate();
   const { teamIds: managerTeamIds, restrictByTeam, homeClubId, loaded: teamsLoaded } = useManagerTeams();
 
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -233,16 +216,15 @@ export const TeamStatsPanel: React.FC<TeamStatsPanelProps> = ({
   const [aiRegenerating, setAiRegenerating] = useState(false);
   const [aiError, setAiError]             = useState<string | null>(null);
 
-  const [clubs, setClubs]                 = useState<Club[]>([]);
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [playerLoading, setPlayerLoading]   = useState(false);
-  const [saving, setSaving]                 = useState(false);
+  const [statsDialogPlayerId, setStatsDialogPlayerId] = useState<number | null>(null);
+
+  const [tournamentMenuAnchor, setTournamentMenuAnchor] = useState<HTMLElement | null>(null);
+  const [teamMenuAnchor, setTeamMenuAnchor] = useState<HTMLElement | null>(null);
 
   // ── Load tournaments ────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!teamsLoaded) return;
-    clubApi.findAll().then(setClubs);
     Promise.all([tournamentApi.findAll(), matchApi.findAll()])
       .then(([allTournaments, allMatches]) => {
         if (!restrictByTeam) { setTournaments(allTournaments); return; }
@@ -358,7 +340,8 @@ export const TeamStatsPanel: React.FC<TeamStatsPanelProps> = ({
     setStatsLoading(true);
 
     const load = async () => {
-      const filteredCols = selectedTeamId ? columns.filter(c => c.teamId === selectedTeamId) : columns;
+      const completedCols = columns.filter(c => c.match.matchCompleted || c.match.forfeited || c.match.noResult);
+      const filteredCols = selectedTeamId ? completedCols.filter(c => c.teamId === selectedTeamId) : completedCols;
       const uniqueMatchIds = [...new Set(filteredCols.map(c => c.matchId))];
       const results = await Promise.allSettled(uniqueMatchIds.map(mid => matchApi.getResult(mid)));
 
@@ -625,25 +608,6 @@ export const TeamStatsPanel: React.FC<TeamStatsPanelProps> = ({
     else { setBowlingSortKey(key); setBowlingSortDir('desc'); }
   };
 
-  const openPlayerDialog = (playerId: number) => {
-    setPlayerLoading(true);
-    setSelectedPlayer(null);
-    playerApi.findById(playerId)
-      .then(setSelectedPlayer)
-      .catch(() => {})
-      .finally(() => setPlayerLoading(false));
-  };
-
-  const handleSave = async () => {
-    if (!selectedPlayer?.playerId) return;
-    setSaving(true);
-    try {
-      await playerApi.update(selectedPlayer.playerId, selectedPlayer);
-      setSelectedPlayer(null);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -653,52 +617,109 @@ export const TeamStatsPanel: React.FC<TeamStatsPanelProps> = ({
   return (
     <Box>
       {!embedded && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <QueryStats color="primary" />
-          <Typography variant="h5">Team Stats</Typography>
-        </Box>
-      )}
-
-      {!embedded && (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-          <FormControl sx={{ minWidth: 280 }} size="small">
-            <InputLabel>Tournament</InputLabel>
-            <Select
-              value={selectedTournamentId}
-              label="Tournament"
-              onChange={e => {
-                setSelectedTournamentId(e.target.value as number);
-                setSelectedTeamId('');
-                setColumns([]); setPlayerMap(new Map());
-                setBattingMap(new Map()); setBowlingMap(new Map());
-                setOverview(null); setStatsLoaded(false);
-                setAiReport(null); setAiError(null); setActiveTab(0);
-              }}
-            >
-              {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
-            </Select>
-          </FormControl>
-
-          {!lockedTeamId && availableTeams.length > 1 && (
-            <FormControl sx={{ minWidth: 220 }} size="small">
-              <InputLabel>Team</InputLabel>
-              <Select
-                value={selectedTeamId}
-                label="Team"
-                onChange={e => setSelectedTeamId(e.target.value as number | '')}
-              >
-                <MenuItem value=""><em>All Teams</em></MenuItem>
-                {availableTeams.map(t => (
-                  <MenuItem key={t.teamId} value={t.teamId}>{t.teamName}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <QueryStats color="primary" />
+            <Typography variant="h5">Team Stats</Typography>
+          </Box>
+          {fromMyStats && !embedded && (
+            <Button variant="outlined" startIcon={<Leaderboard />} size="small" onClick={() => navigate('/my-stats')}>
+              My Stats
+            </Button>
           )}
         </Box>
       )}
 
+      {/* Pre-selection: full dropdowns */}
       {!embedded && !selectedTournamentId && (
-        <Alert severity="info" icon={<EmojiEvents />}>Select a tournament to view team stats.</Alert>
+        <>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+            <FormControl sx={{ minWidth: 280 }} size="small">
+              <InputLabel>Tournament</InputLabel>
+              <Select
+                value={selectedTournamentId}
+                label="Tournament"
+                onChange={e => {
+                  setSelectedTournamentId(e.target.value as number);
+                  setSelectedTeamId('');
+                  setColumns([]); setPlayerMap(new Map());
+                  setBattingMap(new Map()); setBowlingMap(new Map());
+                  setOverview(null); setStatsLoaded(false);
+                  setAiReport(null); setAiError(null); setActiveTab(0);
+                }}
+              >
+                {tournaments.map(t => <MenuItem key={t.tournamentId} value={t.tournamentId}>{t.name}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Box>
+          <Alert severity="info" icon={<EmojiEvents />}>Select a tournament to view team stats.</Alert>
+        </>
+      )}
+
+      {/* Post-selection: compact badge row */}
+      {!embedded && !!selectedTournamentId && (
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+          {/* Tournament chip */}
+          <Chip
+            label={tournaments.find(t => t.tournamentId === selectedTournamentId)?.name ?? 'Tournament'}
+            onClick={e => setTournamentMenuAnchor(e.currentTarget)}
+            onDelete={e => setTournamentMenuAnchor(e.currentTarget as HTMLElement)}
+            deleteIcon={<ArrowDropDown />}
+            variant="outlined"
+            color="primary"
+            size="small"
+            sx={{ fontWeight: 500 }}
+          />
+          <Menu anchorEl={tournamentMenuAnchor} open={Boolean(tournamentMenuAnchor)} onClose={() => setTournamentMenuAnchor(null)}>
+            {tournaments.map(t => (
+              <MenuItem
+                key={t.tournamentId}
+                selected={t.tournamentId === selectedTournamentId}
+                onClick={() => {
+                  setTournamentMenuAnchor(null);
+                  if (t.tournamentId === selectedTournamentId) return;
+                  setSelectedTournamentId(t.tournamentId!);
+                  setSelectedTeamId('');
+                  setColumns([]); setPlayerMap(new Map());
+                  setBattingMap(new Map()); setBowlingMap(new Map());
+                  setOverview(null); setStatsLoaded(false);
+                  setAiReport(null); setAiError(null); setActiveTab(0);
+                }}
+              >
+                {t.name}
+              </MenuItem>
+            ))}
+          </Menu>
+
+          {/* Team chip (only when multiple teams available) */}
+          {!lockedTeamId && availableTeams.length > 1 && (
+            <>
+              <Chip
+                label={selectedTeamId ? (availableTeams.find(t => t.teamId === selectedTeamId)?.teamName ?? 'Team') : 'All Teams'}
+                onClick={e => setTeamMenuAnchor(e.currentTarget)}
+                onDelete={e => setTeamMenuAnchor(e.currentTarget as HTMLElement)}
+                deleteIcon={<ArrowDropDown />}
+                variant="outlined"
+                size="small"
+                sx={{ fontWeight: 500 }}
+              />
+              <Menu anchorEl={teamMenuAnchor} open={Boolean(teamMenuAnchor)} onClose={() => setTeamMenuAnchor(null)}>
+                <MenuItem selected={!selectedTeamId} onClick={() => { setTeamMenuAnchor(null); setSelectedTeamId(''); }}>
+                  <em>All Teams</em>
+                </MenuItem>
+                {availableTeams.map(t => (
+                  <MenuItem
+                    key={t.teamId}
+                    selected={t.teamId === selectedTeamId}
+                    onClick={() => { setTeamMenuAnchor(null); setSelectedTeamId(t.teamId); }}
+                  >
+                    {t.teamName}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </>
+          )}
+        </Box>
       )}
 
       {dataLoading && <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>}
@@ -744,21 +765,21 @@ export const TeamStatsPanel: React.FC<TeamStatsPanelProps> = ({
               {activeTab === 1 && (
                 playerRows.length === 0
                   ? <Alert severity="info">No squad data found.</Alert>
-                  : <RotationTable columns={columns} playerRows={playerRows} sortDir={rotationSortDir} onToggleSort={() => setRotationSortDir(d => d === 'desc' ? 'asc' : 'desc')} onPlayerClick={openPlayerDialog} />
+                  : <RotationTable columns={columns} playerRows={playerRows} sortDir={rotationSortDir} onToggleSort={() => setRotationSortDir(d => d === 'desc' ? 'asc' : 'desc')} onPlayerClick={setStatsDialogPlayerId} />
               )}
 
               {/* ── Tab 2: Batting Stats ── */}
               {activeTab === 2 && (
                 statsLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>
                 : battingRows.length === 0 ? <Alert severity="info">No batting scorecards recorded yet.</Alert>
-                : <BattingStatsTable rows={battingRows} sortKey={battingSortKey} sortDir={battingSortDir} onSort={handleBattingSort} onPlayerClick={openPlayerDialog} />
+                : <BattingStatsTable rows={battingRows} sortKey={battingSortKey} sortDir={battingSortDir} onSort={handleBattingSort} onPlayerClick={setStatsDialogPlayerId} />
               )}
 
               {/* ── Tab 3: Bowling Stats ── */}
               {activeTab === 3 && (
                 statsLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>
                 : bowlingRows.length === 0 ? <Alert severity="info">No bowling scorecards recorded yet.</Alert>
-                : <BowlingStatsTable rows={bowlingRows} sortKey={bowlingSortKey} sortDir={bowlingSortDir} onSort={handleBowlingSort} onPlayerClick={openPlayerDialog} />
+                : <BowlingStatsTable rows={bowlingRows} sortKey={bowlingSortKey} sortDir={bowlingSortDir} onSort={handleBowlingSort} onPlayerClick={setStatsDialogPlayerId} />
               )}
 
               {/* ── Tab 4: AI Report ── */}
@@ -787,39 +808,187 @@ export const TeamStatsPanel: React.FC<TeamStatsPanelProps> = ({
             </>
       )}
 
-      <Dialog open={playerLoading || !!selectedPlayer} onClose={() => setSelectedPlayer(null)} maxWidth="md" fullWidth>
-        {playerLoading ? (
-          <DialogContent sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress />
-          </DialogContent>
-        ) : selectedPlayer && (
-          <>
-            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Button startIcon={<ArrowBack />} onClick={() => setSelectedPlayer(null)} sx={{ mr: 1 }}>Back</Button>
-              {selectedPlayer.name} {selectedPlayer.surname}
-            </DialogTitle>
-            <DialogContent dividers>
-              <PlayerEditForm
-                editing={selectedPlayer}
-                onChange={patch => setSelectedPlayer(p => p ? { ...p, ...patch } : p)}
-                clubs={clubs}
-                readOnlyConsent
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setSelectedPlayer(null)}>Cancel</Button>
-              <Button variant="contained" onClick={handleSave} disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
-              </Button>
-            </DialogActions>
-          </>
-        )}
-      </Dialog>
+      <PlayerStatsFullDialog
+        open={statsDialogPlayerId !== null}
+        onClose={() => setStatsDialogPlayerId(null)}
+        playerId={statsDialogPlayerId}
+        filteredColumns={selectedTeamId ? columns.filter(c => c.teamId === selectedTeamId) : columns}
+        tournamentId={selectedTournamentId}
+        tournamentName={tournaments.find(t => t.tournamentId === selectedTournamentId)?.name ?? 'Tournament'}
+        teamName={selectedTeamId ? (columns.find(c => c.teamId === selectedTeamId)?.teamName ?? 'Team') : 'All Teams'}
+      />
     </Box>
   );
 };
 
-export const TeamRotationOverview: React.FC = () => <TeamStatsPanel />;
+export const TeamRotationOverview: React.FC = () => {
+  const location = useLocation();
+  const state = location.state as { fromMyStats?: boolean; tournamentId?: number } | null;
+  return <TeamStatsPanel fromMyStats={state?.fromMyStats} initialTournamentId={state?.tournamentId} />;
+};
+
+// ── Player stats full-screen dialog ───────────────────────────────────────────
+
+interface PlayerStatsFullDialogProps {
+  open: boolean;
+  onClose: () => void;
+  playerId: number | null;
+  filteredColumns: MatchColumn[];
+  tournamentId: number | '';
+  tournamentName: string;
+  teamName: string;
+}
+
+const PlayerStatsFullDialog: React.FC<PlayerStatsFullDialogProps> = ({
+  open, onClose, playerId, filteredColumns, tournamentId, tournamentName, teamName,
+}) => {
+  const [playerInfo, setPlayerInfo] = useState<Player | null>(null);
+  const [entries, setEntries] = useState<MatchEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !playerId) { setPlayerInfo(null); setEntries([]); return; }
+    setLoading(true);
+    setPlayerInfo(null);
+    setEntries([]);
+
+    const load = async () => {
+      const uniqueMatchIds = [...new Set(filteredColumns.map(c => c.matchId))];
+      const [player, ...resultResults] = await Promise.all([
+        playerApi.findById(playerId),
+        ...uniqueMatchIds.map(mid => matchApi.getResult(mid).catch(() => null)),
+      ]);
+
+      const colByMatchId = new Map<number, MatchColumn>();
+      for (const col of filteredColumns) {
+        if (!colByMatchId.has(col.matchId)) colByMatchId.set(col.matchId, col);
+      }
+
+      const matchEntries: MatchEntry[] = [];
+
+      for (let i = 0; i < uniqueMatchIds.length; i++) {
+        const mid = uniqueMatchIds[i];
+        const matchResult = resultResults[i] as MatchResult | null;
+        if (!matchResult) continue;
+        const sc = matchResult.scoreCard;
+        if (!sc) continue;
+
+        const col = colByMatchId.get(mid);
+        if (!col) continue;
+
+        const sides = [sc.teamA, sc.teamB].filter(Boolean) as NonNullable<typeof sc.teamA>[];
+        const mySide  = sides.find(s => s.teamId === col.teamId);
+        const oppSide = sides.find(s => s.teamId !== col.teamId);
+
+        const isHome = col.match.homeTeamId === col.teamId;
+        const opponent = isHome
+          ? (col.match.oppositionTeamName ?? 'Opposition')
+          : (col.match.homeTeamName ?? 'Opposition');
+
+        let result: string | undefined;
+        if (matchResult.matchCompleted) {
+          if (matchResult.noResult) result = 'NR';
+          else if (matchResult.matchDrawn) result = 'D';
+          else if (matchResult.winningTeamId === col.teamId) result = 'W';
+          else result = 'L';
+        }
+
+        const entry: MatchEntry = { matchId: mid, matchDate: col.match.matchDate, opponent, result };
+
+        const batEntry = mySide?.batting?.find(b => b.playerId === playerId);
+        if (batEntry?.batted) {
+          entry.batting = {
+            score: batEntry.score ?? 0,
+            ballsFaced: batEntry.ballsFaced ?? 0,
+            fours: batEntry.fours ?? 0,
+            sixes: batEntry.sixes ?? 0,
+            dismissed: batEntry.dismissed ?? false,
+            dismissalType: batEntry.dismissalType as string | undefined,
+            dots: batEntry.dots ?? 0,
+          };
+        }
+
+        const bowlEntry = oppSide?.bowling?.find(b => b.playerId === playerId);
+        if (bowlEntry) {
+          const balls = parseOversToBalls(bowlEntry.overs);
+          if (balls > 0 || (bowlEntry.wickets ?? 0) > 0) {
+            entry.bowling = {
+              balls,
+              runs: bowlEntry.runs ?? 0,
+              wickets: bowlEntry.wickets ?? 0,
+              maidens: bowlEntry.maidens ?? 0,
+              dots: bowlEntry.dots ?? 0,
+              wides: bowlEntry.wides ?? 0,
+              noBalls: bowlEntry.noBalls ?? 0,
+            };
+          }
+        }
+
+        if (entry.batting || entry.bowling) matchEntries.push(entry);
+      }
+
+      matchEntries.sort((a, b) => (a.matchDate ?? '').localeCompare(b.matchDate ?? ''));
+      setPlayerInfo(player);
+      setEntries(matchEntries);
+    };
+
+    load().catch(() => {}).finally(() => setLoading(false));
+  }, [open, playerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const aggregate = useMemo(() => computeAggregate(entries), [entries]);
+
+  const squadPlayer = useMemo((): SquadPlayer | null => {
+    if (!playerInfo?.playerId) return null;
+    return {
+      playerId: playerInfo.playerId,
+      name: playerInfo.name ?? '',
+      surname: playerInfo.surname ?? '',
+      battingStance: playerInfo.battingStance,
+      bowlingType: playerInfo.bowlingType,
+      wicketKeeper: playerInfo.wicketKeeper,
+      gamesPlayed: filteredColumns.filter(c => c.playingXiSet.has(playerInfo.playerId!)).length,
+    };
+  }, [playerInfo, filteredColumns]);
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullScreen
+      PaperProps={{ sx: { display: 'flex', flexDirection: 'column' } }}
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5, flexShrink: 0, gap: 1 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="h6" noWrap>
+            {playerInfo ? `${playerInfo.name} ${playerInfo.surname}` : '…'}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.25 }}>
+            <Chip label={tournamentName} size="small" variant="outlined" color="primary" />
+            {teamName !== 'All Teams' && <Chip label={teamName} size="small" variant="outlined" />}
+          </Box>
+        </Box>
+        <IconButton size="small" onClick={onClose}><Close /></IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>
+        ) : squadPlayer ? (
+          <PlayerDetailPanel
+            player={squadPlayer}
+            entries={entries}
+            aggregate={aggregate}
+            tournamentId={tournamentId as number}
+            tournamentName={tournamentName}
+            teamName={teamName}
+            onBack={onClose}
+            hideBack
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 // ── Team Overview Dashboard ────────────────────────────────────────────────────
 

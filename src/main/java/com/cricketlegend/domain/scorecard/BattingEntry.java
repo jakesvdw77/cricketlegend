@@ -16,6 +16,7 @@ public class BattingEntry {
     private Boolean dismissed;
     private String dismissalType;
     private String dismissedBowler;
+    private String dismissedFielder;
     private String dismissedDescription;
     private Boolean topPerformer;
 }

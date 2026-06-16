@@ -222,7 +222,7 @@ export const MyWallet: React.FC = () => {
     return (
       <Box sx={{ maxWidth: 600 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)}>Back</Button>
+          <Button startIcon={<ArrowBack />} onClick={() => setViewing(false)} />
           <Typography variant="h6" sx={{ flex: 1 }}>Payment Detail</Typography>
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

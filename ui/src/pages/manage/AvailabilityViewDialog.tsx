@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Chip,
@@ -39,18 +39,27 @@ interface Props {
   teamId: number | null;
   teamName?: string;
   pollOpen?: boolean;
+  onPollChange?: (pollOpen: boolean) => void;
 }
 
 export const AvailabilityViewDialog: React.FC<Props> = ({
-  open, onClose, match, teamId, teamName, pollOpen,
+  open, onClose, match, teamId, teamName, pollOpen, onPollChange,
 }) => {
+  const [localPollOpen, setLocalPollOpen] = useState(pollOpen);
+
+  useEffect(() => {
+    setLocalPollOpen(pollOpen);
+  }, [pollOpen, open]);
+
+  const handleAvailabilityCount = (_confirmed: number, _total: number, isOpen: boolean) => {
+    if (isOpen !== localPollOpen) {
+      setLocalPollOpen(isOpen);
+      onPollChange?.(isOpen);
+    }
+  };
+
   if (!match || teamId == null) return null;
 
-  const metaParts = [
-    fmtDate(match.matchDate),
-    fmtTime(match.scheduledStartTime),
-    match.fieldName,
-  ].filter(Boolean).join(' · ');
 
   return (
     <Dialog
@@ -68,11 +77,11 @@ export const AvailabilityViewDialog: React.FC<Props> = ({
           </Typography>
           <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.25 }}>
             {teamName && <Chip label={teamName} size="small" variant="outlined" />}
-            {pollOpen != null && (
+            {localPollOpen != null && (
               <Chip
-                label={pollOpen ? 'Poll Open' : 'Poll Closed'}
+                label={localPollOpen ? 'Poll Open' : 'Poll Closed'}
                 size="small"
-                color={pollOpen ? 'success' : 'default'}
+                color={localPollOpen ? 'success' : 'default'}
                 icon={<HowToVote fontSize="small" />}
               />
             )}
@@ -108,6 +117,7 @@ export const AvailabilityViewDialog: React.FC<Props> = ({
           embedded
           matchIdProp={match.matchId}
           preselectedTeamIdProp={teamId}
+          onAvailabilityCount={handleAvailabilityCount}
         />
       </DialogContent>
     </Dialog>

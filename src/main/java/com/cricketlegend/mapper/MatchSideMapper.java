@@ -10,6 +10,7 @@ public interface MatchSideMapper {
     @Mapping(source = "match.matchId", target = "matchId")
     @Mapping(source = "team.teamId", target = "teamId")
     @Mapping(source = "team.teamName", target = "teamName")
+    @Mapping(source = "playerRoles", target = "playerRoles")
     MatchSideDTO toDto(MatchSide entity);
 
     @Mapping(target = "match", ignore = true)

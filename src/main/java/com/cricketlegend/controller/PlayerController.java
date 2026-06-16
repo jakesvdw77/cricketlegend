@@ -2,11 +2,14 @@ package com.cricketlegend.controller;
 
 import com.cricketlegend.dto.PlayerDTO;
 import com.cricketlegend.dto.PlayerResultDTO;
+import com.cricketlegend.dto.PlayerStatsRequestDTO;
+import com.cricketlegend.dto.PlayerStatsReportDTO;
 import com.cricketlegend.dto.TeamDTO;
 import com.cricketlegend.service.ClubFinancialAdminService;
 import com.cricketlegend.service.ManagerTeamService;
 import com.cricketlegend.service.PlayerResultService;
 import com.cricketlegend.service.PlayerService;
+import com.cricketlegend.service.PlayerStatsAnalysisService;
 import com.cricketlegend.service.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +35,7 @@ public class PlayerController {
     private final ManagerTeamService managerTeamService;
     private final TeamService teamService;
     private final ClubFinancialAdminService financialAdminService;
+    private final PlayerStatsAnalysisService playerStatsAnalysisService;
 
     @GetMapping
     @Operation(summary = "Get all players")
@@ -57,6 +61,17 @@ public class PlayerController {
     @Operation(summary = "Get player statistics (all match results)")
     public ResponseEntity<List<PlayerResultDTO>> getStatistics(@PathVariable Long id) {
         return ResponseEntity.ok(playerResultService.findByPlayer(id));
+    }
+
+    @PostMapping("/{id}/stats/analysis")
+    @PreAuthorize("hasAnyRole('admin','manager')")
+    @Operation(summary = "Generate or retrieve a cached AI performance analysis for a player in a tournament")
+    public ResponseEntity<PlayerStatsReportDTO> getStatsAnalysis(
+            @PathVariable Long id,
+            @RequestParam Long tournamentId,
+            @RequestParam(defaultValue = "false") boolean regenerate,
+            @RequestBody PlayerStatsRequestDTO stats) {
+        return ResponseEntity.ok(playerStatsAnalysisService.analyze(id, tournamentId, stats, regenerate));
     }
 
     @GetMapping("/me")

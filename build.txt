@@ -27,8 +27,8 @@ docker build -t jakesvdwesthuizen/cricketlegend-ui:latest ./ui
 
 
 -- Build the Backend
-mvn compile jib:build
 
+mvn compile jib:build
 
 -- Run KeyCloak
 

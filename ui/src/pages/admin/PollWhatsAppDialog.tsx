@@ -12,6 +12,7 @@ interface Props {
   onClose: () => void;
   match: Match;
   poll: MatchPoll;
+  variant?: 'open' | 'closed';
 }
 
 const DIV  = '━'.repeat(40);
@@ -25,23 +26,12 @@ const stageLabel: Record<string, string> = {
   FINAL:        'Final',
 };
 
-function generateMessage(match: Match, poll: MatchPoll): string {
-  const pollUrl = `${window.location.origin}/poll/${poll.matchId}/${poll.teamId}`;
-  const lines: string[] = [];
-  const add = (s = '') => lines.push(s);
-
-  add(DIV);
-  add('🏏  AVAILABILITY POLL');
-  add(DIV);
-  add();
-
-  // Match title
+function matchMeta(match: Match, poll: MatchPoll, _lines: string[], add: (s?: string) => void) {
   const home = match.homeTeamName ?? '?';
   const away = match.oppositionTeamName ?? '?';
   add(`${home}  vs  ${away}`);
   add();
 
-  // Meta row
   if (match.matchDate)    add(`📅  ${match.matchDate}`);
   if (poll.teamName)      add(`⚔️   Team: ${poll.teamName}`);
   if (match.fieldName)    add(`🏟️   Venue: ${match.fieldName}`);
@@ -53,6 +43,19 @@ function generateMessage(match: Match, poll: MatchPoll): string {
     const parts = [tournament, stage].filter(Boolean).join('  •  ');
     add(`🏆  ${parts}`);
   }
+}
+
+function generateMessage(match: Match, poll: MatchPoll): string {
+  const pollUrl = `${window.location.origin}/poll/${poll.matchId}/${poll.teamId}`;
+  const lines: string[] = [];
+  const add = (s = '') => lines.push(s);
+
+  add(DIV);
+  add('🏏  AVAILABILITY POLL');
+  add(DIV);
+  add();
+
+  matchMeta(match, poll, lines, add);
 
   // Times
   if (match.arrivalTime || match.tossTime || match.scheduledStartTime) {
@@ -77,20 +80,46 @@ function generateMessage(match: Match, poll: MatchPoll): string {
   return lines.join('\n');
 }
 
-const PollWhatsAppDialog: React.FC<Props> = ({ open, onClose, match, poll }) => {
+function generateClosedMessage(match: Match, poll: MatchPoll): string {
+  const pollUrl = `${window.location.origin}/poll/${poll.matchId}/${poll.teamId}`;
+  const lines: string[] = [];
+  const add = (s = '') => lines.push(s);
+
+  add(DIV);
+  add('🔒  AVAILABILITY POLL CLOSED');
+  add(DIV);
+  add();
+
+  matchMeta(match, poll, lines, add);
+
+  add();
+  add(THIN);
+  add('The availability poll for this match is now closed.');
+  add('You can still view the results here:');
+  add(THIN);
+  add(`🔗  ${pollUrl}`);
+  add();
+  add(DIV);
+
+  return lines.join('\n');
+}
+
+const PollWhatsAppDialog: React.FC<Props> = ({ open, onClose, match, poll, variant = 'open' }) => {
   const [text, setText] = useState('');
 
-  const generate = () => setText(generateMessage(match, poll));
+  const generate = () => setText(
+    variant === 'closed' ? generateClosedMessage(match, poll) : generateMessage(match, poll)
+  );
 
   useEffect(() => {
     if (open) generate();
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, variant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
         <WhatsApp sx={{ color: '#25D366' }} />
-        WhatsApp Message
+        {variant === 'closed' ? 'WhatsApp – Poll Closed' : 'WhatsApp Message'}
         <IconButton onClick={onClose} size="small" sx={{ ml: 'auto' }}>
           <Close fontSize="small" />
         </IconButton>

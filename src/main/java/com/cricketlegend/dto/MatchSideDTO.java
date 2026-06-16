@@ -3,6 +3,7 @@ package com.cricketlegend.dto;
 import lombok.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class MatchSideDTO {
@@ -15,4 +16,5 @@ public class MatchSideDTO {
     private Long wicketKeeperPlayerId;
     private Long captainPlayerId;
     private Boolean teamAnnounced;
+    private Map<Long, String> playerRoles;
 }

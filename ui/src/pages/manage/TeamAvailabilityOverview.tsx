@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Alert, Card, CardActionArea, CardContent,
   Chip, Avatar, Divider, Dialog, DialogTitle, DialogContent, DialogActions, Button,
@@ -7,8 +7,8 @@ import {
   TableHead, TableRow, Paper, TextField, MenuItem,
 } from '@mui/material';
 import {
-  HowToVote, CalendarMonth, AccessTime, LocationOn,
-  CheckCircle, Cancel, HelpOutline, Share, Remove, ArrowBack,
+  HowToVote,
+  CheckCircle, Cancel, Edit, HelpOutline, Share, Remove, ArrowBack,
 } from '@mui/icons-material';
 import { MatchSharePanel } from '../../components/match/MatchSharePanel';
 import { AvailabilityViewDialog } from './AvailabilityViewDialog';
@@ -80,7 +80,6 @@ const StatusIcon: React.FC<{ status: AvailStatus }> = ({ status }) => {
 const statusLabel: Record<string, string> = { YES: 'Available', NO: 'Unavailable', UNSURE: 'Unsure' };
 
 export const TeamAvailabilityOverview: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { teamIds: managerTeamIds, restrictByTeam, homeClubId, loaded: teamsLoaded } = useManagerTeams();
   const [entries, setEntries] = useState<MatchPollEntry[]>([]);
@@ -91,7 +90,7 @@ export const TeamAvailabilityOverview: React.FC = () => {
   const [playerLoading, setPlayerLoading] = useState(false);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [saving, setSaving] = useState(false);
-  const [shareEntry, setShareEntry] = useState<{ match: Match; teamId: number } | null>(null);
+  const [shareEntry, setShareEntry] = useState<{ match: Match; teamId: number; poll: MatchPoll | null } | null>(null);
   const [availEntry, setAvailEntry] = useState<{ match: Match; teamId: number; teamName: string; pollOpen?: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<number>((location.state as any)?.returnToTab ?? 0);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState<number | ''>('');
@@ -367,21 +366,33 @@ export const TeamAvailabilityOverview: React.FC = () => {
                             position: 'relative',
                           }}
                         >
-                          {/* Share button sits outside the clickable area */}
+                          {/* Share button — top-right, outside clickable area */}
                           <Tooltip title="Share match">
                             <IconButton
                               size="small"
-                              onClick={e => { e.stopPropagation(); setShareEntry({ match, teamId }); }}
+                              onClick={e => { e.stopPropagation(); setShareEntry({ match, teamId, poll }); }}
                               sx={{ position: 'absolute', top: 6, right: 6, color: 'text.secondary', zIndex: 1 }}
                             >
                               <Share sx={{ fontSize: 16 }} />
                             </IconButton>
                           </Tooltip>
+
+                          {/* Pencil button — bottom-right */}
+                          <Tooltip title="Manage availability">
+                            <IconButton
+                              size="small"
+                              onClick={e => { e.stopPropagation(); setAvailEntry({ match, teamId, teamName, pollOpen: poll?.open }); }}
+                              sx={{ position: 'absolute', bottom: 6, right: 6, color: 'text.secondary', zIndex: 1 }}
+                            >
+                              <Edit sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Tooltip>
+
                           <CardActionArea
                             onClick={() => setAvailEntry({ match, teamId, teamName, pollOpen: poll?.open })}
                             sx={{ height: '100%', alignItems: 'flex-start' }}
                           >
-                            <CardContent sx={{ pb: '12px !important' }}>
+                            <CardContent sx={{ pb: '36px !important' }}>
                               {/* Title row */}
                               <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 0.5, pr: 3 }}>
                                 <Typography variant="subtitle1" fontWeight="bold" noWrap sx={{ flex: 1, minWidth: 0 }}>
@@ -606,12 +617,21 @@ export const TeamAvailabilityOverview: React.FC = () => {
         teamId={availEntry?.teamId ?? null}
         teamName={availEntry?.teamName}
         pollOpen={availEntry?.pollOpen}
+        onPollChange={isOpen => {
+          if (!availEntry) return;
+          setEntries(prev => prev.map(e =>
+            e.match.matchId === availEntry.match.matchId && e.teamId === availEntry.teamId && e.poll
+              ? { ...e, poll: { ...e.poll, open: isOpen } }
+              : e
+          ));
+        }}
       />
 
       <MatchSharePanel
         open={!!shareEntry}
         match={shareEntry?.match ?? ({} as Match)}
         teamId={shareEntry?.teamId}
+        poll={shareEntry?.poll ?? undefined}
         onClose={() => setShareEntry(null)}
       />
 
@@ -623,9 +643,7 @@ export const TeamAvailabilityOverview: React.FC = () => {
         ) : selectedPlayer && (
           <>
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Button startIcon={<ArrowBack />} onClick={() => setSelectedPlayer(null)} sx={{ mr: 1 }}>
-                Back
-              </Button>
+              <Button startIcon={<ArrowBack />} onClick={() => setSelectedPlayer(null)} sx={{ mr: 1 }} />
               {selectedPlayer.name} {selectedPlayer.surname}
             </DialogTitle>
             <DialogContent dividers>

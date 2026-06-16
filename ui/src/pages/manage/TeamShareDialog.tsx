@@ -10,6 +10,7 @@ import {
 } from '@mui/icons-material';
 import { PlainTextEditor } from '../../components/PlainTextEditor';
 import { Team, Player, Tournament } from '../../types';
+import { deriveRoleFromProfile } from '../../utils/matchRole';
 import { teamApi } from '../../api/teamApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { generateSquadPdf } from '../../utils/matchPdf';
@@ -28,9 +29,12 @@ const DIV  = '━'.repeat(40);
 const THIN = '─'.repeat(40);
 
 function getRoleText(p: Player): string {
-  const isBowler = p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler;
-  if (p.wicketKeeper) return isBowler ? 'WK / Bat / Bowl' : 'WK / Bat';
-  if (isBowler) return 'Bat / Bowl';
+  const role = deriveRoleFromProfile(p);
+  if (p.wicketKeeper && role === 'ALL_ROUNDER') return 'WK / All-Rounder';
+  if (p.wicketKeeper && role === 'BOWLER')      return 'WK / Bowler';
+  if (p.wicketKeeper)                           return 'WK / Batsman';
+  if (role === 'ALL_ROUNDER')                   return 'All-Rounder';
+  if (role === 'BOWLER')                        return 'Bowler';
   return 'Batsman';
 }
 

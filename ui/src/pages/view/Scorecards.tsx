@@ -2,11 +2,15 @@ import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   TableContainer, Paper, Chip, Divider, Alert, Select, MenuItem, FormControl, InputLabel, Button,
+  Tabs, Tab, Grid, Card, CardContent,
 } from '@mui/material';
-import { ScoreboardOutlined, YouTube, ArrowBack } from '@mui/icons-material';
+import { ScoreboardOutlined, YouTube, ArrowBack, EmojiEvents, SportsCricket, Person } from '@mui/icons-material';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { matchApi } from '../../api/matchApi';
 import { Match, MatchResult, TeamScorecard } from '../../types';
+import { GameAnalysisView } from '../../components/match/GameAnalysisView';
+import { ElectronicScoreboard } from '../../components/match/ElectronicScoreboard';
+import keycloak from '../../keycloak';
 
 const InningsTable: React.FC<{ title: string; innings: TeamScorecard }> = ({ title, innings }) => (
   <Box sx={{ mb: 3 }}>
@@ -82,6 +86,161 @@ const InningsTable: React.FC<{ title: string; innings: TeamScorecard }> = ({ tit
   </Box>
 );
 
+const MatchOverview: React.FC<{ result: MatchResult; match: Match }> = ({ result, match }) => {
+  const tossWinner = match.tossWonBy === 'HOME' ? match.homeTeamName : match.oppositionTeamName;
+  const tossDecision = match.tossDecision === 'BAT' ? 'elected to bat' : match.tossDecision === 'BOWL' ? 'elected to bowl' : null;
+
+  const secondBattingTeam =
+    result.sideBattingFirstName === match.homeTeamName ? match.oppositionTeamName : match.homeTeamName;
+
+  const topBatters = [
+    ...(result.scoreCard?.teamA?.batting ?? []),
+    ...(result.scoreCard?.teamB?.batting ?? []),
+  ].filter(b => b.topPerformer);
+
+  const topBowlers = [
+    ...(result.scoreCard?.teamA?.bowling ?? []),
+    ...(result.scoreCard?.teamB?.bowling ?? []),
+  ].filter(b => b.topPerformer);
+
+  const extras = (sc: TeamScorecard) =>
+    (sc.byes ?? 0) + (sc.legByes ?? 0) + (sc.wides ?? 0) + (sc.noBalls ?? 0) + (sc.penaltyRuns ?? 0);
+
+  return (
+    <Box>
+      {/* Result banner */}
+      <Card variant="outlined" sx={{ mb: 2, bgcolor: result.matchDrawn ? 'action.hover' : 'success.main', color: result.matchDrawn ? 'text.primary' : 'success.contrastText' }}>
+        <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <EmojiEvents />
+            <Typography variant="h6" fontWeight={700}>
+              {result.forfeited ? 'Forfeited' : result.noResult ? 'No Result' : result.matchDrawn ? 'Match Drawn' : `${result.winningTeamName} won`}
+            </Typography>
+            {result.decidedOnDLS && <Chip label="DLS" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.25)' }} />}
+            {result.decidedBySuperOver && <Chip label="Super Over" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.25)' }} />}
+            {result.wonWithBonusPoint && <Chip label="Bonus Point" size="small" sx={{ bgcolor: 'rgba(255,255,255,0.25)' }} />}
+          </Box>
+          {result.matchOutcomeDescription && (
+            <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.9 }}>{result.matchOutcomeDescription}</Typography>
+          )}
+        </CardContent>
+      </Card>
+
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        {/* 1st innings */}
+        {result.sideBattingFirstName && (
+          <Grid item xs={12} sm={6}>
+            <Card variant="outlined" sx={{ height: '100%' }}>
+              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="overline" color="text.secondary">1st Innings</Typography>
+                <Typography variant="h6" fontWeight={700}>
+                  {result.scoreBattingFirst}/{result.wicketsLostBattingFirst} <Typography component="span" variant="body2" color="text.secondary">({result.oversBattingFirst} ov)</Typography>
+                </Typography>
+                <Typography variant="body2">{result.sideBattingFirstName}</Typography>
+                {result.scoreCard?.teamA && (
+                  <Typography variant="caption" color="text.secondary">Extras: {extras(result.scoreCard.teamA)}</Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* 2nd innings */}
+        {secondBattingTeam && (
+          <Grid item xs={12} sm={6}>
+            <Card variant="outlined" sx={{ height: '100%' }}>
+              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="overline" color="text.secondary">2nd Innings</Typography>
+                <Typography variant="h6" fontWeight={700}>
+                  {result.scoreBattingSecond}/{result.wicketsLostBattingSecond} <Typography component="span" variant="body2" color="text.secondary">({result.oversBattingSecond} ov)</Typography>
+                </Typography>
+                <Typography variant="body2">{secondBattingTeam}</Typography>
+                {result.scoreCard?.teamB && (
+                  <Typography variant="caption" color="text.secondary">Extras: {extras(result.scoreCard.teamB)}</Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+      </Grid>
+
+      <Grid container spacing={2} sx={{ mb: 2 }}>
+        {/* Toss */}
+        {tossWinner && (
+          <Grid item xs={12} sm={6} md={4}>
+            <Card variant="outlined" sx={{ height: '100%' }}>
+              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                  <SportsCricket fontSize="small" color="action" />
+                  <Typography variant="overline" color="text.secondary">Toss</Typography>
+                </Box>
+                <Typography variant="body1">
+                  <strong>{tossWinner}</strong>{tossDecision ? ` — ${tossDecision}` : ''}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Man of the Match */}
+        {result.manOfTheMatchName && (
+          <Grid item xs={12} sm={6} md={4}>
+            <Card variant="outlined" sx={{ height: '100%' }}>
+              <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                  <Person fontSize="small" color="action" />
+                  <Typography variant="overline" color="text.secondary">Man of the Match</Typography>
+                </Box>
+                <Typography variant="body1" fontWeight={700}>{result.manOfTheMatchName}</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+      </Grid>
+
+      {/* Top performers */}
+      {(topBatters.length > 0 || topBowlers.length > 0) && (
+        <>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom>Top Performers</Typography>
+          <Grid container spacing={2}>
+            {topBatters.length > 0 && (
+              <Grid item xs={12} sm={6}>
+                <Typography variant="overline" color="text.secondary">Batting</Typography>
+                {topBatters.map((b, i) => (
+                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="body2">{b.playerName}</Typography>
+                    <Typography variant="body2" fontWeight={700}>
+                      {b.score}{b.ballsFaced ? <Typography component="span" variant="caption" color="text.secondary"> ({b.ballsFaced}b)</Typography> : ''}
+                      {b.fours ? <Typography component="span" variant="caption" color="text.secondary"> · {b.fours}×4</Typography> : ''}
+                      {b.sixes ? <Typography component="span" variant="caption" color="text.secondary"> · {b.sixes}×6</Typography> : ''}
+                    </Typography>
+                  </Box>
+                ))}
+              </Grid>
+            )}
+            {topBowlers.length > 0 && (
+              <Grid item xs={12} sm={6}>
+                <Typography variant="overline" color="text.secondary">Bowling</Typography>
+                {topBowlers.map((b, i) => (
+                  <Box key={i} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="body2">{b.playerName}</Typography>
+                    <Typography variant="body2" fontWeight={700}>
+                      {b.wickets}/{b.runs} <Typography component="span" variant="caption" color="text.secondary">({b.overs} ov)</Typography>
+                    </Typography>
+                  </Box>
+                ))}
+              </Grid>
+            )}
+          </Grid>
+        </>
+      )}
+    </Box>
+  );
+};
+
+const TABS = ['Overview', 'Full Scorecard', 'Scoreboard', 'Match Report'];
+
 export const Scorecards: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -89,11 +248,12 @@ export const Scorecards: React.FC = () => {
   const [selectedId, setSelectedId] = useState<number | ''>('');
   const [result, setResult] = useState<MatchResult | null>(null);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState(0);
 
   const linkedMatchId = searchParams.get('matchId');
 
   useEffect(() => {
-    matchApi.findCompleted().then(setMatches);
+    matchApi.findCompleted().then(setMatches).catch(() => {});
     if (linkedMatchId) setSelectedId(+linkedMatchId);
   }, []);
 
@@ -109,12 +269,7 @@ export const Scorecards: React.FC = () => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        {linkedMatchId && (
-          <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)}>Back</Button>
-        )}
-        <Typography variant="h5">Scorecards</Typography>
-      </Box>
+      {!linkedMatchId && <Typography variant="h5" sx={{ mb: 2 }}>Scorecards</Typography>}
       {!linkedMatchId && (
         <FormControl sx={{ minWidth: 300, mb: 3 }}>
           <InputLabel>Select Match</InputLabel>
@@ -133,6 +288,9 @@ export const Scorecards: React.FC = () => {
       {result && selectedMatch && (
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 0.5 }}>
+            {linkedMatchId && (
+              <Button size="small" startIcon={<ArrowBack />} onClick={() => navigate(-1)}>Back</Button>
+            )}
             <Typography variant="h6">
               {selectedMatch.homeTeamName} vs {selectedMatch.oppositionTeamName}
             </Typography>
@@ -167,24 +325,41 @@ export const Scorecards: React.FC = () => {
           <Typography variant="body2" color="text.secondary" gutterBottom>
             {selectedMatch.matchDate} | {selectedMatch.fieldName}
           </Typography>
-          {result.matchCompleted && (
-            <Box sx={{ my: 2 }}>
-              <Chip label={result.matchDrawn ? 'Draw' : `Winner: ${result.winningTeamName}`} color={result.matchDrawn ? 'default' : 'success'} />
-              {result.manOfTheMatchName && <Chip label={`MoM: ${result.manOfTheMatchName}`} sx={{ ml: 1 }} color="secondary" />}
-              {result.wonWithBonusPoint && <Chip label="Bonus Point" sx={{ ml: 1 }} color="warning" />}
-              {result.decidedOnDLS && <Chip label="DLS" sx={{ ml: 1 }} />}
-              {result.matchOutcomeDescription && (
-                <Typography variant="body2" sx={{ mt: 1 }}>{result.matchOutcomeDescription}</Typography>
-              )}
-            </Box>
-          )}
-          <Divider sx={{ my: 2 }} />
-          {result.scoreCard?.teamA && (
-            <InningsTable title={`1st Innings — ${result.sideBattingFirstName}`} innings={result.scoreCard.teamA} />
-          )}
-          {result.scoreCard?.teamB && (
-            <InningsTable title="2nd Innings" innings={result.scoreCard.teamB} />
-          )}
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 1.5 }}>
+            <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}>
+              {TABS.map((label, i) => <Tab key={i} label={label} />)}
+            </Tabs>
+          </Box>
+
+          <Box sx={{ pt: 2 }}>
+            {activeTab === 0 && (
+              <MatchOverview result={result} match={selectedMatch} />
+            )}
+            {activeTab === 1 && (
+              <>
+                <Divider sx={{ mb: 2 }} />
+                {result.scoreCard?.teamA && (
+                  <InningsTable title={`1st Innings — ${result.sideBattingFirstName}`} innings={result.scoreCard.teamA} />
+                )}
+                {result.scoreCard?.teamB && (
+                  <InningsTable title="2nd Innings" innings={result.scoreCard.teamB} />
+                )}
+              </>
+            )}
+            {activeTab === 2 && (
+              <ElectronicScoreboard result={result} match={selectedMatch} />
+            )}
+            {activeTab === 3 && selectedMatch.homeTeamId && (
+              <GameAnalysisView
+                matchId={selectedId as number}
+                teamId={selectedMatch.homeTeamId}
+                teamName={selectedMatch.homeTeamName ?? ''}
+                matchTitle={`${selectedMatch.homeTeamName} vs ${selectedMatch.oppositionTeamName}`}
+                readOnly={!keycloak.authenticated}
+                summaryOnly={!keycloak.authenticated}
+              />
+            )}
+          </Box>
         </Box>
       )}
     </Box>

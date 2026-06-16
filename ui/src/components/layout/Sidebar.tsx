@@ -8,7 +8,7 @@ import {
     EmojiEvents, Groups, Person, SportsScore, Assignment,
     ExpandLess, ExpandMore, ChevronLeft,
     History, Leaderboard, CalendarMonth, Grass, Shield, Star, Payments, HowToVote, ManageAccounts,
-    PermMedia, Campaign, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Login, Event, Settings, Email, Psychology, QueryStats,
+    PermMedia, Campaign, AdminPanelSettings, AccountBalance, Lock, Sensors, BarChart, AccountBalanceWallet, PieChart, Login, Event, Settings, Email, Psychology, QueryStats, Diversity3,
 } from '@mui/icons-material';
 import {useNavigate} from 'react-router-dom';
 import {useAuth} from '../../hooks/useAuth';
@@ -103,6 +103,10 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         <ListItemIcon><AccountBalanceWallet/></ListItemIcon>
                         <ListItemText primary="My Wallet"/>
                     </ListItemButton>
+                    <ListItemButton sx={{pl: 3}} onClick={() => go('/my-stats')}>
+                        <ListItemIcon><Leaderboard/></ListItemIcon>
+                        <ListItemText primary="My Stats"/>
+                    </ListItemButton>
                     <ListItemButton sx={{pl: 3}} onClick={() => go('/field-directory')}>
                         <ListItemIcon><Grass/></ListItemIcon>
                         <ListItemText primary="Field Directory"/>
@@ -165,7 +169,11 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                         <List disablePadding>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-tournaments')}>
                                 <ListItemIcon><EmojiEvents/></ListItemIcon>
-                                <ListItemText primary="Team Tournaments"/>
+                                <ListItemText primary="Tournaments"/>
+                            </ListItemButton>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-squad')}>
+                                <ListItemIcon><Diversity3/></ListItemIcon>
+                                <ListItemText primary="Squad Selection"/>
                             </ListItemButton>
                             <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-schedule')}>
                                 <ListItemIcon><Assignment/></ListItemIcon>
@@ -183,7 +191,7 @@ export const Sidebar: React.FC<Props> = ({open, onClose}) => {
                                 <ListItemIcon><SportsScore/></ListItemIcon>
                                 <ListItemText primary="Team Results"/>
                             </ListItemButton>
-                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/team-rotation')}>
+                            <ListItemButton sx={{pl: 3}} onClick={() => go('/manage-club/stats')}>
                                 <ListItemIcon><QueryStats/></ListItemIcon>
                                 <ListItemText primary="Team Stats"/>
                             </ListItemButton>

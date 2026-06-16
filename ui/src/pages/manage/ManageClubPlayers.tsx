@@ -14,6 +14,7 @@ import { Player, Club } from '../../types';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
 import { formatEnum } from '../../utils/formatEnum';
 import { PlayerEditForm } from '../../components/player/PlayerEditForm';
+import { PlayerStatsDialog } from './PlayerStatsDialog';
 
 const emptyPlayer = (homeClubId: number | null, homeClubName: string | undefined): Player => ({
   name: '',
@@ -30,6 +31,7 @@ export const ManageClubPlayers: React.FC = () => {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Player | null>(null);
+  const [statsPlayer, setStatsPlayer] = useState<Player | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [orderBy, setOrderBy] = useState<OrderBy>('surname');
@@ -167,9 +169,7 @@ export const ManageClubPlayers: React.FC = () => {
 
       <Dialog open={!!editing} onClose={() => setEditing(null)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Button startIcon={<ArrowBack />} onClick={() => setEditing(null)} sx={{ mr: 1 }}>
-            Back
-          </Button>
+          <Button startIcon={<ArrowBack />} onClick={() => setEditing(null)} sx={{ mr: 1 }} />
           {editing
             ? editing.playerId
               ? `${editing.name} ${editing.surname}`
@@ -188,11 +188,22 @@ export const ManageClubPlayers: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditing(null)}>Cancel</Button>
+          {editing?.playerId && (
+            <Button onClick={() => { setStatsPlayer(editing); setEditing(null); }}>
+              Stats
+            </Button>
+          )}
           <Button variant="contained" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <PlayerStatsDialog
+        open={!!statsPlayer}
+        player={statsPlayer}
+        onClose={() => setStatsPlayer(null)}
+      />
     </Box>
   );
 };

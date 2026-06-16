@@ -1,26 +1,29 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
-  Divider, Grid, IconButton, LinearProgress, Stack, Tooltip, Typography,
+  Divider, Grid, IconButton, LinearProgress, Paper, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography,
 } from '@mui/material';
 import {
   AutoAwesome, Bolt, ContentCopy, EmojiEvents, Lightbulb,
-  PhoneAndroid, PictureAsPdf, Refresh, SportsScore, Star, ThumbUp,
+  PictureAsPdf, Refresh, SportsCricket, SportsScore, Star, ThumbUp,
 } from '@mui/icons-material';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 import { matchApi } from '../../api/matchApi';
-import { MatchAnalysis } from '../../types';
-import { generateAnalysisPdf, printAnalysisAsScreen } from '../../utils/matchPdf';
+import { MatchAnalysis, MatchSummary } from '../../types';
+import { generateAnalysisPdf } from '../../utils/matchPdf';
 import { AnalysisCacheBanner } from '../AnalysisCacheBanner';
+import { useAuth } from '../../hooks/useAuth';
 
 interface Props {
   matchId: number;
   teamId: number;
   teamName: string;
   matchTitle: string;
+  readOnly?: boolean;
+  summaryOnly?: boolean;
 }
 
 const RATING_COLOR = (v: number) => v >= 7.5 ? 'success' : v >= 5 ? 'warning' : 'error';
@@ -92,14 +95,52 @@ const CompareTable: React.FC<{
   </Box>
 );
 
-export const GameAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, matchTitle }) => {
+export const GameAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, matchTitle, readOnly = false, summaryOnly = false }) => {
+  const [activeTab, setActiveTab] = useState(0);
+
+  if (summaryOnly) {
+    return <MatchSummaryTab matchId={matchId} readOnly={readOnly} />;
+  }
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2.5 }}>
+        <ToggleButtonGroup
+          value={activeTab}
+          exclusive
+          onChange={(_, v) => v !== null && setActiveTab(v)}
+          size="small"
+        >
+          <ToggleButton value={0} sx={{ px: 2, gap: 0.75, textTransform: 'none', fontWeight: 600 }}>
+            <SportsScore fontSize="small" /> Team Report
+          </ToggleButton>
+          <ToggleButton value={1} sx={{ px: 2, gap: 0.75, textTransform: 'none', fontWeight: 600 }}>
+            <SportsCricket fontSize="small" /> Match Summary
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
+      {activeTab === 0 && (
+        <TeamReportTab matchId={matchId} teamId={teamId} teamName={teamName} matchTitle={matchTitle} readOnly={readOnly} />
+      )}
+      {activeTab === 1 && (
+        <MatchSummaryTab matchId={matchId} readOnly={readOnly} />
+      )}
+    </Box>
+  );
+};
+
+// ── Team Report tab (existing analysis) ───────────────────────────────────────
+
+const TeamReportTab: React.FC<Props> = ({ matchId, teamId, teamName, matchTitle, readOnly = false }) => {
+  const { isManager, isAdmin } = useAuth();
+  const canRegenerate = isManager || isAdmin;
+
   const [analysis, setAnalysis] = useState<MatchAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [printing, setPrinting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback((regen = false) => {
@@ -135,15 +176,6 @@ export const GameAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, m
     }
   };
 
-  const printScreen = async () => {
-    if (!analysis || !contentRef.current) return;
-    setPrinting(true);
-    try {
-      await printAnalysisAsScreen(contentRef.current, teamName, matchTitle);
-    } finally {
-      setPrinting(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -158,6 +190,13 @@ export const GameAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, m
   }
 
   if (error) {
+    if (readOnly) {
+      return (
+        <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+          <Typography variant="body2">Analysis not available for this match.</Typography>
+        </Box>
+      );
+    }
     return (
       <Box sx={{ py: 3 }}>
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
@@ -177,7 +216,7 @@ export const GameAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, m
         <AnalysisCacheBanner
           generatedAt={analysis.generatedAt}
           regenerating={regenerating}
-          onRegenerate={() => load(true)}
+          onRegenerate={canRegenerate && !readOnly ? () => load(true) : undefined}
         />
       )}
       {/* Header strip */}
@@ -187,24 +226,16 @@ export const GameAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, m
           <Typography variant="subtitle2" color="text.secondary">AI Analysis — {teamName}</Typography>
         </Stack>
         <Stack direction="row" spacing={1}>
-          <Tooltip title={copied ? 'Copied!' : 'Copy chart data JSON'}>
-            <IconButton size="small" onClick={copyJson}>
-              <ContentCopy fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {isAdmin && (
+            <Tooltip title={copied ? 'Copied!' : 'Copy chart data JSON'}>
+              <IconButton size="small" onClick={copyJson}>
+                <ContentCopy fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="Export structured PDF">
             <IconButton size="small" onClick={exportPdf} disabled={exporting}>
               <PictureAsPdf fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Print screen as PDF">
-            <IconButton size="small" onClick={printScreen} disabled={printing}>
-              {printing ? <CircularProgress size={14} /> : <PhoneAndroid fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Regenerate">
-            <IconButton size="small" onClick={() => load(true)}>
-              <Refresh fontSize="small" />
             </IconButton>
           </Tooltip>
         </Stack>
@@ -470,6 +501,170 @@ export const GameAnalysisView: React.FC<Props> = ({ matchId, teamId, teamName, m
           </CardContent>
         </Card>
       )}
+    </Box>
+  );
+};
+
+// ── Match Summary tab ─────────────────────────────────────────────────────────
+
+const MatchSummaryTab: React.FC<{ matchId: number; readOnly: boolean }> = ({ matchId, readOnly }) => {
+  const { isManager, isAdmin } = useAuth();
+  const canRegenerate = isManager || isAdmin;
+
+  const [summary, setSummary] = useState<MatchSummary | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback((regen = false) => {
+    if (regen) setRegenerating(true); else setLoading(true);
+    setError(null);
+    matchApi.getSummary(matchId, regen)
+      .then(setSummary)
+      .catch(e => setError(e?.response?.data?.message ?? e?.message ?? 'Failed to load summary'))
+      .finally(() => { setLoading(false); setRegenerating(false); });
+  }, [matchId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 6, gap: 2 }}>
+        <CircularProgress size={48} />
+        <Typography variant="body2" color="text.secondary">Generating match summary…</Typography>
+        <Typography variant="caption" color="text.disabled">This may take up to 15 seconds</Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    if (readOnly) {
+      return (
+        <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+          <Typography variant="body2">Match summary not available.</Typography>
+        </Box>
+      );
+    }
+    return (
+      <Box sx={{ py: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Button startIcon={<Refresh />} variant="outlined" onClick={() => load()}>Try Again</Button>
+      </Box>
+    );
+  }
+
+  if (!summary) return null;
+
+  return (
+    <Box sx={{ pb: 2 }}>
+      {summary.generatedAt && (
+        <AnalysisCacheBanner
+          generatedAt={summary.generatedAt}
+          regenerating={regenerating}
+          onRegenerate={canRegenerate && !readOnly ? () => load(true) : undefined}
+        />
+      )}
+
+      {/* Narrative */}
+      <Card variant="outlined" sx={{ mb: 2, bgcolor: 'action.hover' }}>
+        <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+            <AutoAwesome color="primary" fontSize="small" />
+            <Typography variant="subtitle2">Match Narrative</Typography>
+          </Stack>
+          <Typography variant="body2">{summary.narrative}</Typography>
+        </CardContent>
+      </Card>
+
+      {/* Verdict */}
+      {summary.matchVerdict && (
+        <Card variant="outlined" sx={{ mb: 2, borderColor: 'success.light' }}>
+          <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+              <EmojiEvents sx={{ fontSize: 16, color: 'success.main' }} />
+              <Typography variant="subtitle2" color="success.main">Match Verdict</Typography>
+            </Stack>
+            <Typography variant="body2">{summary.matchVerdict}</Typography>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Key moments */}
+      {(summary.keyMoments?.length ?? 0) > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+            <Bolt fontSize="small" color="warning" />
+            <Typography variant="subtitle2">Key Moments</Typography>
+          </Stack>
+          <Stack spacing={0.75}>
+            {summary.keyMoments.map((m, i) => (
+              <Stack key={i} direction="row" spacing={1} alignItems="flex-start">
+                <Chip label={i + 1} size="small" sx={{ mt: 0.1, minWidth: 28, height: 20, fontSize: '0.65rem' }} />
+                <Typography variant="body2">{m}</Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Team summaries */}
+      <Grid container spacing={2}>
+        {(summary.teamSummaries ?? []).map(ts => (
+          <Grid item xs={12} md={6} key={ts.teamName}>
+            <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                <SportsCricket fontSize="small" color="primary" />
+                <Typography variant="subtitle1" fontWeight="bold">{ts.teamName}</Typography>
+                {ts.innings && (
+                  <Chip
+                    label={`${ts.innings.runs ?? '—'}/${ts.innings.wickets ?? '—'} (${ts.innings.overs ?? '—'})`}
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                  />
+                )}
+              </Stack>
+
+              <Divider sx={{ mb: 1.5 }} />
+
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600, display: 'block', mb: 0.5 }}>
+                Batting
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1.5 }}>{ts.battingSummary}</Typography>
+
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600, display: 'block', mb: 0.5 }}>
+                Bowling
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1.5 }}>{ts.bowlingSummary}</Typography>
+
+              {(ts.notablePlayers?.length ?? 0) > 0 && (
+                <>
+                  <Divider sx={{ mb: 1 }} />
+                  <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600, display: 'block', mb: 0.75 }}>
+                    Notable Performances
+                  </Typography>
+                  <Stack spacing={0.5}>
+                    {ts.notablePlayers.map((p, i) => (
+                      <Stack key={i} direction="row" alignItems="flex-start" spacing={1}>
+                        <Chip
+                          label={p.role}
+                          size="small"
+                          color={p.role === 'BAT' ? 'primary' : 'secondary'}
+                          variant="outlined"
+                          sx={{ fontSize: '0.6rem', height: 18, flexShrink: 0, mt: 0.15 }}
+                        />
+                        <Typography variant="body2">
+                          <strong>{p.name}</strong> — {p.contribution}
+                        </Typography>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </>
+              )}
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
     </Box>
   );
 };

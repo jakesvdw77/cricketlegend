@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "match_side")
@@ -35,4 +37,11 @@ public class MatchSide {
     private Long captainPlayerId;
 
     private Boolean teamAnnounced = false;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "match_side_player_roles",
+            joinColumns = @JoinColumn(name = "match_side_id"))
+    @MapKeyColumn(name = "player_id")
+    @Column(name = "role")
+    private Map<Long, String> playerRoles = new HashMap<>();
 }

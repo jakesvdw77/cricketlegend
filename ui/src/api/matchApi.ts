@@ -1,5 +1,5 @@
 import api from './axiosConfig';
-import { AiTeamPick, Match, MatchAnalysis, MatchResult, MatchResultSummary, MatchSide, XiAnalysis } from '../types';
+import { AiTeamPick, Match, MatchAnalysis, MatchResult, MatchResultSummary, MatchSide, MatchSummary, ScorecardImageImportResponse, XiAnalysis } from '../types';
 
 export const matchApi = {
   findAll: () => api.get<Match[]>('/matches').then(r => r.data),
@@ -19,6 +19,8 @@ export const matchApi = {
   getResult: (id: number) => api.get<MatchResult>(`/matches/${id}/result`).then(r => r.data),
   getAnalysis: (id: number, teamId: number, regenerate = false) =>
     api.get<MatchAnalysis>(`/matches/${id}/analysis?teamId=${teamId}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
+  getSummary: (id: number, regenerate = false) =>
+    api.get<MatchSummary>(`/matches/${id}/summary${regenerate ? '?regenerate=true' : ''}`).then(r => r.data),
   getXiAnalysis: (id: number, teamId: number, regenerate = false) =>
     api.get<XiAnalysis>(`/matches/${id}/teamsheet/analysis?teamId=${teamId}${regenerate ? '&regenerate=true' : ''}`).then(r => r.data),
   getAiTeamPick: (id: number, teamId: number, regenerate = false, strategy: 'STRONGEST' | 'ROTATION' = 'STRONGEST') =>
@@ -29,4 +31,8 @@ export const matchApi = {
   saveTeamSheet: (id: number, dto: MatchSide) =>
     api.post<MatchSide>(`/matches/${id}/teamsheet`, dto).then(r => r.data),
   getMySchedule: () => api.get<Match[]>('/matches/my-schedule').then(r => r.data),
+  importScorecardFromImages: (matchId: number, formData: FormData) =>
+    api.post<ScorecardImageImportResponse>(`/matches/${matchId}/scorecard/import-from-images`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data),
 };

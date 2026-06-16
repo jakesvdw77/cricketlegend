@@ -6,15 +6,18 @@ import {
 } from '@mui/material';
 import { ContentCopy, Facebook, Print, Refresh, WhatsApp } from '@mui/icons-material';
 import { Match, MatchSide, Player } from '../../types';
+import { getEffectiveRole } from '../../utils/matchRole';
 
 // ── Text builders ─────────────────────────────────────────────────────────────
 
-function getRoleText(player: Player, battingPosition: number, isWK: boolean): string {
-  const isBowler = player.bowlingType && player.bowlingType !== 'NONE' && !player.partTimeBowler;
-  const showBat  = player.battingPosition !== 'LOWER_ORDER' || battingPosition <= 7;
-  if (isWK)     return showBat ? '🏏🧤' : '🧤';
-  if (isBowler) return showBat ? '🏏🔴' : '🔴';
-  return showBat ? '🏏' : '';
+function getRoleText(player: Player, side: MatchSide, isWK: boolean): string {
+  const role = getEffectiveRole(player, side);
+  if (isWK && role === 'ALL_ROUNDER') return '🏏🔴🧤';
+  if (isWK && role === 'BOWLER')      return '🔴🧤';
+  if (isWK)                           return '🏏🧤';
+  if (role === 'ALL_ROUNDER')         return '🏏🔴';
+  if (role === 'BOWLER')              return '🔴';
+  return '🏏';
 }
 
 function buildTeamWhatsAppLines(
@@ -22,17 +25,17 @@ function buildTeamWhatsAppLines(
   xi: Player[],
   captain: Player | undefined,
   twelfth: Player | undefined,
-  wicketKeeperPlayerId: number | undefined,
+  side: MatchSide,
 ): string[] {
   const lines: string[] = [];
   lines.push(`*${teamName} — Playing XI*`);
   if (captain) lines.push(`⭐ Captain: ${captain.name} ${captain.surname}`);
   lines.push('');
   xi.forEach((p, idx) => {
-    const pos      = idx + 1;
-    const isWK     = p.playerId === wicketKeeperPlayerId;
+    const pos       = idx + 1;
+    const isWK      = p.playerId === side.wicketKeeperPlayerId;
     const isCaptain = p.playerId === captain?.playerId;
-    const role     = getRoleText(p, pos, isWK);
+    const role      = getRoleText(p, side, isWK);
     lines.push(`${role} ${pos}. ${p.name} ${p.surname}${isCaptain ? ' *(C)*' : ''}`);
   });
   if (twelfth) {
@@ -68,10 +71,10 @@ export function buildWhatsAppText(match: Match, scope: 'both' | 'home' | 'away',
     const side = sides.find(s => s.teamId === t.teamId);
     if (!side) continue;
     lines.push('');
-    lines.push(...buildTeamWhatsAppLines(t.teamName, getXi(side), getCap(side), get12th(side), side.wicketKeeperPlayerId));
+    lines.push(...buildTeamWhatsAppLines(t.teamName, getXi(side), getCap(side), get12th(side), side));
   }
   lines.push('');
-  lines.push('🏏 = Bat  |  🔴 = Bowl  |  🧤 = WK');
+  lines.push('🏏 = Bat  |  🔴 = Bowl  |  🏏🔴 = All-Rounder  |  🧤 = WK');
   if (match.fieldGoogleMapsUrl) { lines.push(''); lines.push(`📍 ${match.fieldGoogleMapsUrl}`); }
   return lines.join('\n');
 }
@@ -100,8 +103,8 @@ export function buildFacebookText(match: Match, scope: 'both' | 'home' | 'away',
     const xi      = getXi(side);
     const captain = getCap(side);
     const twelfth = get12th(side);
-    const lines   = xi.map((p, idx) => {
-      const role = getRoleText(p, idx + 1, p.playerId === side.wicketKeeperPlayerId);
+    const lines   = xi.map((p) => {
+      const role = getRoleText(p, side, p.playerId === side.wicketKeeperPlayerId);
       return `${role} ${p.name} ${p.surname}${p.playerId === captain?.playerId ? ' (C)' : ''}`;
     });
     let para = `*${t.teamName}* take the field with:\n${lines.join('\n')}`;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Typography, Paper, Chip, Divider, Button, ToggleButton, ToggleButtonGroup,
-  Table, TableHead, TableRow, TableCell, TableBody, Tooltip, CircularProgress,
+  Table, TableHead, TableRow, TableCell, TableBody, CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack, Star, SportsCricket,
@@ -13,48 +13,7 @@ import { teamApi } from '../../api/teamApi';
 import { Match, MatchSide, Player, Team } from '../../types';
 import { printTeamSheet } from '../../utils/printTeamSheet';
 import TeamsheetTemplatesDialog from '../../components/match/TeamsheetTemplatesDialog';
-
-// ── Role icon helpers (UI) ─────────────────────────────────────────────────
-
-const WKGloves: React.FC = () => (
-  <Tooltip title="Wicket Keeper">
-    <Typography component="span" sx={{ fontSize: '1rem', lineHeight: 1, cursor: 'default' }}>🧤</Typography>
-  </Tooltip>
-);
-
-const BallIcon: React.FC = () => (
-  <Tooltip title="Bowler">
-    <Box component="span" sx={{
-      display: 'inline-block', width: 14, height: 14, borderRadius: '50%',
-      bgcolor: '#c0392b', border: '1px solid #922b21', verticalAlign: 'middle', mx: 0.3,
-    }} />
-  </Tooltip>
-);
-
-const BatIcon: React.FC = () => (
-  <Tooltip title="Batsman">
-    <SportsCricket sx={{ fontSize: 16, color: 'text.secondary', verticalAlign: 'middle', mx: 0.3 }} />
-  </Tooltip>
-);
-
-function getRoleIcons(player: Player, battingPosition: number, isWK: boolean): React.ReactNode[] {
-  const icons: React.ReactNode[] = [];
-  const isBowler = player.bowlingType && player.bowlingType !== 'NONE' && !player.partTimeBowler;
-  const showBat = player.battingPosition !== 'LOWER_ORDER' || battingPosition <= 7;
-  if (isWK) {
-    if (showBat) icons.push(<BatIcon key="bat" />);
-    icons.push(<WKGloves key="wk" />);
-  } else if (isBowler) {
-    if (showBat) icons.push(<BatIcon key="bat" />);
-    icons.push(<BallIcon key="ball" />);
-  } else {
-    if (showBat) icons.push(<BatIcon key="bat" />);
-  }
-  return icons;
-}
-
-// ── Text builders ──────────────────────────────────────────────────────────
-
+import { PlayerRoleIcons } from '../../components/player/PlayerRoleIcons';
 
 // ──────────────────────────────────────────────────────────────────────────
 
@@ -201,8 +160,8 @@ export const MatchTeamSheet: React.FC = () => {
             <>
               <Box sx={{ display: 'flex', gap: 2, mb: 1, flexWrap: 'wrap', '@media print': { display: 'none' } }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Typography sx={{ fontSize: '1rem' }}>🧤</Typography>
-                  <Typography variant="caption" color="text.secondary">Wicket Keeper</Typography>
+                  <SportsCricket sx={{ fontSize: 14, color: 'text.secondary' }} />
+                  <Typography variant="caption" color="text.secondary">Batsman</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#c0392b', border: '1px solid #922b21' }} />
@@ -210,7 +169,12 @@ export const MatchTeamSheet: React.FC = () => {
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <SportsCricket sx={{ fontSize: 14, color: 'text.secondary' }} />
-                  <Typography variant="caption" color="text.secondary">Batsman</Typography>
+                  <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: '#c0392b', border: '1px solid #922b21' }} />
+                  <Typography variant="caption" color="text.secondary">All-Rounder</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography sx={{ fontSize: '1rem' }}>🧤</Typography>
+                  <Typography variant="caption" color="text.secondary">Wicket Keeper</Typography>
                 </Box>
               </Box>
 
@@ -240,11 +204,9 @@ export const MatchTeamSheet: React.FC = () => {
                   {xi.map((p, idx) => {
                     const isCaptain = p.playerId === captain?.playerId;
                     const isWK = p.playerId === side?.wicketKeeperPlayerId;
-                    const battingPosition = idx + 1;
-                    const roleIcons = getRoleIcons(p, battingPosition, isWK);
                     return (
                       <TableRow key={p.playerId}>
-                        <TableCell>{battingPosition}</TableCell>
+                        <TableCell>{idx + 1}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {p.name} {p.surname}
@@ -257,7 +219,7 @@ export const MatchTeamSheet: React.FC = () => {
                         </TableCell>
                         <TableCell>{p.shirtNumber ?? '—'}</TableCell>
                         <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>{roleIcons}</Box>
+                          <PlayerRoleIcons player={p} side={side} isWK={isWK} />
                         </TableCell>
                       </TableRow>
                     );

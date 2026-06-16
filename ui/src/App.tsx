@@ -48,6 +48,9 @@ import { ManageTeamTournaments } from './pages/manage/ManageTeamTournaments';
 import { TeamAvailabilityOverview } from './pages/manage/TeamAvailabilityOverview';
 import { TeamRotationOverview } from './pages/manage/TeamRotationOverview';
 import { TeamSelectionOverview } from './pages/manage/TeamSelectionOverview';
+import { TeamSquadOverview } from './pages/manage/TeamSquadOverview';
+import { PlayerStatsOverview } from './pages/manage/PlayerStatsOverview';
+import { TeamStatsHub } from './pages/manage/TeamStatsHub';
 import { TournamentView } from './pages/view/TournamentView';
 import { TournamentStandings } from './pages/view/TournamentStandings';
 import { TournamentResults } from './pages/view/TournamentResults';
@@ -57,6 +60,7 @@ import { TournamentSchedule } from './pages/view/TournamentSchedule';
 import { MyProfile } from './pages/MyProfile';
 import { MyWallet } from './pages/MyWallet';
 import { MySchedule } from './pages/MySchedule';
+import { MyPlayerStats } from './pages/MyPlayerStats';
 import { GameSchedule } from './pages/GameSchedule';
 import { GameResults } from './pages/GameResults';
 
@@ -82,7 +86,10 @@ const LandingRoute: React.FC = () => {
 const HomeLandingRoute: React.FC = () => <LandingPage />;
 
 const ProtectedLayout: React.FC = () => {
-  if (!keycloak.authenticated) return <Navigate to="/" replace />;
+  if (!keycloak.authenticated) {
+    keycloak.login({ redirectUri: window.location.href });
+    return null;
+  }
   return <AppLayout />;
 };
 
@@ -123,6 +130,7 @@ function ThemedApp() {
           <Route path="/" element={<LandingRoute />} />
           <Route path="tournament/:id" element={<PublicTournamentPage />} />
           <Route path="tournaments/:tournamentId/schedule" element={<TournamentSchedule />} />
+          <Route path="matches/scorecards" element={<Scorecards />} />
           <Route element={<ProtectedLayout />}>
             <Route path="home" element={<HomeLandingRoute />} />
             <Route path="matches/upcoming" element={<UpcomingMatches />} />
@@ -130,6 +138,7 @@ function ThemedApp() {
             <Route path="my-payments" element={<Navigate to="/my-wallet" replace />} />
             <Route path="my-wallet" element={<MyWallet />} />
             <Route path="my-schedule" element={<MySchedule />} />
+            <Route path="my-stats" element={<MyPlayerStats />} />
             <Route path="game-schedule" element={<GameSchedule />} />
             <Route path="game-results" element={<GameResults />} />
 
@@ -143,7 +152,11 @@ function ThemedApp() {
             <Route path="manage-club/team-tournaments" element={<ManagerRoute element={<ManageTeamTournaments />} />} />
             <Route path="manage-club/team-availability" element={<ManagerRoute element={<TeamAvailabilityOverview />} />} />
             <Route path="manage-club/team-selection" element={<ManagerRoute element={<TeamSelectionOverview />} />} />
+            <Route path="manage-club/team-squad" element={<ManagerRoute element={<TeamSquadOverview />} />} />
+            <Route path="manage-club/stats" element={<ManagerRoute element={<TeamStatsHub />} />} />
+            {/* Legacy routes — keep so existing deep links don't break */}
             <Route path="manage-club/team-rotation" element={<ManagerRoute element={<TeamRotationOverview />} />} />
+            <Route path="manage-club/player-stats" element={<ManagerRoute element={<PlayerStatsOverview />} />} />
 
             {/* Admin routes */}
             <Route path="admin/clubs" element={<ManagerRoute element={<Clubs />} />} />
@@ -176,7 +189,6 @@ function ThemedApp() {
             {/* View routes (all authenticated users) */}
             <Route path="matches/live" element={<LiveMatches />} />
             <Route path="matches/previous" element={<PreviousMatches />} />
-            <Route path="matches/scorecards" element={<Scorecards />} />
             <Route path="player/statistics" element={<PlayerStatistics />} />
             <Route path="matches/:matchId/teamsheet" element={<MatchTeamSheet />} />
             <Route path="poll/:matchId/:teamId" element={<MatchAvailabilityPoll />} />

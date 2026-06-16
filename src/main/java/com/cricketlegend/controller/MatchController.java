@@ -3,6 +3,9 @@ package com.cricketlegend.controller;
 import com.cricketlegend.dto.AiTeamPickDTO;
 import com.cricketlegend.dto.MatchAnalysisDTO;
 import com.cricketlegend.dto.MatchDTO;
+import com.cricketlegend.dto.MatchSummaryDTO;
+import com.cricketlegend.dto.PlayerDTO;
+import com.cricketlegend.dto.ScorecardImageImportResponse;
 import com.cricketlegend.dto.XiAnalysisDTO;
 import com.cricketlegend.dto.MatchResultDTO;
 import com.cricketlegend.dto.MatchResultSummaryDTO;
@@ -10,7 +13,10 @@ import com.cricketlegend.dto.MatchSideDTO;
 import com.cricketlegend.service.MatchAnalysisService;
 import com.cricketlegend.service.MatchService;
 import com.cricketlegend.service.MatchSideService;
+import com.cricketlegend.service.MatchSummaryService;
 import com.cricketlegend.service.AiTeamPickService;
+import com.cricketlegend.service.ScorecardImageParseService;
+import com.cricketlegend.service.TeamService;
 import com.cricketlegend.service.XiAnalysisService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,7 +27,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -33,8 +41,11 @@ public class MatchController {
     private final MatchService matchService;
     private final MatchSideService matchSideService;
     private final MatchAnalysisService matchAnalysisService;
+    private final MatchSummaryService matchSummaryService;
     private final XiAnalysisService xiAnalysisService;
     private final AiTeamPickService aiTeamPickService;
+    private final TeamService teamService;
+    private final ScorecardImageParseService scorecardImageParseService;
 
     @GetMapping
     @Operation(summary = "Get all matches")
@@ -128,6 +139,14 @@ public class MatchController {
         return ResponseEntity.ok(matchAnalysisService.analyze(id, teamId, regenerate));
     }
 
+    @GetMapping("/{id}/summary")
+    @Operation(summary = "Generate AI-powered objective match summary for both teams")
+    public ResponseEntity<MatchSummaryDTO> getSummary(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean regenerate) {
+        return ResponseEntity.ok(matchSummaryService.summarize(id, regenerate));
+    }
+
     @GetMapping("/{id}/teamsheet/pick")
     @Operation(summary = "Generate AI-recommended playing XI with batting order")
     public ResponseEntity<AiTeamPickDTO> getAiTeamPick(
@@ -166,5 +185,42 @@ public class MatchController {
     public ResponseEntity<MatchSideDTO> saveTeamSheet(@PathVariable Long id, @RequestBody MatchSideDTO dto) {
         dto.setMatchId(id);
         return ResponseEntity.ok(matchSideService.save(dto));
+    }
+
+    @PostMapping(value = "/{id}/scorecard/import-from-images", consumes = "multipart/form-data")
+    @PreAuthorize("hasRole('admin') or hasRole('manager')")
+    @Operation(summary = "Parse scorecard images with AI and return structured scorecard + player match results")
+    public ResponseEntity<ScorecardImageImportResponse> importScorecardFromImages(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long firstBattingTeamId,
+            @RequestParam(required = false) MultipartFile teamABatting,
+            @RequestParam(required = false) MultipartFile teamABowling,
+            @RequestParam(required = false) MultipartFile teamBBatting,
+            @RequestParam(required = false) MultipartFile teamBBowling) throws IOException {
+
+        MatchDTO match = matchService.findById(id);
+
+        // Determine which team batted first. Default to home team if not specified.
+        Long firstId  = firstBattingTeamId != null ? firstBattingTeamId : match.getHomeTeamId();
+        boolean homeFirst = firstId != null && firstId.equals(match.getHomeTeamId());
+
+        String teamAName   = homeFirst ? match.getHomeTeamName()       : match.getOppositionTeamName();
+        String teamBName   = homeFirst ? match.getOppositionTeamName() : match.getHomeTeamName();
+        Long   teamAId     = homeFirst ? match.getHomeTeamId()         : match.getOppositionTeamId();
+        Long   teamBId     = homeFirst ? match.getOppositionTeamId()   : match.getHomeTeamId();
+
+        if (teamAName == null) teamAName = "Team A";
+        if (teamBName == null) teamBName = "Team B";
+
+        List<PlayerDTO> teamASquad = teamAId != null ? teamService.getSquad(teamAId) : List.of();
+        List<PlayerDTO> teamBSquad = teamBId != null ? teamService.getSquad(teamBId) : List.of();
+
+        ScorecardImageImportResponse response = scorecardImageParseService.parse(
+                teamAName, teamBName,
+                teamASquad, teamBSquad,
+                teamABatting, teamABowling,
+                teamBBatting, teamBBowling);
+
+        return ResponseEntity.ok(response);
     }
 }

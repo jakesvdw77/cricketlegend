@@ -5,7 +5,7 @@ import { Refresh } from '@mui/icons-material';
 interface Props {
   generatedAt: string;
   regenerating: boolean;
-  onRegenerate: () => void;
+  onRegenerate?: () => void;
 }
 
 function formatGeneratedAt(iso: string): string {
@@ -24,7 +24,7 @@ export const AnalysisCacheBanner: React.FC<Props> = ({ generatedAt, regenerating
   <Alert
     severity="info"
     sx={{ mb: 2, alignItems: 'center' }}
-    action={
+    action={onRegenerate ? (
       <Button
         size="small"
         color="inherit"
@@ -34,7 +34,7 @@ export const AnalysisCacheBanner: React.FC<Props> = ({ generatedAt, regenerating
       >
         {regenerating ? 'Regenerating…' : 'Regenerate'}
       </Button>
-    }
+    ) : undefined}
   >
     <Box component="span">
       Generated {formatGeneratedAt(generatedAt)} — if squad or match data has changed, this report may be outdated.

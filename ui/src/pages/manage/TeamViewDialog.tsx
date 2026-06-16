@@ -6,6 +6,7 @@ import {
   Chip,
   CircularProgress,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -33,12 +34,17 @@ import {
   LocationOn,
   Warning,
 } from '@mui/icons-material';
-import { AvailabilityStatus, MatchSide, Player } from '../../types';
+
+import { AvailabilityStatus, Club, MatchSide, Player } from '../../types';
+import { PlayerRoleIcons } from '../../components/player/PlayerRoleIcons';
 import { pollApi } from '../../api/pollApi';
 import { matchApi } from '../../api/matchApi';
+import { playerApi } from '../../api/playerApi';
+import { clubApi } from '../../api/clubApi';
 import { TeamSidePanel } from '../../components/match/TeamSidePanel';
 import { AiTeamPickView } from '../../components/match/AiTeamPickView';
 import { MatchAnalysisTab } from '../../components/match/MatchAnalysisTab';
+import { PlayerEditForm } from '../../components/player/PlayerEditForm';
 import { XiEntry } from './TeamSelectionOverview';
 
 const fmtDate = (d?: string) => {
@@ -66,6 +72,7 @@ interface Props {
   onClose: () => void;
   entry: XiEntry | null;
   squadMap: Map<number, Player[]>;
+  initialEditing?: boolean;
   onEntryChange?: (updated: XiEntry) => void;
 }
 
@@ -85,24 +92,33 @@ const AvailIcon: React.FC<{ status?: AvailabilityStatus }> = ({ status }) => {
 };
 
 export const TeamViewDialog: React.FC<Props> = ({
-  open, onClose, entry, squadMap, onEntryChange,
+  open, onClose, entry, squadMap, initialEditing, onEntryChange,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [isEditing, setIsEditing] = useState(false);
   const [aiPickOpen, setAiPickOpen] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [announceConfirmOpen, setAnnounceConfirmOpen] = useState(false);
+  const [editAnnounceConfirmOpen, setEditAnnounceConfirmOpen] = useState(false);
+  const [announcing, setAnnouncing] = useState(false);
   const [localEntry, setLocalEntry] = useState<XiEntry | null>(entry);
   const [availMap, setAvailMap] = useState<Record<number, AvailabilityStatus>>({});
   const [loading, setLoading] = useState(false);
 
+  // Player info dialog
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [playerLoading, setPlayerLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     setLocalEntry(entry);
-    setIsEditing(false);
+    setIsEditing(initialEditing ?? false);
     setAiPickOpen(false);
     setAnalysisOpen(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry?.match.matchId, entry?.teamId]);
+  }, [entry?.match.matchId, entry?.teamId, initialEditing]);
 
   useEffect(() => {
     if (!open || !entry) return;
@@ -116,6 +132,31 @@ export const TeamViewDialog: React.FC<Props> = ({
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [open, entry]);
+
+  useEffect(() => {
+    clubApi.findAll().then(setClubs).catch(() => {});
+  }, []);
+
+  const openPlayerDialog = (e: React.MouseEvent, playerId: number) => {
+    e.stopPropagation();
+    setPlayerLoading(true);
+    setSelectedPlayer(null);
+    playerApi.findById(playerId)
+      .then(setSelectedPlayer)
+      .catch(() => {})
+      .finally(() => setPlayerLoading(false));
+  };
+
+  const handlePlayerSave = async () => {
+    if (!selectedPlayer?.playerId) return;
+    setSaving(true);
+    try {
+      await playerApi.update(selectedPlayer.playerId, selectedPlayer);
+      setSelectedPlayer(null);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSideChange = (side: MatchSide) => {
     if (!localEntry) return;
@@ -131,6 +172,40 @@ export const TeamViewDialog: React.FC<Props> = ({
     };
     setLocalEntry(updated);
     onEntryChange?.(updated);
+  };
+
+  const handleAnnounce = async () => {
+    if (!localEntry) return;
+    setAnnouncing(true);
+    try {
+      const updated = await matchApi.saveTeamSheet(localEntry.match.matchId!, {
+        ...(localEntry.side ?? {}),
+        matchId: localEntry.match.matchId!,
+        teamId: localEntry.teamId,
+        teamAnnounced: true,
+      } as MatchSide);
+      handleSideChange(updated);
+    } finally {
+      setAnnouncing(false);
+      setAnnounceConfirmOpen(false);
+    }
+  };
+
+  const handleUnannounce = async () => {
+    if (!localEntry) return;
+    setAnnouncing(true);
+    try {
+      const updated = await matchApi.saveTeamSheet(localEntry.match.matchId!, {
+        ...(localEntry.side ?? {}),
+        matchId: localEntry.match.matchId!,
+        teamId: localEntry.teamId,
+        teamAnnounced: false,
+      } as MatchSide);
+      handleSideChange(updated);
+    } finally {
+      setAnnouncing(false);
+      setEditAnnounceConfirmOpen(false);
+    }
   };
 
   if (!localEntry) return null;
@@ -285,16 +360,26 @@ export const TeamViewDialog: React.FC<Props> = ({
                       const isC = p.playerId === side?.captainPlayerId;
                       const isWK = p.playerId === side?.wicketKeeperPlayerId;
                       return (
-                        <ListItem key={p.playerId} disablePadding sx={{ py: 0.4, alignItems: 'center' }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 28, flexShrink: 0 }}>
+                        <ListItem
+                          key={p.playerId}
+                          disablePadding
+                          onClick={e => openPlayerDialog(e, p.playerId!)}
+                          sx={{
+                            py: 0.4, alignItems: 'center', cursor: 'pointer', borderRadius: 1,
+                            '&:hover': { bgcolor: 'action.hover' },
+                            '&:hover .player-name': { textDecoration: 'underline' },
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 28, flexShrink: 0, pl: 0.5 }}>
                             {idx + 1}.
                           </Typography>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography variant="body1" sx={{ lineHeight: 1.3 }}>
-                              {p.name} {p.surname}
-                              {isC ? ' 👑' : ''}
-                              {isWK ? ' 🧤' : ''}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography className="player-name" variant="body1" color="primary" sx={{ lineHeight: 1.3 }}>
+                                {p.name} {p.surname}
+                              </Typography>
+                              <PlayerRoleIcons player={p} side={side} isCaptain={isC} isWK={isWK} />
+                            </Box>
                             <Typography variant="caption" color="text.secondary">
                               {[
                                 p.battingStance?.replace(/_/g, ' '),
@@ -308,11 +393,19 @@ export const TeamViewDialog: React.FC<Props> = ({
                     {twelfthPlayer && (
                       <>
                         <Divider sx={{ my: 1 }} />
-                        <ListItem disablePadding sx={{ py: 0.4, alignItems: 'center' }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 28, flexShrink: 0 }}>
+                        <ListItem
+                          disablePadding
+                          onClick={e => openPlayerDialog(e, twelfthPlayer.playerId!)}
+                          sx={{
+                            py: 0.4, alignItems: 'center', cursor: 'pointer', borderRadius: 1,
+                            '&:hover': { bgcolor: 'action.hover' },
+                            '&:hover .player-name': { textDecoration: 'underline' },
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary" sx={{ minWidth: 28, flexShrink: 0, pl: 0.5 }}>
                             SS
                           </Typography>
-                          <Typography variant="body1" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                          <Typography className="player-name" variant="body1" color="primary" sx={{ fontStyle: 'italic' }}>
                             {twelfthPlayer.name} {twelfthPlayer.surname}
                           </Typography>
                         </ListItem>
@@ -342,18 +435,31 @@ export const TeamViewDialog: React.FC<Props> = ({
                     {notSelected.map(p => {
                       const status = availMap[p.playerId!];
                       return (
-                        <ListItem key={p.playerId} disablePadding sx={{ py: 0.4, gap: 1, alignItems: 'flex-start' }}>
+                        <ListItem
+                          key={p.playerId}
+                          disablePadding
+                          onClick={e => openPlayerDialog(e, p.playerId!)}
+                          sx={{
+                            py: 0.4, gap: 1, alignItems: 'flex-start', cursor: 'pointer', borderRadius: 1,
+                            '&:hover': { bgcolor: 'action.hover' },
+                            '&:hover .player-name': { textDecoration: 'underline' },
+                          }}
+                        >
                           <Box sx={{ pt: 0.3 }}>
                             <AvailIcon status={status} />
                           </Box>
                           <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography
-                              variant="body1"
-                              sx={{ lineHeight: 1.3, color: status === 'NO' ? 'text.disabled' : 'text.primary' }}
-                            >
-                              {p.name} {p.surname}
-                              {p.wicketKeeper ? ' 🧤' : ''}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography
+                                className="player-name"
+                                variant="body1"
+                                color={status === 'NO' ? 'text.disabled' : 'primary'}
+                                sx={{ lineHeight: 1.3 }}
+                              >
+                                {p.name} {p.surname}
+                              </Typography>
+                              <PlayerRoleIcons player={p} side={null} isWK={p.wicketKeeper} size="small" />
+                            </Box>
                             <Typography variant="caption" color="text.secondary">
                               {[
                                 p.battingStance?.replace(/_/g, ' '),
@@ -374,9 +480,9 @@ export const TeamViewDialog: React.FC<Props> = ({
               </Box>
             </Box>
 
-            {/* Edit CTA at bottom when XI not set */}
-            {players.length === 0 && (
-              <Box sx={{ p: 3, pt: 0 }}>
+            {/* CTA buttons at bottom of view mode */}
+            <Box sx={{ p: 3, pt: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {players.length === 0 && (
                 <Button
                   variant="contained"
                   startIcon={<Edit />}
@@ -385,8 +491,30 @@ export const TeamViewDialog: React.FC<Props> = ({
                 >
                   Select {teamName} XI
                 </Button>
-              </Box>
-            )}
+              )}
+              {players.length > 0 && !announced && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<Campaign />}
+                  onClick={() => setAnnounceConfirmOpen(true)}
+                  fullWidth
+                >
+                  Announce {teamName} Team
+                </Button>
+              )}
+              {announced && (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  startIcon={<Warning />}
+                  onClick={() => setEditAnnounceConfirmOpen(true)}
+                  fullWidth
+                >
+                  Edit Announced Team
+                </Button>
+              )}
+            </Box>
           </Box>
         )}
 
@@ -476,6 +604,76 @@ export const TeamViewDialog: React.FC<Props> = ({
             }}
           />
         </DialogContent>
+      </Dialog>
+
+      {/* Announce confirmation dialog */}
+      <Dialog open={announceConfirmOpen} onClose={() => setAnnounceConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Announce {teamName}</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to announce the {teamName} team? All selected players will receive a notification and this cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAnnounceConfirmOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="success" onClick={handleAnnounce} disabled={announcing}>
+            {announcing ? 'Announcing…' : 'Confirm & Announce'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit announced team confirmation dialog */}
+      <Dialog open={editAnnounceConfirmOpen} onClose={() => setEditAnnounceConfirmOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Warning color="warning" /> Edit Announced Team
+        </DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>This team has already been announced and players may have been notified.</Typography>
+          <Typography variant="body2" color="text.secondary">
+            If you re-announce after making changes, players added will be notified and removed players' notifications will be withdrawn.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditAnnounceConfirmOpen(false)}>Cancel</Button>
+          <Button variant="contained" color="warning" onClick={handleUnannounce} disabled={announcing}>
+            {announcing ? 'Updating…' : 'Edit Team'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Player info dialog */}
+      <Dialog
+        open={playerLoading || !!selectedPlayer}
+        onClose={() => setSelectedPlayer(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        {playerLoading ? (
+          <DialogContent sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress />
+          </DialogContent>
+        ) : selectedPlayer && (
+          <>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button startIcon={<ArrowBack />} onClick={() => setSelectedPlayer(null)} sx={{ mr: 1 }} />
+              {selectedPlayer.name} {selectedPlayer.surname}
+            </DialogTitle>
+            <DialogContent dividers>
+              <PlayerEditForm
+                editing={selectedPlayer}
+                onChange={patch => setSelectedPlayer(p => p ? { ...p, ...patch } : p)}
+                clubs={clubs}
+                readOnlyConsent
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setSelectedPlayer(null)}>Cancel</Button>
+              <Button variant="contained" onClick={handlePlayerSave} disabled={saving}>
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
     </Dialog>
   );

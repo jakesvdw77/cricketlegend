@@ -153,6 +153,8 @@ public class XiAnalysisService {
                 - Rate the XI across 5 dimensions out of 10
                 - For unavailable numeric fields use JSON null — NEVER a string like "N/A"
                 - Return ONLY valid JSON — no markdown, no explanations, no code fences
+                - NEVER invent or assume any facts not present in the data — no locations, cities, countries, nicknames, team histories, or context of any kind
+                - Refer to teams only by the names provided; do not add descriptors like city names or regional labels
 
                 You MUST return exactly this JSON schema:
                 {

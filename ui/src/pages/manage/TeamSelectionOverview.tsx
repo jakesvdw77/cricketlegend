@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Alert, Card, CardActionArea, CardContent,
   Chip, Avatar, Divider, Tooltip, IconButton, Button, TextField, MenuItem,
@@ -7,8 +7,8 @@ import {
   Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
 } from '@mui/material';
 import {
-  Groups, CalendarMonth, AccessTime, LocationOn, EmojiEvents, Share, CompareArrows, ArrowBack,
-  CheckCircle, Remove, Person, Cancel, QueryStats,
+  Groups, Share, CompareArrows, ArrowBack,
+  Campaign, CheckCircle, Edit, Remove, Person, Cancel, QueryStats,
 } from '@mui/icons-material';
 
 import { MatchSharePanel } from '../../components/match/MatchSharePanel';
@@ -17,12 +17,14 @@ import { WeekendComparisonDialog } from './WeekendComparisonDialog';
 import { TeamViewDialog } from './TeamViewDialog';
 import { TeamStatsDialog } from './TeamStatsDialog';
 import { GamePickerDialog } from './GamePickerDialog';
+import { PlayerStatsDialog } from './PlayerStatsDialog';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
 import { playerApi } from '../../api/playerApi';
 import { clubApi } from '../../api/clubApi';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
 import { Club, Match, MatchSide, Player } from '../../types';
+import { PlayerRoleIcons } from '../../components/player/PlayerRoleIcons';
 
 export interface XiEntry {
   match: Match;
@@ -82,15 +84,14 @@ const STAGE_LABELS: Record<string, string> = {
 // ── Player badge: avatar + short name + role indicator ────────────────────────
 const PlayerBadge: React.FC<{
   player: Player;
+  side?: MatchSide | null;
   isCaptain: boolean;
   isWK: boolean;
   isTwelfth: boolean;
   onClick?: (e: React.MouseEvent) => void;
-}> = ({ player, isCaptain, isWK, isTwelfth, onClick }) => {
+}> = ({ player, side, isCaptain, isWK, isTwelfth, onClick }) => {
   const fullName = `${player.name} ${player.surname}`;
   const shortName = `${player.name} ${player.surname.charAt(0)}.`;
-  const badge = isCaptain ? 'C' : isWK ? 'WK' : null;
-  const badgeColor = isCaptain ? '#1565c0' : '#6a1b9a';
 
   return (
     <Tooltip title={`${fullName}${isCaptain ? ' (C)' : ''}${isWK ? ' (WK)' : ''}${isTwelfth ? ' — 12th Man' : ''}`}>
@@ -110,16 +111,16 @@ const PlayerBadge: React.FC<{
           >
             {player.name.charAt(0)}
           </Avatar>
-          {badge && (
+          {(isCaptain || isWK) && (
             <Box
               sx={{
                 position: 'absolute', bottom: -3, right: -3,
-                bgcolor: badgeColor, color: '#fff',
+                bgcolor: isCaptain ? '#1565c0' : '#6a1b9a', color: '#fff',
                 borderRadius: 1, px: 0.4, lineHeight: 1.4,
                 fontSize: '0.55rem', fontWeight: 'bold',
               }}
             >
-              {badge}
+              {isCaptain ? 'C' : 'WK'}
             </Box>
           )}
         </Box>
@@ -134,6 +135,9 @@ const PlayerBadge: React.FC<{
         >
           {shortName}
         </Typography>
+        {!isTwelfth && (
+          <PlayerRoleIcons player={player} side={side} isWK={isWK} size="small" />
+        )}
       </Box>
     </Tooltip>
   );
@@ -142,7 +146,6 @@ const PlayerBadge: React.FC<{
 // ── Main component ────────────────────────────────────────────────────────────
 
 export const TeamSelectionOverview: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { teamIds: managerTeamIds, restrictByTeam, homeClubId, loaded: teamsLoaded } = useManagerTeams();
   const [entries, setEntries]       = useState<XiEntry[]>([]);
@@ -152,6 +155,7 @@ export const TeamSelectionOverview: React.FC = () => {
   const [clubs, setClubs]           = useState<Club[]>([]);
   const [loading, setLoading]       = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [statsPlayer, setStatsPlayer]       = useState<Player | null>(null);
   const [playerLoading, setPlayerLoading]   = useState(false);
   const [saving, setSaving]                 = useState(false);
   const [shareEntry, setShareEntry] = useState<{ match: Match; teamId: number } | null>(null);
@@ -159,6 +163,7 @@ export const TeamSelectionOverview: React.FC = () => {
   const [compareEntries, setCompareEntries] = useState<XiEntry[] | null>(null);
   const [pickerOpen, setPickerOpen]         = useState(false);
   const [viewEntry, setViewEntry]           = useState<XiEntry | null>(null);
+  const [openInEditMode, setOpenInEditMode] = useState(false);
   const [activeTab, setActiveTab]           = useState<number>((location.state as any)?.returnToTab ?? 0);
 
   const openPlayerDialog = (e: React.MouseEvent, playerId: number) => {
@@ -450,42 +455,57 @@ export const TeamSelectionOverview: React.FC = () => {
                         borderLeftWidth: 4,
                         borderLeftColor: borderColor,
                         borderRadius: 1,
+                        position: 'relative',
                       }}
                     >
+                      {/* Action buttons — outside CardActionArea to avoid nested <button> */}
+                      <Box sx={{ position: 'absolute', top: 6, right: 6, display: 'flex', alignItems: 'center', gap: 0.25, zIndex: 1 }}>
+                        {match.tournamentId && (
+                          <Tooltip title="Team stats">
+                            <IconButton size="small" onClick={e => { e.stopPropagation(); setStatsEntry({ match, teamId, teamName }); }} sx={{ color: 'text.secondary' }}>
+                              <QueryStats sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Share match">
+                          <IconButton size="small" onClick={e => { e.stopPropagation(); setShareEntry({ match, teamId }); }} sx={{ color: 'text.secondary' }}>
+                            <Share sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit team">
+                          <IconButton
+                            size="small"
+                            onClick={e => { e.stopPropagation(); setOpenInEditMode(true); setViewEntry(entry); }}
+                            sx={{ color: 'text.secondary' }}
+                          >
+                            <Edit sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+
                       <CardActionArea
-                        onClick={() => setViewEntry(entry)}
+                        onClick={() => { setOpenInEditMode(false); setViewEntry(entry); }}
                         sx={{ height: '100%', alignItems: 'flex-start' }}
                       >
-                        <CardContent sx={{ pb: '12px !important' }}>
+                        <CardContent sx={{ pt: '36px !important', pb: '8px !important' }}>
                           {/* Title row */}
                           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1, mb: 0.5 }}>
                             <Typography variant="subtitle1" fontWeight="bold" noWrap sx={{ flex: 1, minWidth: 0 }}>
                               {match.homeTeamName ?? '—'} vs {match.oppositionTeamName ?? '—'}
                             </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, flexShrink: 0 }}>
-                              <Typography variant="caption" fontWeight="medium" sx={{ color: statusColor }}>
-                                {statusLabel}
-                              </Typography>
-                              {match.tournamentId && (
-                                <Tooltip title="Team stats">
-                                  <IconButton
-                                    size="small"
-                                    onClick={e => { e.stopPropagation(); setStatsEntry({ match, teamId, teamName }); }}
-                                    sx={{ color: 'text.secondary', ml: 0.25 }}
-                                  >
-                                    <QueryStats sx={{ fontSize: 16 }} />
-                                  </IconButton>
-                                </Tooltip>
+                            <Box sx={{ flexShrink: 0 }}>
+                              {announced ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+                                  <Campaign sx={{ fontSize: 14, color: 'success.main' }} />
+                                  <Typography variant="caption" fontWeight="medium" sx={{ color: 'success.main' }}>
+                                    Announced
+                                  </Typography>
+                                </Box>
+                              ) : (
+                                <Typography variant="caption" fontWeight="medium" sx={{ color: statusColor }}>
+                                  {statusLabel}
+                                </Typography>
                               )}
-                              <Tooltip title="Share match">
-                                <IconButton
-                                  size="small"
-                                  onClick={e => { e.stopPropagation(); setShareEntry({ match, teamId }); }}
-                                  sx={{ color: 'text.secondary', ml: 0.25 }}
-                                >
-                                  <Share sx={{ fontSize: 16 }} />
-                                </IconButton>
-                              </Tooltip>
                             </Box>
                           </Box>
 
@@ -509,6 +529,7 @@ export const TeamSelectionOverview: React.FC = () => {
                                 <PlayerBadge
                                   key={p.playerId}
                                   player={p}
+                                  side={side}
                                   isCaptain={p.playerId === captainPlayerId}
                                   isWK={p.playerId === wicketKeeperPlayerId}
                                   isTwelfth={p.playerId === twelfthId}
@@ -521,6 +542,7 @@ export const TeamSelectionOverview: React.FC = () => {
                                   <PlayerBadge
                                     key={twelfthId}
                                     player={twelfth}
+                                    side={side}
                                     isCaptain={false}
                                     isWK={false}
                                     isTwelfth
@@ -691,8 +713,9 @@ export const TeamSelectionOverview: React.FC = () => {
 
       <TeamViewDialog
         open={viewEntry !== null}
-        onClose={() => setViewEntry(null)}
+        onClose={() => { setViewEntry(null); setOpenInEditMode(false); }}
         entry={viewEntry}
+        initialEditing={openInEditMode}
         squadMap={squadMap}
         onEntryChange={updated => {
           setEntries(prev => prev.map(e =>
@@ -706,6 +729,15 @@ export const TeamSelectionOverview: React.FC = () => {
         onClose={() => setCompareEntries(null)}
         entries={compareEntries ?? []}
         squadMap={squadMap}
+        onEntryChange={updated => {
+          setEntries(prev => prev.map(e =>
+            e.match.matchId === updated.match.matchId && e.teamId === updated.teamId ? updated : e
+          ));
+          setCompareEntries(prev => prev
+            ? prev.map(e => e.match.matchId === updated.match.matchId && e.teamId === updated.teamId ? updated : e)
+            : prev
+          );
+        }}
       />
 
       <MatchSharePanel
@@ -731,9 +763,7 @@ export const TeamSelectionOverview: React.FC = () => {
         ) : selectedPlayer && (
           <>
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Button startIcon={<ArrowBack />} onClick={() => setSelectedPlayer(null)} sx={{ mr: 1 }}>
-                Back
-              </Button>
+              <Button startIcon={<ArrowBack />} onClick={() => setSelectedPlayer(null)} sx={{ mr: 1 }} />
               {selectedPlayer.name} {selectedPlayer.surname}
             </DialogTitle>
             <DialogContent dividers>
@@ -746,6 +776,11 @@ export const TeamSelectionOverview: React.FC = () => {
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setSelectedPlayer(null)}>Cancel</Button>
+              {selectedPlayer.playerId && (
+                <Button onClick={() => { setStatsPlayer(selectedPlayer); setSelectedPlayer(null); }}>
+                  Stats
+                </Button>
+              )}
               <Button variant="contained" onClick={handleSave} disabled={saving}>
                 {saving ? 'Saving…' : 'Save'}
               </Button>
@@ -753,6 +788,12 @@ export const TeamSelectionOverview: React.FC = () => {
           </>
         )}
       </Dialog>
+
+      <PlayerStatsDialog
+        open={!!statsPlayer}
+        player={statsPlayer}
+        onClose={() => setStatsPlayer(null)}
+      />
     </Box>
   );
 };

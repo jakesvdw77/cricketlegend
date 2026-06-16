@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import {
   PictureAsPdf, WhatsApp, Print, Image as ImageIcon,
-  Fullscreen, FullscreenExit, Download,
+  Fullscreen, FullscreenExit, Download, Close,
 } from '@mui/icons-material';
 import { Match, MatchSide, MatchPoll, Player } from '../../types';
 import { matchApi } from '../../api/matchApi';
@@ -14,18 +14,20 @@ import { playerApi } from '../../api/playerApi';
 import { pollApi } from '../../api/pollApi';
 import PollWhatsAppDialog from '../../pages/admin/PollWhatsAppDialog';
 import { generateMatchPdf, generateTeamsheetPdf } from '../../utils/matchPdf';
-import { generatePlayingXiImage, generatePlayingXiBattingOrderImage, generateMatchCountdownImage } from '../../utils/teamsheetImage';
+import { generatePlayingXiImage, generatePlayingXiBattingOrderImage, generatePlayingXiBattingOrderPlainImage, generateMatchCountdownImage } from '../../utils/teamsheetImage';
 import { PdfPreviewDialog } from '../PdfPreviewDialog';
 import TeamsheetTemplatesDialog from './TeamsheetTemplatesDialog';
+import PlayingXiPlayerTemplate from '../../pages/admin/templates/PlayingXiPlayerTemplate';
 
 // ── Sub-dialogs ───────────────────────────────────────────────────────────────
 
 const XiTemplateDialog: React.FC<{
   open: boolean; loading: boolean;
   onClose: () => void; onPhotoGrid: () => void; onBattingOrder: () => void;
-}> = ({ open, loading, onClose, onPhotoGrid, onBattingOrder }) => (
+  onBattingOrderPlain: () => void; onPlayerPhoto: () => void;
+}> = ({ open, loading, onClose, onPhotoGrid, onBattingOrder, onBattingOrderPlain, onPlayerPhoto }) => (
   <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-    <DialogTitle>Playing XI — Choose Template</DialogTitle>
+    <DialogTitle>Match Day Squad — Choose Template</DialogTitle>
     <DialogContent sx={{ p: 0 }}>
       <List disablePadding>
         <ListItemButton onClick={onPhotoGrid} disabled={loading}>
@@ -35,6 +37,14 @@ const XiTemplateDialog: React.FC<{
         <ListItemButton onClick={onBattingOrder} disabled={loading}>
           <ListItemIcon>{loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}</ListItemIcon>
           <ListItemText primary="Batting Order" secondary="Numbered list with bat / ball / gloves role icons" />
+        </ListItemButton>
+        <ListItemButton onClick={onBattingOrderPlain} disabled={loading}>
+          <ListItemIcon>{loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}</ListItemIcon>
+          <ListItemText primary="Batting Order — Plain" secondary="Numbered list, names only, no role icons" />
+        </ListItemButton>
+        <ListItemButton onClick={onPlayerPhoto} disabled={loading}>
+          <ListItemIcon>{loading ? <CircularProgress size={22} /> : <ImageIcon color="secondary" />}</ListItemIcon>
+          <ListItemText primary="Match Day Squad" secondary="Featured player photo alongside the full squad list" />
         </ListItemButton>
       </List>
     </DialogContent>
@@ -91,8 +101,9 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, poll: pr
   const [whatsAppData, setWhatsAppData] = useState<SidesAndPlayers & { match: Match } | null>(null);
   const [xiTemplateOpen, setXiTemplateOpen] = useState(false);
   const [xiTemplateData, setXiTemplateData] = useState<SidesAndPlayers & { match: Match } | null>(null);
+  const [xiPlayerTemplateOpen, setXiPlayerTemplateOpen] = useState(false);
   const [snackbar, setSnackbar] = useState('');
-  const [pollWhatsApp, setPollWhatsApp] = useState<{ match: Match; poll: MatchPoll } | null>(null);
+  const [pollWhatsApp, setPollWhatsApp] = useState<{ match: Match; poll: MatchPoll; variant: 'open' | 'closed' } | null>(null);
 
   const effectiveTeamId = teamId ?? match.homeTeamId;
 
@@ -136,25 +147,23 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, poll: pr
     finally { setLoading(false); }
   };
 
-  const handlePollWhatsApp = async () => {
-    // Use preloaded poll if available (e.g. from availability card)
+  const handlePollWhatsApp = async (variant: 'open' | 'closed') => {
     if (preloadedPoll) {
       onClose();
-      setPollWhatsApp({ match, poll: preloadedPoll });
+      setPollWhatsApp({ match, poll: preloadedPoll, variant });
       return;
     }
     setLoading(true);
     try {
-      // Try effectiveTeamId first, then fall back to the other team
       const teamIds = [...new Set([effectiveTeamId, match.homeTeamId, match.oppositionTeamId].filter(Boolean) as number[])];
       let found: MatchPoll | null = null;
       for (const tid of teamIds) {
         const p = await pollApi.getPoll(match.matchId!, tid).catch(() => null);
-        if (p?.open) { found = p; break; }
+        if (p) { found = p; break; }
       }
-      if (!found) { setSnackbar('No open poll found for this match.'); return; }
+      if (!found) { setSnackbar('No poll found for this match.'); return; }
       onClose();
-      setPollWhatsApp({ match, poll: found });
+      setPollWhatsApp({ match, poll: found, variant });
     } catch {
       setSnackbar('Could not load poll data.');
     } finally {
@@ -165,23 +174,37 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, poll: pr
   const handleXiPhotoGrid = async () => {
     if (!xiTemplateData) return;
     setLoading(true);
-    try { const url = await generatePlayingXiImage(xiTemplateData.match, xiTemplateData.sides, xiTemplateData.players, effectiveTeamId); setXiTemplateOpen(false); setImageTitle('Playing XI'); setImageUrl(url); }
-    catch { setSnackbar('Could not generate Playing XI image.'); }
+    try { const url = await generatePlayingXiImage(xiTemplateData.match, xiTemplateData.sides, xiTemplateData.players, effectiveTeamId); setXiTemplateOpen(false); setImageTitle('Match Day Squad'); setImageUrl(url); }
+    catch { setSnackbar('Could not generate Match Day Squad image.'); }
     finally { setLoading(false); }
   };
 
   const handleXiBattingOrder = async () => {
     if (!xiTemplateData) return;
     setLoading(true);
-    try { const url = await generatePlayingXiBattingOrderImage(xiTemplateData.match, xiTemplateData.sides, xiTemplateData.players, effectiveTeamId); setXiTemplateOpen(false); setImageTitle('Playing XI — Batting Order'); setImageUrl(url); }
+    try { const url = await generatePlayingXiBattingOrderImage(xiTemplateData.match, xiTemplateData.sides, xiTemplateData.players, effectiveTeamId); setXiTemplateOpen(false); setImageTitle('Match Day Squad — Batting Order'); setImageUrl(url); }
     catch { setSnackbar('Could not generate batting order image.'); }
     finally { setLoading(false); }
   };
 
+  const handleXiBattingOrderPlain = async () => {
+    if (!xiTemplateData) return;
+    setLoading(true);
+    try { const url = await generatePlayingXiBattingOrderPlainImage(xiTemplateData.match, xiTemplateData.sides, xiTemplateData.players, effectiveTeamId); setXiTemplateOpen(false); setImageTitle('Match Day Squad — Batting Order Plain'); setImageUrl(url); }
+    catch { setSnackbar('Could not generate batting order plain image.'); }
+    finally { setLoading(false); }
+  };
+
+  const handleXiPlayerPhoto = () => {
+    setXiTemplateOpen(false);
+    setXiPlayerTemplateOpen(true);
+  };
+
   const imageFilename =
     imageTitle === 'Match Countdown' ? 'match-countdown.png' :
-    imageTitle === 'Playing XI — Batting Order' ? 'playing-xi-batting.png' :
-    'playing-xi.png';
+    imageTitle === 'Match Day Squad — Batting Order' ? 'match-day-squad-batting.png' :
+    imageTitle === 'Match Day Squad — Batting Order Plain' ? 'match-day-squad-batting-plain.png' :
+    'match-day-squad.png';
 
   return (
     <>
@@ -203,15 +226,25 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, poll: pr
             </ListItemButton>
             <ListItemButton onClick={handleImage} disabled={loading}>
               <ListItemIcon>{loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}</ListItemIcon>
-              <ListItemText primary="Playing XI Image" secondary="Shareable graphic with player photos" />
+              <ListItemText primary="Match Day Squad" secondary="Shareable graphic with player photos" />
             </ListItemButton>
             <ListItemButton onClick={handleCountdown} disabled={loading}>
               <ListItemIcon>{loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}</ListItemIcon>
               <ListItemText primary="Match Countdown Image" secondary="Countdown graphic with both team logos" />
             </ListItemButton>
-            <ListItemButton onClick={handlePollWhatsApp} disabled={loading}>
-              <ListItemIcon><WhatsApp sx={{ color: '#25D366' }} /></ListItemIcon>
-              <ListItemText primary="WhatsApp Availability Poll" secondary="Share poll link with match details" />
+            <ListItemButton
+              onClick={() => handlePollWhatsApp('open')}
+              disabled={loading || (preloadedPoll != null && !preloadedPoll.open)}
+            >
+              <ListItemIcon><WhatsApp sx={{ color: (preloadedPoll == null || preloadedPoll.open) ? '#25D366' : undefined }} /></ListItemIcon>
+              <ListItemText primary="WhatsApp – Poll Open" secondary="Share poll link to collect availability" />
+            </ListItemButton>
+            <ListItemButton
+              onClick={() => handlePollWhatsApp('closed')}
+              disabled={loading || (preloadedPoll != null && preloadedPoll.open)}
+            >
+              <ListItemIcon><WhatsApp sx={{ color: (preloadedPoll == null || !preloadedPoll.open) ? '#25D366' : undefined }} /></ListItemIcon>
+              <ListItemText primary="WhatsApp – Poll Closed" secondary="Notify players that the poll has closed" />
             </ListItemButton>
           </List>
         </DialogContent>
@@ -222,7 +255,31 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, poll: pr
         open={xiTemplateOpen} loading={loading}
         onClose={() => { setXiTemplateOpen(false); setXiTemplateData(null); }}
         onPhotoGrid={handleXiPhotoGrid} onBattingOrder={handleXiBattingOrder}
+        onBattingOrderPlain={handleXiBattingOrderPlain} onPlayerPhoto={handleXiPlayerPhoto}
       />
+
+      {xiTemplateData && (
+        <Dialog
+          open={xiPlayerTemplateOpen}
+          onClose={() => { setXiPlayerTemplateOpen(false); setXiTemplateData(null); }}
+          fullScreen
+        >
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pr: 1 }}>
+            Match Day Squad
+            <IconButton size="small" onClick={() => { setXiPlayerTemplateOpen(false); setXiTemplateData(null); }}>
+              <Close />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent>
+            <PlayingXiPlayerTemplate
+              match={xiTemplateData.match}
+              sides={xiTemplateData.sides}
+              players={xiTemplateData.players}
+              effectiveTeamId={effectiveTeamId ?? 0}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       {whatsAppData && (
         <TeamsheetTemplatesDialog
@@ -241,6 +298,7 @@ export const MatchSharePanel: React.FC<Props> = ({ open, match, teamId, poll: pr
           onClose={() => setPollWhatsApp(null)}
           match={pollWhatsApp.match}
           poll={pollWhatsApp.poll}
+          variant={pollWhatsApp.variant}
         />
       )}
 

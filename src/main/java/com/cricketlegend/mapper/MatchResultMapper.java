@@ -8,6 +8,8 @@ import org.mapstruct.Mapping;
 @Mapper
 public interface MatchResultMapper {
     @Mapping(source = "match.matchId", target = "matchId")
+    @Mapping(source = "match.tossWonBy", target = "tossWonBy")
+    @Mapping(source = "match.tossDecision", target = "tossDecision")
     @Mapping(source = "winningTeam.teamId", target = "winningTeamId")
     @Mapping(source = "winningTeam.teamName", target = "winningTeamName")
     @Mapping(source = "manOfTheMatch.playerId", target = "manOfTheMatchId")

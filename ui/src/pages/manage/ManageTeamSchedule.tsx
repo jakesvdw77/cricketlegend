@@ -20,9 +20,10 @@ import { mediaApi } from '../../api/mediaApi';
 import { useManagerTeams } from '../../hooks/useManagerTeams';
 import { Match, MatchSide, Player, Team, Tournament, MediaContent } from '../../types';
 import { generateMatchPdf, generateTournamentSchedulePdf, generateTeamsheetPdf, generateTournamentTablePdf, generateSquadPdf } from '../../utils/matchPdf';
-import { generatePlayingXiImage, generatePlayingXiBattingOrderImage, generateMatchScheduleImage, generateSquadImage, generateSquadNamesImage, generateMatchCountdownImage, generateTournamentCountdownImage, generatePlayingXiWithPhotoImage } from '../../utils/teamsheetImage';
+import { generatePlayingXiImage, generatePlayingXiBattingOrderImage, generateSquadImage, generateSquadNamesImage, generateMatchCountdownImage, generateTournamentCountdownImage, generatePlayingXiWithPhotoImage } from '../../utils/teamsheetImage';
 import { PdfPreviewDialog } from '../../components/PdfPreviewDialog';
 import TeamsheetTemplatesDialog from '../../components/match/TeamsheetTemplatesDialog';
+import { SchedulePickerDialog } from '../../components/SchedulePickerDialog';
 
 const STAGE_LABELS: Record<string, string> = {
   FRIENDLY: 'Friendly', POOL: 'Pool', PLAYOFFS: 'Playoffs',
@@ -205,7 +206,7 @@ const PlayingXiTemplateDialog: React.FC<{
   onWithPhoto: () => void;
 }> = ({ open, loading, onClose, onPhotoGrid, onBattingOrder, onWithPhoto }) => (
   <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-    <DialogTitle>Playing XI — Choose Template</DialogTitle>
+    <DialogTitle>Match Day Squad — Choose Template</DialogTitle>
     <DialogContent sx={{ p: 0 }}>
       <List disablePadding>
         <ListItemButton onClick={onPhotoGrid} disabled={loading}>
@@ -224,7 +225,7 @@ const PlayingXiTemplateDialog: React.FC<{
           <ListItemIcon>
             {loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}
           </ListItemIcon>
-          <ListItemText primary="Playing XI with Feature Photo" secondary="Pick a photo from the gallery — shown on the left with player list on the right" />
+          <ListItemText primary="Match Day Squad" secondary="Pick a photo from the gallery — shown on the left with player list on the right" />
         </ListItemButton>
       </List>
     </DialogContent>
@@ -333,129 +334,7 @@ const TournamentShareDialog: React.FC<TournamentShareDialogProps> = ({
   </Dialog>
 );
 
-// ── Tournament schedule image — day picker dialog ─────────────────────────────
 
-interface SchedImageDialogProps {
-  group: TournamentGroup | null;
-  teamName?: string;
-  onClose: () => void;
-  onGenerated: (url: string) => void;
-}
-
-const TournamentScheduleImageDialog: React.FC<SchedImageDialogProps> = ({ group, teamName: selectedTeamName, onClose, onGenerated }) => {
-  const [allMatches, setAllMatches]       = useState<Match[]>([]);
-  const [tournament, setTournament]       = useState<Tournament | null>(null);
-  const [loading, setLoading]             = useState(false);
-  const [generating, setGenerating]       = useState(false);
-  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
-  const [showVenue, setShowVenue]         = useState(true);
-
-  useEffect(() => {
-    if (!group) return;
-    setLoading(true);
-    setSelectedDates(new Set());
-    Promise.all([
-      group.tournamentId
-        ? matchApi.findByTournament(group.tournamentId)
-        : Promise.resolve(group.matches),
-      group.tournamentId
-        ? tournamentApi.findById(group.tournamentId).catch(() => null)
-        : Promise.resolve(null),
-    ]).then(([ms, t]) => {
-      setAllMatches([...ms].sort((a, b) => {
-        const d = (a.matchDate ?? '').localeCompare(b.matchDate ?? '');
-        return d !== 0 ? d : (a.scheduledStartTime ?? '').localeCompare(b.scheduledStartTime ?? '');
-      }));
-      setTournament(t);
-    }).finally(() => setLoading(false));
-  }, [group?.tournamentId]);
-
-  const uniqueDates = [...new Set(allMatches.map(m => m.matchDate ?? 'TBD'))].sort();
-
-  const toggleDate = (d: string) =>
-    setSelectedDates(prev => { const n = new Set(prev); n.has(d) ? n.delete(d) : n.add(d); return n; });
-
-  const allSelected = uniqueDates.length > 0 && uniqueDates.every(d => selectedDates.has(d));
-  const toggleAll   = () => setSelectedDates(allSelected ? new Set() : new Set(uniqueDates));
-
-  const fmtChip = (d: string) => d === 'TBD' ? 'Date TBD'
-    : new Date(d + 'T00:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' });
-
-  const handleGenerate = async () => {
-    if (!group) return;
-    setGenerating(true);
-    try {
-      const filtered = allMatches.filter(m => selectedDates.has(m.matchDate ?? 'TBD'));
-      const url = await generateMatchScheduleImage(group.tournamentName, tournament?.logoUrl, filtered, showVenue, selectedTeamName);
-      onClose();
-      onGenerated(url);
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  return (
-    <Dialog open={!!group} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{selectedTeamName ? 'Team Match Schedule Image' : 'Tournament Match Schedule Image'}</DialogTitle>
-      <DialogContent>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress /></Box>
-        ) : (
-          <>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Select the days to include in the image.
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {uniqueDates.length > 1 && (
-                <Chip
-                  label={allSelected ? 'Deselect All' : 'Select All'}
-                  onClick={toggleAll}
-                  color={allSelected ? 'primary' : 'default'}
-                  variant={allSelected ? 'filled' : 'outlined'}
-                  sx={{ fontWeight: 'bold' }}
-                />
-              )}
-              {uniqueDates.map(date => {
-                const count = allMatches.filter(m => (m.matchDate ?? 'TBD') === date).length;
-                const sel   = selectedDates.has(date);
-                return (
-                  <Chip
-                    key={date}
-                    label={`${fmtChip(date)} (${count})`}
-                    onClick={() => toggleDate(date)}
-                    color={sel ? 'primary' : 'default'}
-                    variant={sel ? 'filled' : 'outlined'}
-                  />
-                );
-              })}
-              {uniqueDates.length === 0 && (
-                <Typography variant="body2" color="text.secondary">No matches found.</Typography>
-              )}
-            </Box>
-            {uniqueDates.length > 0 && (
-              <FormControlLabel
-                sx={{ mt: 2 }}
-                control={<Switch checked={showVenue} onChange={e => setShowVenue(e.target.checked)} />}
-                label="Show venue"
-              />
-            )}
-          </>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          variant="contained"
-          disabled={selectedDates.size === 0 || generating || loading}
-          onClick={handleGenerate}
-          startIcon={generating ? <CircularProgress size={16} /> : <ImageIcon />}
-        >
-          {generating ? 'Generating…' : 'Generate Image'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
 
 // ── Match share dialog ────────────────────────────────────────────────────────
 // (WhatsApp, Print Team Sheet, PDF fixture card, Playing XI Image)
@@ -497,7 +376,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ open, title, loading, onClose
           <ListItemIcon>
             {loading ? <CircularProgress size={22} /> : <ImageIcon color="primary" />}
           </ListItemIcon>
-          <ListItemText primary="Playing XI Image" secondary="Shareable graphic with player photos" />
+          <ListItemText primary="Match Day Squad" secondary="Shareable graphic with player photos" />
         </ListItemButton>
         <ListItemButton onClick={onCountdownImage} disabled={loading}>
           <ListItemIcon>
@@ -656,8 +535,7 @@ export const ManageTeamSchedule: React.FC = () => {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [matchTarget, setMatchTarget] = useState<Match | null>(null);
   const [tournamentTarget, setTournamentTarget] = useState<TournamentGroup | null>(null);
-  const [schedImageTarget, setSchedImageTarget] = useState<TournamentGroup | null>(null);
-  const [schedTournImageTarget, setSchedTournImageTarget] = useState<TournamentGroup | null>(null);
+  const [schedPicker, setSchedPicker] = useState<{ tournamentId: number | null; tournamentName: string; preTeamId?: number | null; preTeamName?: string } | null>(null);
   const [squadImgTemplateOpen, setSquadImgTemplateOpen] = useState(false);
   const [squadImgContext, setSquadImgContext] = useState<{ team: Team; squad: Player[]; tournament: Tournament | null } | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
@@ -771,10 +649,10 @@ export const ManageTeamSchedule: React.FC = () => {
         selectedTeamId !== '' ? selectedTeamId : undefined,
       );
       setXiTemplateOpen(false);
-      setImageTitle('Playing XI');
+      setImageTitle('Match Day Squad');
       setImageUrl(url);
     } catch {
-      setSnackbar({ open: true, message: 'Could not generate Playing XI image.' });
+      setSnackbar({ open: true, message: 'Could not generate Match Day Squad image.' });
     } finally {
       setShareLoading(false);
     }
@@ -789,7 +667,7 @@ export const ManageTeamSchedule: React.FC = () => {
         selectedTeamId !== '' ? selectedTeamId : undefined,
       );
       setXiTemplateOpen(false);
-      setImageTitle('Playing XI — Batting Order');
+      setImageTitle('Match Day Squad — Batting Order');
       setImageUrl(url);
     } catch {
       setSnackbar({ open: true, message: 'Could not generate batting order image.' });
@@ -814,10 +692,10 @@ export const ManageTeamSchedule: React.FC = () => {
         selectedTeamId !== '' ? selectedTeamId as number : undefined,
       );
       setXiTemplateData(null);
-      setImageTitle('Playing XI with Photo');
+      setImageTitle('Match Day Squad');
       setImageUrl(url);
     } catch {
-      setSnackbar({ open: true, message: 'Could not generate Playing XI image.' });
+      setSnackbar({ open: true, message: 'Could not generate Match Day Squad image.' });
     } finally {
       setShareLoading(false);
     }
@@ -863,12 +741,22 @@ export const ManageTeamSchedule: React.FC = () => {
   };
 
   const handleTournamentImage = () => {
-    setSchedImageTarget(tournamentTarget);
+    if (!tournamentTarget) return;
+    setSchedPicker({
+      tournamentId: tournamentTarget.tournamentId,
+      tournamentName: tournamentTarget.tournamentName,
+      preTeamId: selectedTeamId !== '' ? selectedTeamId as number : undefined,
+      preTeamName: selectedTeam?.teamName,
+    });
     setTournamentTarget(null);
   };
 
   const handleTournamentImageFull = () => {
-    setSchedTournImageTarget(tournamentTarget);
+    if (!tournamentTarget) return;
+    setSchedPicker({
+      tournamentId: tournamentTarget.tournamentId,
+      tournamentName: tournamentTarget.tournamentName,
+    });
     setTournamentTarget(null);
   };
 
@@ -990,9 +878,7 @@ export const ManageTeamSchedule: React.FC = () => {
     <Box sx={{ pb: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
         {returnTo && (
-          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ flexShrink: 0 }}>
-            Back
-          </Button>
+          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ flexShrink: 0 }} />
         )}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
           <Assignment color="primary" sx={{ flexShrink: 0 }} />
@@ -1101,19 +987,11 @@ export const ManageTeamSchedule: React.FC = () => {
         onCountdownImage={handleTournamentCountdownImage}
       />
 
-      {/* Team day picker → team match schedule image */}
-      <TournamentScheduleImageDialog
-        group={schedImageTarget}
-        teamName={selectedTeam?.teamName}
-        onClose={() => setSchedImageTarget(null)}
-        onGenerated={url => { setImageTitle('Match Schedule'); setImageUrl(url); }}
-      />
-
-      {/* Tournament day picker → full tournament schedule image (no team filter) */}
-      <TournamentScheduleImageDialog
-        group={schedTournImageTarget}
-        onClose={() => setSchedTournImageTarget(null)}
-        onGenerated={url => { setImageTitle('Tournament Schedule'); setImageUrl(url); }}
+      <SchedulePickerDialog
+        tournament={schedPicker ? { tournamentId: schedPicker.tournamentId ?? undefined, name: schedPicker.tournamentName } as Tournament : null}
+        preSelectTeamId={schedPicker?.preTeamId}
+        preSelectTeamName={schedPicker?.preTeamName}
+        onClose={() => setSchedPicker(null)}
       />
 
       {/* Squad image template picker */}
@@ -1164,9 +1042,10 @@ export const ManageTeamSchedule: React.FC = () => {
           imageTitle === 'Tournament Schedule' ? 'tournament-schedule.png' :
           imageTitle === 'Match Countdown'     ? 'match-countdown.png'     :
           imageTitle === 'Tournament Countdown'? 'tournament-countdown.png':
-          imageTitle === 'Playing XI with Photo'? 'playing-xi-photo.png'  :
-          imageTitle === 'Squad'               ? 'squad.png'              :
-          'playing-xi.png'
+          imageTitle === 'Match Day Squad'         ? 'match-day-squad.png'       :
+          imageTitle === 'Match Day Squad — Batting Order' ? 'match-day-squad-batting.png' :
+          imageTitle === 'Squad'                   ? 'squad.png'                 :
+          'match-day-squad.png'
         }
         onClose={() => setImageUrl(null)}
       />

@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  AppBar, Avatar, Box, Button, Chip, CircularProgress, Container, Divider,
-  Grid, IconButton, Skeleton, Tab, Tabs, Tooltip, Typography, useMediaQuery, useTheme,
+  AppBar, Avatar, Box, Button, Card, CardContent, Chip, CircularProgress, Container, Dialog,
+  DialogContent, DialogTitle, Divider,
+  Grid, IconButton, Skeleton, Stack, Tab, Tabs, Tooltip, Typography, useMediaQuery, useTheme,
 } from '@mui/material';
 import {
-  AppRegistration, ArrowBack, Article, CalendarMonth, CheckCircle, EmojiEvents,
+  AppRegistration, ArrowBack, Article, Assessment, CalendarMonth, CheckCircle, Close, EmojiEvents,
   Facebook, FiberManualRecord, GridView, Groups, Instagram, LightMode, DarkMode,
-  Login, OpenInNew, SportsCricket, TableRows, YouTube,
+  Login, OpenInNew, Psychology, SportsScore, SportsCricket, TableRows, YouTube,
 } from '@mui/icons-material';
+import { GameAnalysisView } from '../components/match/GameAnalysisView';
 import { TournamentScheduleTab } from '../components/admin/TournamentScheduleTab';
 import { MatchScheduleVisual } from '../components/admin/MatchScheduleVisual';
 import { useColorMode } from '../context/ColorModeContext';
@@ -28,6 +30,44 @@ import keycloak from '../keycloak';
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
+
+const fmtDateShort = (d?: string) => {
+  if (!d) return '—';
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const fmtTime = (t?: string) => (t ? t.substring(0, 5) : null);
+
+const weekStartOf = (dateStr: string): string => {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().slice(0, 10);
+};
+
+const weekLabelOf = (ws: string) => {
+  const d = new Date(ws + 'T00:00:00');
+  return 'Week of ' + d.toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+interface TournamentResultWeekGroup { weekStart: string; label: string; matches: Match[] }
+
+function groupResultsByWeek(matches: Match[]): TournamentResultWeekGroup[] {
+  const map = new Map<string, TournamentResultWeekGroup>();
+  for (const m of matches) {
+    const ws = m.matchDate ? weekStartOf(m.matchDate) : '0000-01-01';
+    if (!map.has(ws)) map.set(ws, { weekStart: ws, label: weekLabelOf(ws), matches: [] });
+    map.get(ws)!.matches.push(m);
+  }
+  for (const g of map.values()) {
+    g.matches.sort((a, b) => {
+      const ka = `${a.matchDate ?? ''}T${a.scheduledStartTime ?? ''}`;
+      const kb = `${b.matchDate ?? ''}T${b.scheduledStartTime ?? ''}`;
+      return kb.localeCompare(ka);
+    });
+  }
+  return [...map.values()].sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+}
 
 function isTournamentLive(t: Tournament): boolean {
   const today = todayStr();
@@ -58,6 +98,7 @@ export const PublicTournamentPage: React.FC = () => {
   const [summaryMatch, setSummaryMatch] = useState<Match | null>(null);
   const [summaryView, setSummaryView] = useState<'whatsapp' | 'facebook'>('whatsapp');
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [analysisMatch, setAnalysisMatch] = useState<Match | null>(null);
 
   const openSummary = (matchId: number, view: 'whatsapp' | 'facebook') => {
     setSummaryView(view);
@@ -146,7 +187,7 @@ export const PublicTournamentPage: React.FC = () => {
     { label: 'Overview',  show: true },
     { label: 'Schedule', show: true },
     { label: 'Standings', show: hasStandings || loadingStandings },
-    { label: 'Results',   show: false },
+    { label: 'Results',   show: results.length > 0 || loadingMatches },
     { label: 'Teams',     show: hasTeams },
     { label: 'Media',     show: hasMedia },
     { label: 'Social',    show: !!(tournament?.facebookLink || tournament?.instagramLink || tournament?.youtubeLink || tournament?.websiteLink) },
@@ -606,6 +647,148 @@ export const PublicTournamentPage: React.FC = () => {
           </Box>
         )}
 
+        {/* ── Results ───────────────────────────────────────────────────── */}
+        {tabs[tab]?.label === 'Results' && (() => {
+          const completedMatches = matches.filter(m =>
+            m.matchCompleted || m.forfeited || m.noResult || m.matchDrawn,
+          );
+          const groups = groupResultsByWeek(completedMatches);
+
+          if (loadingMatches) {
+            return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}><CircularProgress /></Box>;
+          }
+
+          if (groups.length === 0) {
+            return (
+              <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
+                <SportsScore sx={{ fontSize: 56, mb: 1, opacity: 0.3 }} />
+                <Typography variant="body1">No completed results yet.</Typography>
+              </Box>
+            );
+          }
+
+          return (
+            <Box sx={{ pb: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <SportsScore color="primary" sx={{ flexShrink: 0 }} />
+                <Typography variant="h6" fontWeight={700}>Results</Typography>
+                <Chip label={`${completedMatches.length} match${completedMatches.length !== 1 ? 'es' : ''}`} size="small" variant="outlined" />
+              </Box>
+
+              {groups.map(group => (
+                <Box key={group.weekStart} sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Divider sx={{ flex: 1 }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', fontWeight: 600 }}>
+                      {group.label}
+                    </Typography>
+                    <Divider sx={{ flex: 1 }} />
+                  </Box>
+
+                  {group.matches.map(m => {
+                    const r = resultMap.get(m.matchId!);
+                    const homeWon = r?.winningTeamName === m.homeTeamName;
+                    const awayWon = r?.winningTeamName === m.oppositionTeamName;
+                    const borderColor = m.matchCompleted
+                      ? (homeWon || awayWon ? 'success.main' : 'grey.400')
+                      : m.forfeited || m.noResult || m.matchDrawn ? 'grey.400' : 'divider';
+
+                    const metaParts = [
+                      fmtDateShort(m.matchDate),
+                      fmtTime(m.scheduledStartTime),
+                      m.fieldName,
+                      m.matchStage ? (STAGE_LABEL[m.matchStage] ?? m.matchStage) : null,
+                    ].filter(Boolean).join(' · ');
+
+                    return (
+                      <Card
+                        key={m.matchId}
+                        variant="outlined"
+                        onClick={() => m.matchId && navigate(`/matches/scorecards?matchId=${m.matchId}`)}
+                        sx={{
+                          mb: 1, cursor: m.matchId ? 'pointer' : 'default',
+                          borderLeftWidth: 4, borderLeftColor: borderColor,
+                          '&:hover': m.matchId ? { borderTopColor: 'primary.main', borderRightColor: 'primary.main', borderBottomColor: 'primary.main' } : {},
+                        }}
+                      >
+                        <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
+                          {/* Teams row */}
+                          <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+                            <Stack direction="row" alignItems="center" spacing={0.75} sx={{ minWidth: 0 }}>
+                              <Avatar src={m.homeTeamLogoUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 11 }}>
+                                {m.homeTeamName?.charAt(0)}
+                              </Avatar>
+                              <Typography variant="body2" fontWeight="bold" noWrap>
+                                {m.homeTeamAbbreviation ?? m.homeTeamName ?? '—'}
+                              </Typography>
+                              <Typography variant="caption" color="text.disabled">vs</Typography>
+                              <Avatar src={m.oppositionTeamLogoUrl ?? undefined} sx={{ width: 22, height: 22, fontSize: 11 }}>
+                                {m.oppositionTeamName?.charAt(0)}
+                              </Avatar>
+                              <Typography variant="body2" fontWeight="bold" noWrap>
+                                {m.oppositionTeamAbbreviation ?? m.oppositionTeamName ?? '—'}
+                              </Typography>
+                            </Stack>
+                            <Stack direction="row" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
+                              {m.matchCompleted && r?.winningTeamName && (
+                                <Chip
+                                  icon={<EmojiEvents sx={{ fontSize: '13px !important' }} />}
+                                  label={m.homeTeamAbbreviation && r.winningTeamName === m.homeTeamName
+                                    ? m.homeTeamAbbreviation
+                                    : m.oppositionTeamAbbreviation && r.winningTeamName === m.oppositionTeamName
+                                      ? m.oppositionTeamAbbreviation
+                                      : r.winningTeamName}
+                                  size="small"
+                                  color="success"
+                                />
+                              )}
+                              {m.matchDrawn && <Chip label="Draw" size="small" color="default" />}
+                              {m.noResult && <Chip label="No Result" size="small" variant="outlined" />}
+                              {m.forfeited && <Chip label="Forfeited" size="small" color="warning" />}
+                              {m.matchId && (
+                                <IconButton
+                                  size="small"
+                                  onClick={e => { e.stopPropagation(); setAnalysisMatch(m); }}
+                                  sx={{ color: 'text.secondary' }}
+                                  title="AI match analysis"
+                                >
+                                  <Psychology sx={{ fontSize: 16 }} />
+                                </IconButton>
+                              )}
+                            </Stack>
+                          </Stack>
+
+                          {/* Outcome description */}
+                          {m.matchOutcomeDescription && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              {m.matchOutcomeDescription}
+                            </Typography>
+                          )}
+
+                          {/* Meta */}
+                          <Typography variant="caption" color="text.disabled" noWrap sx={{ display: 'block', mt: 0.5 }}>
+                            {metaParts}
+                          </Typography>
+
+                          {/* Tap hint */}
+                          {m.matchId && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 1, pt: 0.75, borderTop: '1px dashed', borderColor: 'divider' }}>
+                              <Assessment sx={{ fontSize: 13, color: 'primary.main', opacity: 0.7 }} />
+                              <Typography variant="caption" sx={{ color: 'primary.main', opacity: 0.7, fontWeight: 500, letterSpacing: 0.2 }}>
+                                Tap for full Match Details
+                              </Typography>
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </Box>
+              ))}
+            </Box>
+          );
+        })()}
+
         {/* ── Teams ─────────────────────────────────────────────────────── */}
         {tabs[tab]?.label === 'Teams' && (
           <Box>
@@ -722,6 +905,36 @@ export const PublicTournamentPage: React.FC = () => {
 
       </Container>
       )}
+
+      {/* AI Analysis dialog — read-only, no generation */}
+      <Dialog
+        open={!!analysisMatch}
+        onClose={() => setAnalysisMatch(null)}
+        fullScreen
+        PaperProps={{ sx: { display: 'flex', flexDirection: 'column' } }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5, flexShrink: 0, gap: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="h6" noWrap>
+              {analysisMatch ? `${analysisMatch.homeTeamName} vs ${analysisMatch.oppositionTeamName}` : ''}
+            </Typography>
+            <Chip icon={<Psychology fontSize="small" />} label="Game Analysis" size="small" color="primary" variant="outlined" />
+          </Box>
+          <IconButton size="small" onClick={() => setAnalysisMatch(null)}><Close /></IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+          {analysisMatch && (
+            <GameAnalysisView
+              matchId={analysisMatch.matchId!}
+              teamId={analysisMatch.homeTeamId!}
+              teamName={analysisMatch.homeTeamName ?? ''}
+              matchTitle={`${analysisMatch.homeTeamName ?? ''} vs ${analysisMatch.oppositionTeamName ?? ''}`}
+              readOnly
+              summaryOnly
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Fixed copyright bar */}
       <Box sx={{

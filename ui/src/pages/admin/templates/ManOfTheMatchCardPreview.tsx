@@ -10,6 +10,10 @@ export interface MotmCardProps {
   battingFigures: string;
   bowlingFigures: string;
   description: string;
+  photoOpacity?: number;
+  photoPositionX?: number;
+  photoPositionY?: number;
+  sponsorLogoUrls?: string[];
 }
 
 const ManOfTheMatchCardPreview: React.FC<MotmCardProps> = ({
@@ -17,6 +21,8 @@ const ManOfTheMatchCardPreview: React.FC<MotmCardProps> = ({
   homeTeam, awayTeam,
   tournamentName, tournamentLogoUrl,
   battingFigures, bowlingFigures, description,
+  photoOpacity = 100, photoPositionX = 50, photoPositionY = 0,
+  sponsorLogoUrls = [],
 }) => {
   const stats = [battingFigures, bowlingFigures].filter(Boolean).join('   |   ');
 
@@ -24,7 +30,7 @@ const ManOfTheMatchCardPreview: React.FC<MotmCardProps> = ({
     <div style={{
       fontFamily: "'Segoe UI', Arial, sans-serif",
       width: 600,
-      height: 600,
+      height: sponsorLogoUrls.length > 0 ? 650 : 600,
       backgroundColor: '#091509',
       borderRadius: 16,
       overflow: 'hidden',
@@ -135,17 +141,15 @@ const ManOfTheMatchCardPreview: React.FC<MotmCardProps> = ({
           backgroundColor: '#162616',
         }}>
           {playerPhotoUrl ? (
-            <img
-              src={playerPhotoUrl}
-              crossOrigin="anonymous"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'top center',
-                display: 'block',
-              }}
-            />
+            <div style={{
+              position: 'absolute',
+              top: 0, left: 0, right: 0, bottom: 0,
+              backgroundImage: `url(${playerPhotoUrl})`,
+              backgroundSize: 'auto 130%',
+              backgroundPosition: `${photoPositionX}% ${photoPositionY}%`,
+              backgroundRepeat: 'no-repeat',
+              opacity: photoOpacity / 100,
+            }} />
           ) : (
             <div style={{
               width: '100%', height: '100%',
@@ -214,6 +218,31 @@ const ManOfTheMatchCardPreview: React.FC<MotmCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Sponsor bar */}
+      {sponsorLogoUrls.length > 0 && (
+        <div style={{
+          height: 50,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 20,
+          padding: '0 16px',
+          backgroundColor: '#060e06',
+          borderTop: '1px solid rgba(74,222,128,0.18)',
+          boxSizing: 'border-box',
+        }}>
+          {sponsorLogoUrls.map((url, i) => (
+            <img
+              key={i}
+              src={url}
+              crossOrigin="anonymous"
+              style={{ height: 30, maxWidth: 90, objectFit: 'contain', opacity: 0.88 }}
+            />
+          ))}
+        </div>
+      )}
 
     </div>
   );

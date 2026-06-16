@@ -1,6 +1,8 @@
 package com.cricketlegend.dto;
 
 import com.cricketlegend.domain.enums.ResultVisibility;
+import com.cricketlegend.domain.enums.TossDecision;
+import com.cricketlegend.domain.enums.TossWinner;
 import com.cricketlegend.domain.scorecard.ScorecardData;
 import lombok.*;
 
@@ -18,6 +20,8 @@ public class MatchResultDTO {
     private String winningTeamName;
     private Long manOfTheMatchId;
     private String manOfTheMatchName;
+    private TossWinner tossWonBy;
+    private TossDecision tossDecision;
     private Long sideBattingFirstId;
     private String sideBattingFirstName;
     private Integer scoreBattingFirst;

@@ -31,6 +31,7 @@ public class SecurityConfig {
             "/api/v1/matches/tournament/*/results",
             "/api/v1/matches/*",
             "/api/v1/matches/*/result",
+            "/api/v1/matches/*/summary",
             "/api/v1/sponsors",
             "/api/v1/tournaments",
             "/api/v1/tournaments/*",

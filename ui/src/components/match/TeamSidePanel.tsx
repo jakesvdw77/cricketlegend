@@ -1,20 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Box, Typography, Autocomplete, TextField,
+  Box, Typography, Autocomplete, TextField, MenuItem,
   List, ListItem, ListItemText, IconButton, Chip, Divider,
   Button, Dialog, DialogTitle, DialogContent, DialogActions, Tooltip,
   CircularProgress, InputAdornment, Tabs, Tab, useTheme, useMediaQuery,
 } from '@mui/material';
 import {
   Cancel, CheckCircle, DragIndicator,
-  HelpOutline, PersonAdd, PersonRemove, Search, SportsCricket, Warning,
+  HelpOutline, PersonAdd, PersonRemove, Search, Warning,
   ArrowUpward, ArrowDownward,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
 import { pollApi } from '../../api/pollApi';
-import { AvailabilityStatus, MatchSide, Player } from '../../types';
+import { AvailabilityStatus, MatchPlayerRole, MatchSide, Player } from '../../types';
 import { formatEnum } from '../../utils/formatEnum';
+import { getEffectiveRole, ROLE_LABELS, ROLE_OPTIONS } from '../../utils/matchRole';
+import { PlayerRoleIcons } from '../player/PlayerRoleIcons';
 
 interface Props {
   matchId: number;
@@ -90,9 +92,16 @@ export const TeamSidePanel: React.FC<Props> = ({
     onSideChange?.(next);
     try {
       const saved = await matchApi.saveTeamSheet(matchId, next);
-      setSide(saved);
-      latestSide.current = saved;
-      onSideChange?.(saved);
+      // Keep playerRoles from the request if the server doesn't echo them back
+      const merged: MatchSide = {
+        ...saved,
+        playerRoles: (saved.playerRoles && Object.keys(saved.playerRoles).length > 0)
+          ? saved.playerRoles
+          : next.playerRoles,
+      };
+      setSide(merged);
+      latestSide.current = merged;
+      onSideChange?.(merged);
     } catch {
       setSide(prev);
       latestSide.current = prev;
@@ -142,6 +151,13 @@ export const TeamSidePanel: React.FC<Props> = ({
     if (idx >= newXi.length - 1) return;
     [newXi[idx], newXi[idx + 1]] = [newXi[idx + 1], newXi[idx]];
     persist({ ...latestSide.current, playingXi: newXi });
+  };
+
+  const setPlayerRole = (playerId: number, role: MatchPlayerRole) => {
+    persist({
+      ...latestSide.current,
+      playerRoles: { ...(latestSide.current.playerRoles ?? {}), [playerId]: role },
+    });
   };
 
   // Desktop drag handlers
@@ -265,17 +281,21 @@ export const TeamSidePanel: React.FC<Props> = ({
       p.bowlingType && p.bowlingType !== 'NONE' ? formatEnum(p.bowlingType) : '',
     ].filter(Boolean).join(' · ');
 
-  const playerBadges = (p: Player, isCaptain?: boolean, isWK?: boolean) => (
-    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-      {isCaptain && <Typography component="span" sx={{ fontSize: '0.85rem' }}>👑</Typography>}
-      {(isWK ?? p.wicketKeeper) && <Typography component="span" sx={{ fontSize: '0.85rem' }}>🧤</Typography>}
-      {p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler && (
-        <Box component="span" sx={{
-          display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-          bgcolor: '#c0392b', border: '1px solid #922b21', flexShrink: 0,
-        }} />
-      )}
-    </Box>
+  const roleSelector = (p: Player) => (
+    <TextField
+      select
+      size="small"
+      value={getEffectiveRole(p, side)}
+      onChange={e => setPlayerRole(p.playerId!, e.target.value as MatchPlayerRole)}
+      disabled={announced}
+      variant="outlined"
+      sx={{ minWidth: 120, '& .MuiInputBase-root': { fontSize: '0.75rem', height: 28 } }}
+      SelectProps={{ sx: { py: 0 } }}
+    >
+      {ROLE_OPTIONS.map(r => (
+        <MenuItem key={r} value={r} sx={{ fontSize: '0.8rem' }}>{ROLE_LABELS[r]}</MenuItem>
+      ))}
+    </TextField>
   );
 
   // ── Shared dialogs ────────────────────────────────────────────────────────
@@ -443,7 +463,7 @@ export const TeamSidePanel: React.FC<Props> = ({
                   return (
                     <ListItem
                       key={p.playerId}
-                      sx={{ borderRadius: 1, pr: 14 }}
+                      sx={{ borderRadius: 1, pr: 14, flexDirection: 'column', alignItems: 'flex-start' }}
                       secondaryAction={
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <IconButton size="small" disabled={idx === 0 || announced} onClick={() => moveUp(idx)}>
@@ -458,23 +478,17 @@ export const TeamSidePanel: React.FC<Props> = ({
                         </Box>
                       }
                     >
-                      <ListItemText
-                        primary={
-                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography component="span" variant="body2" color="text.secondary" sx={{ minWidth: 20 }}>
-                              {idx + 1}.
-                            </Typography>
-                            {`${p.name} ${p.surname}`}
-                            {p.shirtNumber != null && <Typography component="span" variant="caption" color="text.secondary">#{p.shirtNumber}</Typography>}
-                            {playerBadges(p, isCaptain, isWK)}
-                          </Box>
-                        }
-                        secondary={[
-                          formatEnum(p.battingStance),
-                          p.bowlingType && p.bowlingType !== 'NONE' ? formatEnum(p.bowlingType) : '',
-                          p.wicketKeeper ? 'Keeper' : '',
-                        ].filter(Boolean).join(' · ')}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, width: '100%' }}>
+                        <Typography component="span" variant="body2" color="text.secondary" sx={{ minWidth: 20 }}>
+                          {idx + 1}.
+                        </Typography>
+                        <Typography component="span" variant="body2">
+                          {p.name} {p.surname}
+                        </Typography>
+                        {p.shirtNumber != null && <Typography component="span" variant="caption" color="text.secondary">#{p.shirtNumber}</Typography>}
+                        <PlayerRoleIcons player={p} side={side} isCaptain={isCaptain} isWK={isWK} size="small" />
+                      </Box>
+                      <Box sx={{ mt: 0.5 }}>{roleSelector(p)}</Box>
                     </ListItem>
                   );
                 })}
@@ -533,7 +547,7 @@ export const TeamSidePanel: React.FC<Props> = ({
                           <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {`${p.name} ${p.surname}`}
                             {p.shirtNumber != null && <Typography component="span" variant="caption" color="text.secondary">#{p.shirtNumber}</Typography>}
-                            {playerBadges(p)}
+                            <PlayerRoleIcons player={p} side={side} isWK={p.wicketKeeper} size="small" />
                             {willSet12th && canAct && <Chip label="12th" size="small" color="info" sx={{ height: 16, fontSize: 10 }} />}
                           </Box>
                         }
@@ -614,17 +628,15 @@ export const TeamSidePanel: React.FC<Props> = ({
                         primary={
                           <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             {`${idx + 1}. ${p.name} ${p.surname}`}
-                            {isCaptain && <Typography component="span" sx={{ fontSize: '0.85rem' }}>👑</Typography>}
-                            {isWK && <Typography component="span" sx={{ fontSize: '0.85rem' }}>🧤</Typography>}
-                            {['OPENER', 'TOP_ORDER', 'MIDDLE_ORDER'].includes(p.battingPosition ?? '') && (
-                              <SportsCricket sx={{ fontSize: 13, color: 'text.secondary' }} />
-                            )}
-                            {p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler && (
-                              <Box component="span" sx={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', bgcolor: '#c0392b', border: '1px solid #922b21', flexShrink: 0 }} />
-                            )}
+                            <PlayerRoleIcons player={p} side={side} isCaptain={isCaptain} isWK={isWK} />
                           </Box>
                         }
-                        secondary={[formatEnum(p.battingStance), p.bowlingType && p.bowlingType !== 'NONE' ? formatEnum(p.bowlingType) : '', p.wicketKeeper ? 'Keeper' : ''].filter(Boolean).join(' · ')}
+                        secondary={
+                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {roleSelector(p)}
+                            <span>{[formatEnum(p.battingStance), p.bowlingType && p.bowlingType !== 'NONE' ? formatEnum(p.bowlingType) : '', p.wicketKeeper ? 'Keeper' : ''].filter(Boolean).join(' · ')}</span>
+                          </Box>
+                        }
                       />
                     </ListItem>
                   </React.Fragment>
@@ -719,10 +731,7 @@ export const TeamSidePanel: React.FC<Props> = ({
                       <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         {`${p.name} ${p.surname}`}
                         {p.shirtNumber != null && <Typography component="span" variant="caption" color="text.secondary">#{p.shirtNumber}</Typography>}
-                        {p.wicketKeeper && <Typography component="span" sx={{ fontSize: '0.75rem' }}>🧤</Typography>}
-                        {p.bowlingType && p.bowlingType !== 'NONE' && !p.partTimeBowler && (
-                          <Box component="span" sx={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', bgcolor: '#c0392b', border: '1px solid #922b21', flexShrink: 0 }} />
-                        )}
+                        <PlayerRoleIcons player={p} side={side} isWK={p.wicketKeeper} size="small" />
                       </Box>
                     }
                     secondary={playerSecondaryText(p)}

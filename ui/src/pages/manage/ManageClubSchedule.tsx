@@ -402,7 +402,7 @@ export const ManageClubSchedule: React.FC = () => {
     return (
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
-          <Button startIcon={<ArrowBack />} onClick={() => navigate('/manage-club/teams')}>Back</Button>
+          <Button startIcon={<ArrowBack />} onClick={() => navigate('/manage-club/teams')} />
           <Typography variant="h5">Schedule</Typography>
         </Box>
         <Skeleton variant="rounded" height={280} sx={{ mb: 2 }} />
@@ -417,7 +417,7 @@ export const ManageClubSchedule: React.FC = () => {
     <Box>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3, flexWrap: 'wrap' }}>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate('/manage-club/teams')} sx={{ flexShrink: 0 }}>Back</Button>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate('/manage-club/teams')} sx={{ flexShrink: 0 }} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="h5" noWrap sx={{ fontSize: { xs: '1.1rem', sm: '1.5rem' } }}>Schedule</Typography>
           <Typography variant="caption" color="text.secondary">{teamName}</Typography>

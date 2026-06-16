@@ -16,8 +16,9 @@ import { matchApi } from '../../api/matchApi';
 import { playerApi } from '../../api/playerApi';
 import { tournamentApi } from '../../api/tournamentApi';
 import { teamApi } from '../../api/teamApi';
-import { Match, MatchResult, Player, MatchSide, TeamScorecard, TossWinner, TossDecision, Tournament, ResultVisibility } from '../../types';
+import { Match, MatchResult, Player, MatchSide, PlayerMatchResult, ScorecardData, TeamScorecard, TossWinner, TossDecision, Tournament, ResultVisibility } from '../../types';
 import ScorecardCaptureTab from '../../components/match/ScorecardCaptureTab';
+import ScorecardImageImportDialog from '../../components/match/ScorecardImageImportDialog';
 
 const empty: MatchResult = {
   matchCompleted: false,
@@ -45,7 +46,7 @@ export interface MatchResultCaptureContentProps {
 
 export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps> = ({ matchId, onBack, sticky = true }) => {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isManager } = useAuth();
 
   const [match, setMatch]         = useState<Match | null>(null);
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -68,6 +69,7 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [unlinkedPlayers, setUnlinkedPlayers] = useState<UnlinkedPlayer[]>([]);
   const [unlinkedDialogOpen, setUnlinkedDialogOpen] = useState(false);
+  const [imageImportOpen, setImageImportOpen] = useState(false);
 
   useEffect(() => {
     const id = matchId;
@@ -77,7 +79,12 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
       matchApi.getResult(id).catch(() => null),
       playerApi.findAll(),
     ]).then(([m, sheets, existingResult, players]) => {
-      setMatch(m);
+      // Merge toss from result into match — managers save toss via result, not via match update
+      setMatch({
+        ...m,
+        tossWonBy:   m.tossWonBy   ?? existingResult?.tossWonBy,
+        tossDecision: m.tossDecision ?? existingResult?.tossDecision,
+      });
       setTeamSheets(sheets);
       setAllPlayers(players);
       if (existingResult) setResult(existingResult);
@@ -90,14 +97,14 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
       .finally(() => setLoading(false));
   }, [matchId]);
 
-  // Derive side batting first from toss whenever toss data changes
+  // Derive side batting first from toss whenever toss data changes; also persist toss in result
   useEffect(() => {
     if (!match?.tossWonBy || !match?.tossDecision) return;
     const { tossWonBy, tossDecision, homeTeamId, oppositionTeamId } = match;
     const derived = tossWonBy === 'HOME'
       ? (tossDecision === 'BAT' ? homeTeamId : oppositionTeamId)
       : (tossDecision === 'BAT' ? oppositionTeamId : homeTeamId);
-    if (derived) setResult(r => ({ ...r, sideBattingFirstId: derived }));
+    if (derived) setResult(r => ({ ...r, sideBattingFirstId: derived, tossWonBy, tossDecision }));
   }, [match?.tossWonBy, match?.tossDecision]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (patch: Partial<MatchResult>) => {
@@ -233,6 +240,74 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
     }
   };
 
+  const handleImageImport = useCallback((
+    scorecard: ScorecardData,
+    playerMatches: PlayerMatchResult[],
+  ) => {
+    // Apply the scorecard immediately — same pattern as JSON import
+    setSaved(false);
+    setDirty(true);
+    setScorecardOpen(true);
+    setResult(r => ({ ...r, scoreCard: scorecard }));
+
+    if (match) {
+      const firstTeamId  = result.sideBattingFirstId ?? match.homeTeamId;
+      const secondTeamId = Number(firstTeamId) === Number(match.homeTeamId)
+        ? match.oppositionTeamId : match.homeTeamId;
+      const teamName = (id?: number) => id != null
+        ? (Number(id) === Number(match.homeTeamId) ? match.homeTeamName : match.oppositionTeamName)
+        : undefined;
+
+      // SUGGESTED and UNMATCHED players need user action
+      const toResolve: UnlinkedPlayer[] = playerMatches
+        .filter(pm => pm.status !== 'MATCHED')
+        .map(pm => {
+          const teamId = pm.team === 'teamA' ? firstTeamId : secondTeamId;
+          return {
+            name: pm.name,
+            teamId: teamId!,
+            teamName: teamName(teamId) ?? pm.team,
+            creating: false,
+            created: false,
+            findMode: false,
+            suggestedName:     pm.status === 'SUGGESTED' ? pm.suggestedName     : undefined,
+            suggestedPlayerId: pm.status === 'SUGGESTED' ? pm.suggestedPlayerId : undefined,
+          };
+        })
+        .filter(u => u.teamId != null);
+
+      const deduped = toResolve.filter(
+        (u, i) => toResolve.findIndex(x => x.name === u.name && x.teamId === u.teamId) === i,
+      );
+
+      if (deduped.length > 0) {
+        setUnlinkedPlayers(deduped);
+        setUnlinkedDialogOpen(true);
+      }
+    }
+
+    setImageImportOpen(false);
+  }, [match, result]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleConfirmSuggested = (index: number, player: UnlinkedPlayer) => {
+    if (!player.suggestedPlayerId) return;
+    const pid = player.suggestedPlayerId;
+    setSaved(false);
+    setDirty(true);
+    setResult(r => {
+      const link = <T extends { playerName?: string; playerId?: number }>(entries: T[]): T[] =>
+        entries.map(e => e.playerName === player.name ? { ...e, playerId: pid } : e);
+      return {
+        ...r,
+        scoreCard: {
+          teamA: { ...r.scoreCard?.teamA, batting: link(r.scoreCard?.teamA?.batting ?? []), bowling: link(r.scoreCard?.teamA?.bowling ?? []) },
+          teamB: { ...r.scoreCard?.teamB, batting: link(r.scoreCard?.teamB?.batting ?? []), bowling: link(r.scoreCard?.teamB?.bowling ?? []) },
+        },
+      };
+    });
+    setUnlinkedPlayers(prev => prev.map((p, i) => i === index ? { ...p, created: true } : p));
+  };
+
   const patchMatch = (patch: Partial<Match>) => {
     setSaved(false);
     setDirty(true);
@@ -277,7 +352,9 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
   const playersFor = (teamId?: number): Player[] => {
     const sheet = teamSheets.find(s => Number(s.teamId) === Number(teamId));
     if (sheet?.playingXi?.length) {
-      return sheet.playingXi
+      const ids = [...sheet.playingXi];
+      if (sheet.twelfthManPlayerId != null) ids.push(sheet.twelfthManPlayerId);
+      return ids
         .map(id => allPlayers.find(p => p.playerId === id))
         .filter(Boolean) as Player[];
     }
@@ -572,17 +649,32 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
         <DialogTitle>Unlinked Players Found</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            The following players from the imported scorecard are not in their team's squad. Create them as new players, or find an existing player if the name differs.
+            The following players from the imported scorecard could not be automatically matched. Confirm suggestions, create new players, or find an existing player if the name differs.
           </DialogContentText>
           {unlinkedPlayers.map((p, i) => (
             <Box key={i} sx={{ mb: 1.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
                 <Typography sx={{ flex: 1 }}>{p.name}</Typography>
                 <Chip label={p.teamName} size="small" variant="outlined" />
                 {p.created ? (
                   <Chip label="Linked" color="success" size="small" />
                 ) : p.creating ? (
                   <CircularProgress size={20} />
+                ) : p.suggestedName && !p.suggestedRejected ? (
+                  // AI found a close match — ask the user to confirm
+                  <>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      Did you mean "{p.suggestedName}"?
+                    </Typography>
+                    <Button size="small" variant="contained" color="success"
+                      onClick={() => handleConfirmSuggested(i, p)}>
+                      Yes
+                    </Button>
+                    <Button size="small" variant="outlined"
+                      onClick={() => setUnlinkedPlayers(prev => prev.map((x, j) => j === i ? { ...x, suggestedRejected: true } : x))}>
+                      No
+                    </Button>
+                  </>
                 ) : p.findMode ? null : (
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button size="small" variant="outlined" onClick={() => handleCreateAndLink(i, p)}>
@@ -623,6 +715,16 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
           <Button onClick={() => setUnlinkedDialogOpen(false)}>Done</Button>
         </DialogActions>
       </Dialog>
+
+      <ScorecardImageImportDialog
+        open={imageImportOpen}
+        matchId={matchId}
+        teamAName={firstTeamName ?? 'Team A'}
+        teamBName={secondTeamName ?? 'Team B'}
+        firstBattingTeamId={result.sideBattingFirstId ?? match.homeTeamId}
+        onClose={() => setImageImportOpen(false)}
+        onImport={handleImageImport}
+      />
 
       {/* Sticky banner — full version when standalone, compact action bar when embedded */}
       {sticky ? (
@@ -761,8 +863,8 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
             </Alert>
           )}
 
-          {/* Scores, result and scorecard — only show once toss is done (or irrelevant) */}
-          {(result.forfeited || result.noResult || (!!match.tossWonBy && !!match.tossDecision)) && (
+          {/* Scores, result and scorecard — show when toss is set OR when a batting order already exists from a saved result */}
+          {(result.forfeited || result.noResult || (!!match.tossWonBy && !!match.tossDecision) || !!result.sideBattingFirstId) && (
             <>
           <Section title="Scores" collapsible open={scoresOpen} onToggle={() => setScoresOpen(o => !o)}>
             {result.sideBattingFirstId
@@ -875,8 +977,8 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
               style={{ display: 'none' }}
               onChange={handleImportJson}
             />
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
-              {isAdmin && (
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', mb: 2 }}>
+              {(isAdmin || isManager) && (
                 <Button
                   variant="outlined"
                   size="small"
@@ -885,6 +987,17 @@ export const MatchResultCaptureContent: React.FC<MatchResultCaptureContentProps>
                   onClick={() => { setImportError(null); importFileRef.current?.click(); }}
                 >
                   Import Scorecard JSON
+                </Button>
+              )}
+              {(isAdmin || isManager) && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AutoFixHigh />}
+                  disabled={!!result.forfeited}
+                  onClick={() => setImageImportOpen(true)}
+                >
+                  Import from Images (AI)
                 </Button>
               )}
               {importError && (
@@ -1097,6 +1210,10 @@ interface UnlinkedPlayer {
   creating: boolean;
   created: boolean;
   findMode: boolean;
+  // set when the AI suggested a close match that needs user confirmation
+  suggestedName?: string;
+  suggestedPlayerId?: number;
+  suggestedRejected?: boolean;
 }
 
 function detectUnlinkedPlayers(

@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 @Service
@@ -45,7 +46,13 @@ public class MatchSideServiceImpl implements MatchSideService {
     @Override
     public List<MatchSideDTO> findByMatch(Long matchId) {
         return matchSideRepository.findByMatchMatchId(matchId)
-                .stream().map(matchSideMapper::toDto).toList();
+                .stream()
+                .map(entity -> {
+                    MatchSideDTO dto = matchSideMapper.toDto(entity);
+                    dto.setPlayerRoles(new HashMap<>(entity.getPlayerRoles()));
+                    return dto;
+                })
+                .toList();
     }
 
     @Override
@@ -78,6 +85,10 @@ public class MatchSideServiceImpl implements MatchSideService {
         matchSide.setWicketKeeperPlayerId(dto.getWicketKeeperPlayerId());
         matchSide.setCaptainPlayerId(dto.getCaptainPlayerId());
         matchSide.setTeamAnnounced(dto.getTeamAnnounced());
+        if (dto.getPlayerRoles() != null) {
+            matchSide.getPlayerRoles().clear();
+            matchSide.getPlayerRoles().putAll(dto.getPlayerRoles());
+        }
 
         MatchSide saved = matchSideRepository.save(matchSide);
 
@@ -87,7 +98,9 @@ public class MatchSideServiceImpl implements MatchSideService {
             sendTeamAnnouncedNotifications(saved);
         }
 
-        return matchSideMapper.toDto(saved);
+        MatchSideDTO result = matchSideMapper.toDto(saved);
+        result.setPlayerRoles(new HashMap<>(saved.getPlayerRoles()));
+        return result;
     }
 
     private void sendTeamAnnouncedNotifications(MatchSide matchSide) {

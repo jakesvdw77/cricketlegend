@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import {
   EmojiEvents, SportsScore,
-  CheckCircle, Cancel, Remove, ArrowBack, Share, Close, Psychology, Edit, QueryStats,
+  CheckCircle, Cancel, Remove, ArrowBack, Share, Close, Psychology, Edit, QueryStats, Assessment,
 } from '@mui/icons-material';
 import { matchApi } from '../../api/matchApi';
 import { teamApi } from '../../api/teamApi';
@@ -19,6 +19,7 @@ import FacebookTemplate from '../admin/templates/FacebookTemplate';
 import ScorecardTemplate from '../admin/templates/ScorecardTemplate';
 import BroadcastScorecardTemplate from '../admin/templates/BroadcastScorecardTemplate';
 import ManOfTheMatchTemplate from '../admin/templates/ManOfTheMatchTemplate';
+import MatchResultGraphicTemplate from '../admin/templates/MatchResultGraphicTemplate';
 import { TemplateProps, TeamFilter } from '../admin/templates/types';
 import { GameAnalysisView } from '../../components/match/GameAnalysisView';
 import { ResultViewDialog } from './ResultViewDialog';
@@ -93,11 +94,12 @@ const groupByWeek = (matches: Match[]): WeekGroup[] => {
 
 // ── ShareMatchDialog ───────────────────────────────────────────────────────────
 
-type ShareStep = 'type' | 'template' | 'motm' | 'analysis';
+type ShareStep = 'type' | 'template' | 'motm' | 'analysis' | 'graphic';
 
 const SHARE_TYPES: { key: ShareStep; label: string; description: string; icon: React.ReactNode }[] = [
   { key: 'template', label: 'Match Result',     description: 'Result, scores & share templates',  icon: <SportsScore sx={{ fontSize: 32 }} /> },
   { key: 'motm',     label: 'Man of the Match',  description: 'Player highlight card with photo',  icon: <EmojiEvents  sx={{ fontSize: 32 }} /> },
+  { key: 'graphic',  label: 'Result Graphic',   description: 'TV-style 16:9 scorecard graphic',   icon: <Assessment   sx={{ fontSize: 32 }} /> },
   { key: 'analysis', label: 'Game Analysis',    description: 'AI-powered insights & chart data',   icon: <Psychology   sx={{ fontSize: 32 }} /> },
 ];
 
@@ -154,11 +156,11 @@ export const ShareMatchDialog: React.FC<{
   };
 
   const stepTitle: Record<ShareStep, string> = {
-    type: 'Share', template: 'Match Result', motm: 'Man of the Match', analysis: 'Game Analysis',
+    type: 'Share', template: 'Match Result', motm: 'Man of the Match', analysis: 'Game Analysis', graphic: 'Result Graphic',
   };
 
   return (
-    <Dialog open={!!match} onClose={onClose} maxWidth={step === 'analysis' ? 'lg' : 'md'} fullWidth fullScreen={step === 'analysis'}>
+    <Dialog open={!!match} onClose={onClose} maxWidth={step === 'analysis' ? 'lg' : 'md'} fullWidth fullScreen={step === 'analysis' || step === 'motm' || step === 'graphic'}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pr: 1 }}>
         {step !== 'type' && (
           <IconButton size="small" onClick={() => setStep('type')} sx={{ mr: 0.5 }}>
@@ -203,6 +205,11 @@ export const ShareMatchDialog: React.FC<{
           loading
             ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
             : <ManOfTheMatchTemplate {...templateProps} />
+
+        ) : step === 'graphic' ? (
+          loading
+            ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+            : <MatchResultGraphicTemplate {...templateProps} />
 
         ) : step === 'analysis' ? (
           teamId ? (
@@ -381,6 +388,16 @@ const MatchCard: React.FC<{ match: Match; teamId: number; onShare: (m: Match) =>
         <Typography variant="caption" color="text.disabled" noWrap sx={{ display: 'block', mt: 0.5 }}>
           {metaParts}
         </Typography>
+
+        {/* Tap hint */}
+        {m.matchId && (
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 1, pt: 0.75, borderTop: '1px dashed', borderColor: 'divider' }}>
+            <Assessment sx={{ fontSize: 13, color: 'primary.main', opacity: 0.7 }} />
+            <Typography variant="caption" sx={{ color: 'primary.main', opacity: 0.7, fontWeight: 500, letterSpacing: 0.2 }}>
+              Tap for full Match Details
+            </Typography>
+          </Box>
+        )}
       </CardContent>
     </Card>
   );
@@ -445,9 +462,7 @@ export const ManageTeamResults: React.FC = () => {
       {/* Toolbar */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
         {returnTo && (
-          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ flexShrink: 0 }}>
-            Back
-          </Button>
+          <Button startIcon={<ArrowBack />} size="small" onClick={() => navigate(returnTo)} sx={{ flexShrink: 0 }} />
         )}
         <SportsScore color="primary" sx={{ flexShrink: 0 }} />
         <Typography variant="h6" fontWeight={700} sx={{ flexShrink: 0 }}>Team Results</Typography>

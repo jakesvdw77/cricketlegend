@@ -308,6 +308,7 @@ export interface BattingEntry {
   dismissed?: boolean;
   dismissalType?: string;
   dismissedBowler?: string;
+  dismissedFielder?: string;
   dismissedDescription?: string;
   topPerformer?: boolean;
 }
@@ -342,6 +343,23 @@ export interface TeamScorecard {
 export interface ScorecardData {
   teamA?: TeamScorecard;
   teamB?: TeamScorecard;
+}
+
+export type PlayerMatchStatus = 'MATCHED' | 'SUGGESTED' | 'UNMATCHED';
+
+export interface PlayerMatchResult {
+  name: string;
+  team: 'teamA' | 'teamB';
+  status: PlayerMatchStatus;
+  matchedPlayerId?: number;
+  suggestedName?: string;
+  suggestedPlayerId?: number;
+  confidence: number;
+}
+
+export interface ScorecardImageImportResponse {
+  scorecard: ScorecardData;
+  playerMatches: PlayerMatchResult[];
 }
 
 export interface MatchResultSummary {
@@ -404,6 +422,8 @@ export interface MatchResult {
   winningTeamName?: string;
   manOfTheMatchId?: number;
   manOfTheMatchName?: string;
+  tossWonBy?: TossWinner;
+  tossDecision?: TossDecision;
   sideBattingFirstId?: number;
   sideBattingFirstName?: string;
   scoreBattingFirst?: number;
@@ -477,6 +497,17 @@ export interface TournamentStatsReport {
   overallRating: number;
 }
 
+export interface PlayerStatsReport {
+  generatedAt?: string;
+  summary: string;
+  battingAnalysis: string;
+  bowlingAnalysis: string;
+  strengths: string[];
+  areasForImprovement: string[];
+  recommendations: string[];
+  playerRating: number;
+}
+
 export interface SquadAnalysis {
   generatedAt?: string;
   squadSummary: string;
@@ -548,6 +579,20 @@ export interface MatchAnalysis {
       opposition: { name: string; runs: number; wickets: number; overs: string; runRate: number };
     };
   };
+}
+
+export interface MatchSummary {
+  generatedAt?: string;
+  narrative: string;
+  matchVerdict: string;
+  keyMoments: string[];
+  teamSummaries: Array<{
+    teamName: string;
+    innings: { runs: number; wickets: number; overs: string; runRate: number };
+    battingSummary: string;
+    bowlingSummary: string;
+    notablePlayers: Array<{ name: string; role: 'BAT' | 'BOWL'; contribution: string }>;
+  }>;
 }
 
 export interface PlayerResult {
@@ -707,6 +752,8 @@ export interface PagedLoginEventResponse {
   totalPages: number;
 }
 
+export type MatchPlayerRole = 'BATSMAN' | 'ALL_ROUNDER' | 'BOWLER';
+
 export interface MatchSide {
   matchSideId?: number;
   matchId?: number;
@@ -717,4 +764,5 @@ export interface MatchSide {
   wicketKeeperPlayerId?: number;
   captainPlayerId?: number;
   teamAnnounced?: boolean;
+  playerRoles?: Record<number, MatchPlayerRole>;
 }

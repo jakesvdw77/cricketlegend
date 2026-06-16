@@ -208,7 +208,8 @@ const BattingTable = React.memo<BattingTableProps>(function BattingTable({
             {entries.map((entry, i) => {
               const m       = dismissalMeta(entry.dismissalType);
               const topCount = entries.filter(e => e.topPerformer).length;
-              const fielder = parseFielder(entry.dismissedDescription, entry.dismissalType);
+              // Prefer the dedicated field; fall back to parsing the description for legacy entries
+              const fielder = entry.dismissedFielder ?? parseFielder(entry.dismissedDescription, entry.dismissalType);
               const bowler  = entry.dismissedBowler ?? '';
               const strike  = calcSR(entry.score, entry.ballsFaced);
 
@@ -225,12 +226,12 @@ const BattingTable = React.memo<BattingTableProps>(function BattingTable({
                 update(i, {
                   dismissedBowler: name,
                   dismissedDescription: buildDesc(entry.dismissalType, name, fielder),
-                  ...(id != null ? {} : {}),
                 });
               };
 
               const onFielderChange = (name: string) => {
                 update(i, {
+                  dismissedFielder: name,
                   dismissedDescription: buildDesc(entry.dismissalType, bowler, name),
                 });
               };
@@ -286,18 +287,12 @@ const BattingTable = React.memo<BattingTableProps>(function BattingTable({
 
                   {/* Fielder */}
                   <TableCell sx={dataCell}>
-                    <Autocomplete
-                      freeSolo
-                      options={fieldingTeamPlayers.map(p => `${p.name} ${p.surname}`)}
-                      inputValue={fielder}
+                    <PlayerAc
+                      playerList={fieldingTeamPlayers}
+                      value={fielder}
                       disabled={disabled || !m.hasFielder}
-                      sx={{ width: '100%' }}
-                      size="small"
-                      onInputChange={(_, val, reason) => { if (reason !== 'reset') onFielderChange(val); }}
-                      onChange={(_, val) => { if (typeof val === 'string') onFielderChange(val); }}
-                      renderInput={params => (
-                        <TextField {...params} size="small" variant="outlined" placeholder="Fielder" />
-                      )}
+                      onSelect={name => onFielderChange(name)}
+                      placeholder="Fielder"
                     />
                   </TableCell>
 
@@ -537,6 +532,16 @@ const InningsScorecardSection = React.memo<InningsSectionProps>(function Innings
   const batting  = card.batting  ?? [];
   const bowling  = card.bowling  ?? [];
 
+  // Auto-expand and auto-switch tab when imported data arrives
+  const batLen = batting.length;
+  const bowLen = bowling.length;
+  React.useEffect(() => {
+    if (batLen > 0 || bowLen > 0) {
+      setOpen(true);
+      if (batLen === 0 && bowLen > 0) setTab(1);
+    }
+  }, [batLen, bowLen]);
+
   const dismissedCount = batting.filter(b =>
     b.dismissalType && b.dismissalType !== 'NOT_OUT' && b.dismissalType !== 'RETIRED',
   ).length;
@@ -609,10 +614,12 @@ const InningsScorecardSection = React.memo<InningsSectionProps>(function Innings
         <Typography variant="h6" fontWeight={700} color={`${accentColor}.main`} sx={{ flex: 1 }}>
           {label}
         </Typography>
-        {(batting.length > 0 || totalExtras > 0) && (
+        {(batting.length > 0 || bowling.length > 0 || totalExtras > 0) && (
           <Typography variant="body2" color="text.secondary">
-            {totalScore}/{dismissedCount}
-            {oversDisplay && ` (${oversDisplay})`}
+            {batting.length > 0
+              ? `${totalScore}/${dismissedCount}${oversDisplay ? ` (${oversDisplay})` : ''}`
+              : `${bowling.length} bowler${bowling.length !== 1 ? 's' : ''}${oversDisplay ? ` (${oversDisplay})` : ''}`
+            }
           </Typography>
         )}
         <IconButton size="small" onClick={e => { e.stopPropagation(); setOpen(o => !o); }}>

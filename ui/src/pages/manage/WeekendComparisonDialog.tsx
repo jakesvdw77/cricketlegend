@@ -32,6 +32,7 @@ import {
   Warning,
 } from '@mui/icons-material';
 import { AvailabilityStatus, MatchSide, Player } from '../../types';
+import { PlayerRoleIcons } from '../../components/player/PlayerRoleIcons';
 import { pollApi } from '../../api/pollApi';
 import { TeamSidePanel } from '../../components/match/TeamSidePanel';
 import { XiEntry } from './TeamSelectionOverview';
@@ -55,6 +56,7 @@ interface Props {
   onClose: () => void;
   entries: XiEntry[];
   squadMap: Map<number, Player[]>;
+  onEntryChange?: (updated: XiEntry) => void;
 }
 
 const AvailIcon: React.FC<{ status?: AvailabilityStatus }> = ({ status }) => {
@@ -73,7 +75,7 @@ const AvailIcon: React.FC<{ status?: AvailabilityStatus }> = ({ status }) => {
 };
 
 export const WeekendComparisonDialog: React.FC<Props> = ({
-  open, onClose, entries, squadMap,
+  open, onClose, entries, squadMap, onEntryChange,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -164,7 +166,9 @@ export const WeekendComparisonDialog: React.FC<Props> = ({
       const squad = squadMap.get(teamId) ?? [];
       const playerById = new Map(squad.map(p => [p.playerId!, p]));
       const players = (side.playingXi ?? []).map(id => playerById.get(id)).filter(Boolean) as Player[];
-      return { ...e, side, players, captainPlayerId: side.captainPlayerId, wicketKeeperPlayerId: side.wicketKeeperPlayerId };
+      const updated: XiEntry = { ...e, side, players, captainPlayerId: side.captainPlayerId, wicketKeeperPlayerId: side.wicketKeeperPlayerId };
+      onEntryChange?.(updated);
+      return updated;
     }));
   };
 
@@ -281,11 +285,12 @@ export const WeekendComparisonDialog: React.FC<Props> = ({
                       <Typography variant="caption" color="text.secondary" sx={{ minWidth: 20, flexShrink: 0 }}>
                         {idx + 1}.
                       </Typography>
-                      <Typography variant="body2" sx={{ fontSize: '0.82rem', flex: 1, minWidth: 0 }} noWrap>
-                        {p.name} {p.surname}
-                        {isC ? ' 👑' : ''}
-                        {isWK ? ' 🧤' : ''}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                        <Typography variant="body2" sx={{ fontSize: '0.82rem' }} noWrap>
+                          {p.name} {p.surname}
+                        </Typography>
+                        <PlayerRoleIcons player={p} side={side} isCaptain={isC} isWK={isWK} size="small" />
+                      </Box>
                       {isConflict && (
                         <Tooltip title="Selected in multiple teams">
                           <Warning sx={{ fontSize: 14, color: 'warning.main', ml: 0.5, flexShrink: 0 }} />
@@ -326,13 +331,16 @@ export const WeekendComparisonDialog: React.FC<Props> = ({
                     return (
                       <ListItem key={p.playerId} disablePadding sx={{ py: 0.15, gap: 0.5 }}>
                         <AvailIcon status={status} />
-                        <Typography
-                          variant="body2"
-                          sx={{ fontSize: '0.82rem', color: status === 'NO' ? 'text.disabled' : 'text.primary' }}
-                          noWrap
-                        >
-                          {p.name} {p.surname}{p.wicketKeeper ? ' 🧤' : ''}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontSize: '0.82rem', color: status === 'NO' ? 'text.disabled' : 'text.primary' }}
+                            noWrap
+                          >
+                            {p.name} {p.surname}
+                          </Typography>
+                          <PlayerRoleIcons player={p} side={null} isWK={p.wicketKeeper} size="small" />
+                        </Box>
                       </ListItem>
                     );
                   })}
