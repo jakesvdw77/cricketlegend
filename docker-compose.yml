@@ -56,15 +56,15 @@ services:
       KC_DB_PASSWORD: keycloakpassword
       KC_HOSTNAME: cricketlegend.co.za
       KC_HOSTNAME_STRICT: "false"
-      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/certs/fullchain.pem
-      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/certs/privkey.pem
+      KC_HTTPS_CERTIFICATE_FILE: /etc/letsencrypt/live/cricketlegend.co.za/fullchain.pem
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /etc/letsencrypt/live/cricketlegend.co.za/privkey.pem
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin123
       KC_FEATURES: token-exchange
     ports:
       - "8443:8443"
     volumes:
-      - /etc/letsencrypt/live/cricketlegend.co.za:/opt/keycloak/certs:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./keycloak/themes/cricketlegend:/opt/keycloak/themes/cricketlegend
       - ./keycloak/themes/quizmaster:/opt/keycloak/themes/quizmaster
     depends_on:
