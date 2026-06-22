@@ -64,7 +64,7 @@ services:
     ports:
       - "8443:8443"
     volumes:
-      - ./keycloak/certs:/opt/keycloak/certs:ro
+      - /etc/letsencrypt/live/cricketlegend.co.za:/opt/keycloak/certs:ro
       - ./keycloak/themes/cricketlegend:/opt/keycloak/themes/cricketlegend
       - ./keycloak/themes/quizmaster:/opt/keycloak/themes/quizmaster
     depends_on:
